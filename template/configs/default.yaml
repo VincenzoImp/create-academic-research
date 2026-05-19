@@ -1,0 +1,15 @@
+project:
+  slug: academic-research-project
+  title: Academic Research Project
+  profile: academic-general
+  package: project_package
+
+paths:
+  sources: sources
+  sota: sota
+  wiki: wiki
+  experiments: experiments
+  outputs: outputs
+
+run:
+  seed: 42

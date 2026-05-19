@@ -1,0 +1,59 @@
+{
+  "name": "create-academic-research",
+  "version": "0.1.0",
+  "description": "Create and manage agent-ready academic research repositories.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Vincenzo Imperati",
+  "keywords": [
+    "academic-research",
+    "research-project",
+    "agent-skills",
+    "mcp",
+    "literature-review",
+    "reproducibility"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VincenzoImp/create-academic-research.git"
+  },
+  "bugs": {
+    "url": "https://github.com/VincenzoImp/create-academic-research/issues"
+  },
+  "homepage": "https://github.com/VincenzoImp/create-academic-research#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "create-academic-research": "./dist/bin/create-academic-research.js",
+    "academic-research": "./dist/bin/academic-research.js"
+  },
+  "files": [
+    "dist",
+    "template",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test",
+    "lint": "npm run typecheck && node scripts/validate.mjs",
+    "release:check": "node scripts/check-release.mjs",
+    "prepare": "npm run build",
+    "audit:local": "npm test && npm run lint"
+  },
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "typescript": "^5.9.3"
+  }
+}
