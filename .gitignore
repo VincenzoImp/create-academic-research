@@ -1,0 +1,10 @@
+node_modules/
+dist/
+npm-debug.log*
+*.tgz
+.DS_Store
+.agents/
+skills-lock.json
+__pycache__/
+.pytest_cache/
+.ruff_cache/

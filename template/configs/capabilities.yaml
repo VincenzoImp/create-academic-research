@@ -1,0 +1,4 @@
+agent: auto
+preset: default
+scope: project-local
+mcp_servers: []
