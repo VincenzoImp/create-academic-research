@@ -256,7 +256,7 @@ async function mcpCommand(argv: string[]): Promise<number> {
     const enabled = new Set(state.mcp_servers ?? []);
     for (const [name, server] of Object.entries(AGENT_STACK.mcp_servers)) {
       const status = enabled.has(name) ? "enabled" : "available";
-      const installer = server.install_command || "manual";
+      const installer = mcpInstallMode(server.install_command, server.command);
       console.log(`${status}\t${name}\t${server.source_need}\t${installer}`);
     }
     return 0;
@@ -273,7 +273,7 @@ async function mcpCommand(argv: string[]): Promise<number> {
     assertOnlyOptions(parsed.flags, "mcp available", []);
     assertNoArguments(parsed.positionals, "mcp available");
     for (const [name, server] of Object.entries(AGENT_STACK.mcp_servers)) {
-      const installer = server.install_command || "manual";
+      const installer = mcpInstallMode(server.install_command, server.command);
       console.log(`${name}\t${server.source_need}\t${installer}`);
     }
     return 0;
@@ -419,6 +419,11 @@ function assertOnlyOptions(
   }
 }
 
+function mcpInstallMode(installCommand: string, runtimeCommand: string): string {
+  if (installCommand) return installCommand;
+  return runtimeCommand ? "runtime-only" : "manual";
+}
+
 function printCreateHelp(): void {
   console.log(
     [
@@ -436,7 +441,7 @@ function printCreateHelp(): void {
       "  --agent <name>            Agent target. Default: auto-detect.",
       "  --install-skills          Install project-local skills without prompting.",
       "  --no-install-skills       Skip project-local skill installation.",
-      "  --install-mcp-tools       Run external MCP install commands after creation.",
+      "  --install-mcp-tools       Run finite external MCP install commands after creation.",
       "  -h, --help               Show this help.",
       "  -v, --version            Show package version."
     ].join("\n")
@@ -490,7 +495,7 @@ function printMcpHelp(): void {
     [
       "Usage: academic-research mcp <list|enabled|available|commands|enable|disable|install|uninstall|doctor> [servers...]",
       "",
-      "Manage MCP records and explicit external MCP tool installs.",
+      "Manage MCP records and finite external MCP tool installs.",
       "",
       "Options:",
       "  --root <path>            Project root for project-state commands.",

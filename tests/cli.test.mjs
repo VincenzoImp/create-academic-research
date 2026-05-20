@@ -39,7 +39,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.1\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.2\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -237,7 +237,9 @@ test("academic-research mcp list reports enabled and available servers", async (
 
   assert.equal(list.status, 0, list.stderr + list.stdout);
   assert.match(list.stdout, /enabled\tarxiv/);
+  assert.match(list.stdout, /enabled\tsemantic-scholar\t.*\truntime-only/);
   assert.match(list.stdout, /available\tzotero/);
+  assert.match(list.stdout, /available\tcrossref\t.*\tmanual/);
 
   const enabled = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "enabled", "--root", target], {
     cwd: root,

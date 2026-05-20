@@ -223,3 +223,39 @@ test("MCP install and uninstall are explicit external tool operations", async ()
   assert.deepEqual(calls[1].command.slice(0, 3), ["uv", "tool", "uninstall"]);
   assert.ok(calls.every((call) => call.cwd === target));
 });
+
+test("MCP install skips runtime-only servers that would launch over stdio", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-runtime-only-"));
+  const target = join(root, "mcp-runtime-only-project");
+  await createProject({ target, title: "MCP Runtime Only Project", preset: "minimal", installSkills: false });
+  const runtimeOnly = ["semantic-scholar", "openalex", "pubmed", "zotero"];
+
+  const calls = [];
+  const result = await installMcpTools(target, runtimeOnly, {
+    run: async (command, options) => calls.push({ command, cwd: options.cwd })
+  });
+
+  assert.equal(result.count, 0);
+  assert.deepEqual(calls, []);
+  assert.deepEqual(mcpToolCommandTexts(runtimeOnly), []);
+});
+
+test("full preset MCP install runs only finite installers", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-full-install-"));
+  const target = join(root, "mcp-full-install-project");
+  await createProject({ target, title: "MCP Full Install Project", preset: "full", installSkills: false });
+
+  const calls = [];
+  const result = await installMcpTools(target, [], {
+    run: async (command, options) => calls.push({ command, cwd: options.cwd })
+  });
+  const rendered = calls.map((call) => call.command.join(" ")).join("\n");
+
+  assert.equal(result.count, 2);
+  assert.match(rendered, /uv tool install arxiv-mcp-server/);
+  assert.match(rendered, /uv tool install overleaf-mcp-server/);
+  assert.doesNotMatch(rendered, /semantic-scholar-mcp/);
+  assert.doesNotMatch(rendered, /openalex-mcp-server/);
+  assert.doesNotMatch(rendered, /pubmed-mcp-server/);
+  assert.doesNotMatch(rendered, /zoty/);
+});

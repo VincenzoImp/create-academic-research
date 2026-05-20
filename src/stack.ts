@@ -146,8 +146,7 @@ export const AGENT_STACK: AgentStack = {
     "semantic-scholar": {
       priority: "default",
       source_need: "Semantic Scholar papers, citations, authors, and recommendations.",
-      install_command:
-        "uvx --from git+https://github.com/akapet00/semantic-scholar-mcp semantic-scholar-mcp --help",
+      install_command: "",
       uninstall_command: "",
       command: "uvx",
       args: ["--from", "git+https://github.com/akapet00/semantic-scholar-mcp", "semantic-scholar-mcp"],
@@ -158,7 +157,7 @@ export const AGENT_STACK: AgentStack = {
     openalex: {
       priority: "default",
       source_need: "OpenAlex broad scholarly graph.",
-      install_command: "npx -y @cyanheads/openalex-mcp-server --help",
+      install_command: "",
       uninstall_command: "",
       command: "npx",
       args: ["-y", "@cyanheads/openalex-mcp-server"],
@@ -180,7 +179,7 @@ export const AGENT_STACK: AgentStack = {
     pubmed: {
       priority: "domain-specific",
       source_need: "PubMed and biomedical literature.",
-      install_command: "npx -y @cyanheads/pubmed-mcp-server --help",
+      install_command: "",
       uninstall_command: "",
       command: "npx",
       args: ["-y", "@cyanheads/pubmed-mcp-server"],
@@ -191,7 +190,7 @@ export const AGENT_STACK: AgentStack = {
     zotero: {
       priority: "local-library",
       source_need: "Zotero local library and attachments.",
-      install_command: "uvx zoty --help",
+      install_command: "",
       uninstall_command: "",
       command: "uvx",
       args: ["zoty", "mcp"],

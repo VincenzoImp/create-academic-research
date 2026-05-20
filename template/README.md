@@ -64,9 +64,9 @@ npx academic-research mcp install arxiv
 
 `skills list` reports installed project-local skills. `skills presets` reports
 available install presets. `mcp enable` changes project records. `mcp commands`
-prints external install commands without running them. `mcp install` runs
-external tool installation commands and should be used only after reviewing the
-selected MCP.
+prints finite external install commands without running them. `mcp install`
+runs only finite tool installation commands; runtime-only `uvx`/`npx` MCP
+servers may have no install step and are started later by the MCP client.
 
 `default` installs the companion academic research skill package and keeps the
 MCP records focused on core scholarly discovery. `enhanced` adds complementary

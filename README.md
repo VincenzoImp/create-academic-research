@@ -14,6 +14,9 @@ Equivalent explicit form:
 npx create-academic-research@latest my-project
 ```
 
+Prefer the explicit `@latest` form. Some npm/npx versions reuse an older
+cached creator when the version is omitted.
+
 From GitHub:
 
 ```bash
@@ -112,10 +115,10 @@ MCP commands are split by side-effect:
 | `mcp list` | List known MCP servers with enabled/available status. |
 | `mcp enabled` | List only enabled MCP server ids. |
 | `mcp available` | List the local MCP catalog. |
-| `mcp commands` | Print external install commands without running them. |
+| `mcp commands` | Print finite external install commands without running them. Runtime-only `uvx`/`npx` servers may have no install command. |
 | `mcp enable` | Enable an MCP server in project records and generated snippets. |
 | `mcp disable` | Remove an MCP server from project records and generated snippets. |
-| `mcp install` | Run the external tool install command for selected MCP servers. |
+| `mcp install` | Run finite external tool install commands for selected MCP servers. It must not launch stdio MCP servers. |
 | `mcp uninstall` | Run the external uninstall command when one exists. |
 | `mcp doctor` | Validate enabled MCP records and generated snippets. |
 
@@ -161,8 +164,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.1 -m "v0.1.1"
-git push origin main v0.1.1
+git tag -a v0.1.2 -m "v0.1.2"
+git push origin main v0.1.2
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag
