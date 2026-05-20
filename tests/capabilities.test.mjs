@@ -7,10 +7,12 @@ import YAML from "yaml";
 
 import {
   buildSkillInstallCommands,
+  buildExplicitSkillInstallCommands,
   disableMcpServers,
   doctorMcpServers,
   enableMcpServers,
   installMcpTools,
+  installSkillIds,
   installSkills,
   mcpToolCommandTexts,
   readCapabilities,
@@ -86,6 +88,34 @@ test("enhanced preset includes complementary external skill bundles explicitly",
   assert.match(rendered, /anthropics\/skills/);
   assert.match(rendered, /existential-birds\/beagle/);
   assert.ok(commands.every((command) => command.includes("--copy")));
+});
+
+test("explicit skill installs map ids to canonical skill sources", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-explicit-"));
+  const target = join(root, "skills-explicit-project");
+  await createProject({ target, title: "Skills Explicit Project", preset: "default", installSkills: false });
+
+  const commands = await buildExplicitSkillInstallCommands(
+    target,
+    ["source-ingestion", "frontend-design", "docling", "brainstorming"],
+    { agent: "codex" }
+  );
+  const rendered = commands.map((command) => command.join(" ")).join("\n");
+  const calls = [];
+  await installSkillIds(target, ["source-ingestion", "source-ingestion"], { agent: "codex" }, {
+    run: async (command, options) => calls.push({ command, cwd: options.cwd })
+  });
+
+  assert.equal(commands.length, 4);
+  assert.match(rendered, /VincenzoImp\/academic-research-skills --agent codex --skill source-ingestion --copy -y/);
+  assert.match(rendered, /anthropics\/skills --agent codex --skill frontend-design --copy -y/);
+  assert.match(rendered, /existential-birds\/beagle --agent codex --skill docling --copy -y/);
+  assert.match(rendered, /obra\/superpowers --agent codex --skill brainstorming --copy -y/);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].command.join(" "), /--skill source-ingestion --copy -y/);
+  assert.ok(calls.every((call) => call.cwd === target));
+
+  await assert.rejects(buildExplicitSkillInstallCommands(target, ["made-up-skill"]), /unknown skill id: made-up-skill/);
 });
 
 test("full preset keeps research policy inside the academic research package", async () => {

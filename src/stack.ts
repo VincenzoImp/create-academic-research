@@ -3,6 +3,12 @@ export interface SkillBundle {
   commands: string[];
 }
 
+export interface SkillSource {
+  description: string;
+  source: string;
+  skills: string[];
+}
+
 export interface CapabilityPreset {
   description: string;
   skill_bundles: string[];
@@ -33,6 +39,7 @@ export interface AgentStack {
   version: number;
   description: string;
   skill_bundles: Record<string, SkillBundle>;
+  skill_sources: Record<string, SkillSource>;
   presets: Record<string, CapabilityPreset>;
   mcp_servers: Record<string, McpServer>;
 }
@@ -61,6 +68,76 @@ export const AGENT_STACK: AgentStack = {
       commands: [
         "npm exec --yes --package skills -- skills add existential-birds/beagle {agent_flag} --skill docling --copy -y"
       ]
+    }
+  },
+  skill_sources: {
+    academic_research: {
+      description: "Academic research skills maintained by this project.",
+      source: "VincenzoImp/academic-research-skills",
+      skills: [
+        "academic-mcp-tooling",
+        "adversarial-peer-review",
+        "artifact-open-science",
+        "citation-bibliography-tooling",
+        "citation-claim-audit",
+        "cs-methodology-evaluation",
+        "cs-venue-strategy",
+        "document-conversion",
+        "ethics-data-governance",
+        "experiment-logbook",
+        "paper-writing-review",
+        "rebuttal-revision-strategy",
+        "repo-migration",
+        "research-data-analysis",
+        "research-design-positioning",
+        "research-project-maintenance",
+        "research-project-router",
+        "research-repo-reproduction",
+        "research-ui-prototyping",
+        "skill-evaluation",
+        "sota-literature-review",
+        "source-ingestion",
+        "systematic-review-prisma"
+      ]
+    },
+    superpowers: {
+      description: "General agent engineering skills from Superpowers.",
+      source: "obra/superpowers",
+      skills: [
+        "brainstorming",
+        "dispatching-parallel-agents",
+        "executing-plans",
+        "finishing-a-development-branch",
+        "receiving-code-review",
+        "requesting-code-review",
+        "subagent-driven-development",
+        "systematic-debugging",
+        "test-driven-development",
+        "using-git-worktrees",
+        "using-superpowers",
+        "verification-before-completion",
+        "writing-plans",
+        "writing-skills"
+      ]
+    },
+    anthropics: {
+      description: "Document, frontend, testing, MCP, and skill-authoring helpers.",
+      source: "anthropics/skills",
+      skills: [
+        "docx",
+        "frontend-design",
+        "mcp-builder",
+        "pdf",
+        "pptx",
+        "skill-creator",
+        "webapp-testing",
+        "xlsx"
+      ]
+    },
+    docling: {
+      description: "Document conversion helper from the Beagle collection.",
+      source: "existential-birds/beagle",
+      skills: ["docling"]
     }
   },
   presets: {

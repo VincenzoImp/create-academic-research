@@ -93,6 +93,7 @@ npx academic-research agents list
 npx academic-research skills presets
 npx academic-research skills install --preset default
 npx academic-research skills install --preset enhanced
+npx academic-research skills install source-ingestion sota-literature-review
 npx academic-research skills list
 npx academic-research skills status
 npx academic-research skills remove source-ingestion
@@ -122,7 +123,7 @@ Skills are project-local by default.
 | Command | Meaning |
 |---|---|
 | `skills presets` | List available capability presets. |
-| `skills install` | Install project-local skills for the selected preset and project agent. This does not change MCP records. |
+| `skills install` | Install project-local skills by preset, or selected skill ids such as `source-ingestion`. This does not change MCP records. |
 | `skills list` | List skills found in project-local skill loader directories. |
 | `skills status` | Show configured project preset, agent, scope, skill roots, unique skill ids, and installed copies. |
 | `skills remove` / `skills uninstall` | Remove selected project-local skills. |
@@ -215,8 +216,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.7 -m "v0.1.7"
-git push origin main v0.1.7
+git tag -a v0.1.8 -m "v0.1.8"
+git push origin main v0.1.8
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

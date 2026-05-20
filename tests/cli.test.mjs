@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -44,6 +44,7 @@ test("create-academic-research help exits successfully and explains framing", ()
   assert.match(createHelp.stdout, /--title <name>/);
   assert.match(createHelp.stdout, /--slug <name>/);
   assert.match(createHelp.stdout, /--package <name>/);
+  assert.match(createHelp.stdout, /--no-install-mcp-tools/);
 
   const lifecycleHelp = spawnSync(process.execPath, ["dist/bin/academic-research.js", "help"], {
     cwd: root,
@@ -67,7 +68,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.7\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.8\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -221,6 +222,44 @@ test("create-academic-research rejects conflicting skill install flags", async (
   assert.doesNotMatch(create.stderr, /Node\.js v/);
 });
 
+test("create-academic-research accepts explicit MCP installer opt-out", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-no-mcp-install-"));
+  const target = join(temp, "cli-no-mcp-install-project");
+  const create = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/create-academic-research.js",
+      target,
+      "--yes",
+      "--no-install-skills",
+      "--no-install-mcp-tools"
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(create.status, 0, create.stderr + create.stdout);
+  const config = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  assert.deepEqual(config.mcp_servers, ["arxiv"]);
+});
+
+test("create-academic-research rejects conflicting MCP install flags", async () => {
+  const create = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/create-academic-research.js",
+      "conflicting-mcp-flags",
+      "--yes",
+      "--install-mcp-tools",
+      "--no-install-mcp-tools"
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.notEqual(create.status, 0);
+  assert.match(create.stderr, /cannot use --install-mcp-tools and --no-install-mcp-tools together/);
+  assert.doesNotMatch(create.stderr, /Node\.js v/);
+});
+
 test("academic-research lifecycle binary manages MCP records", async () => {
   const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-"));
   const target = join(temp, "cli-mcp-project");
@@ -301,11 +340,76 @@ test("academic-research skills remove is project-local and rejects agent scoping
   assert.match(remove.stderr, /skills remove is project-local and does not take --agent/);
 });
 
+test("academic-research skills install accepts explicit skill ids", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-skills-install-id-"));
+  const target = join(temp, "cli-skills-install-id-project");
+  const fakeBin = join(temp, "bin");
+  const npmLog = join(temp, "npm-args.log");
+  await mkdir(fakeBin, { recursive: true });
+  await writeFile(
+    join(fakeBin, "npm"),
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${npmLog}"\nexit 0\n`,
+    "utf8"
+  );
+  await chmod(join(fakeBin, "npm"), 0o755);
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const install = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "skills",
+      "install",
+      "source-ingestion",
+      "sota-literature-review",
+      "--agent",
+      "codex",
+      "--root",
+      target
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH ?? ""}` }
+    }
+  );
+
+  assert.equal(install.status, 0, install.stderr + install.stdout);
+  assert.match(install.stdout, /Installed 2 skill\(s\) with 1 command\(s\)/);
+  const npmArgs = await readFile(npmLog, "utf8");
+  assert.match(npmArgs, /skills add VincenzoImp\/academic-research-skills --agent codex --skill source-ingestion sota-literature-review --copy -y/);
+  const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  assert.equal(capabilities.agent, "codex");
+  assert.equal(capabilities.preset, "default");
+});
+
+test("academic-research skills install rejects unknown explicit skill ids", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-skills-install-unknown-"));
+  const target = join(temp, "cli-skills-install-unknown-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const install = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "skills", "install", "made-up-skill", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.notEqual(install.status, 0);
+  assert.match(install.stderr, /unknown skill id: made-up-skill/);
+});
+
 test("academic-research rejects options that do not affect the selected skills command", () => {
   const cases = [
     [["skills", "list", "--agent", "example-agent"], /skills list does not accept --agent/],
     [["skills", "status", "--preset", "minimal"], /skills status does not accept --preset/],
     [["skills", "presets", "--root", "."], /skills presets does not accept --root/],
+    [["skills", "install", "source-ingestion", "--preset", "minimal"], /skills install does not accept --preset when skill ids are provided/],
     [["skills", "remove", "source-ingestion", "--preset", "minimal"], /skills remove does not accept --preset/],
     [["skills", "update", "--agent", "example-agent"], /skills update does not accept --agent/]
   ];

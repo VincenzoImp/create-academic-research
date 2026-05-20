@@ -57,6 +57,7 @@ npx academic-research skills presets
 npx academic-research agents list
 npx academic-research skills install --preset default
 npx academic-research skills install --preset enhanced
+npx academic-research skills install source-ingestion sota-literature-review
 npx academic-research skills list
 npx academic-research skills status
 npx academic-research setup

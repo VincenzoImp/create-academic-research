@@ -30,6 +30,7 @@ export interface InitializeCapabilitiesOptions {
 export interface CapabilityCommandResult {
   ok: true;
   count?: number;
+  skills?: string[];
   servers?: string[];
 }
 
@@ -113,6 +114,29 @@ export async function buildSkillInstallCommands(
   return commands;
 }
 
+export async function buildExplicitSkillInstallCommands(
+  root: string,
+  skills: string[],
+  options: SkillInstallOptions = {}
+): Promise<string[][]> {
+  const selectedSkills = normalizeSkillIds(skills);
+  const state = await readCapabilities(root);
+  const agent = assertKnownAgentTarget(options.agent ?? state.agent);
+  const skillsBySource = new Map<string, string[]>();
+
+  for (const skill of selectedSkills) {
+    const source = skillSourceForId(skill);
+    if (!source) throw new Error(`unknown skill id: ${skill}`);
+    const sourceSkills = skillsBySource.get(source) ?? [];
+    sourceSkills.push(skill);
+    skillsBySource.set(source, sourceSkills);
+  }
+
+  return [...skillsBySource.entries()].map(([source, sourceSkills]) =>
+    skillAddCommand(source, sourceSkills, agent)
+  );
+}
+
 export async function installSkills(
   root: string,
   preset = "default",
@@ -133,6 +157,28 @@ export async function installSkills(
     });
   }
   return { ok: true, count: commands.length };
+}
+
+export async function installSkillIds(
+  root: string,
+  skills: string[],
+  options: SkillInstallOptions = {},
+  runner: Runner = defaultRunner
+): Promise<CapabilityCommandResult> {
+  const state = await readCapabilities(root);
+  const agent = assertKnownAgentTarget(options.agent ?? state.agent);
+  const selectedSkills = normalizeSkillIds(skills);
+  const commands = await buildExplicitSkillInstallCommands(root, selectedSkills, options);
+  for (const command of commands) {
+    await runner.run(command, { cwd: root });
+  }
+  if (state.agent !== agent) {
+    await writeCapabilities(root, {
+      ...state,
+      agent
+    });
+  }
+  return { ok: true, count: commands.length, skills: selectedSkills };
 }
 
 export async function listInstalledSkills(root: string): Promise<InstalledSkill[]> {
@@ -384,6 +430,7 @@ async function writeCapabilityProfile(root: string, state: CapabilityState): Pro
     "## Skills",
     "",
     `- Install with: \`academic-research skills install --preset ${state.preset ?? "default"}\``,
+    "- Install selected skills with: `academic-research skills install <skill-id> [...]`",
     "- List installed with: `academic-research skills list`",
     "- List presets with: `academic-research skills presets`",
     "- Remove with: `academic-research skills remove <skill>`",
@@ -493,6 +540,49 @@ function renderSkillCommand(command: string, agent: string): string {
   const normalized = assertKnownAgentTarget(agent);
   const agentFlag = normalized === AUTO_AGENT ? "" : `--agent '${normalized}'`;
   return command.replaceAll("{agent_flag}", agentFlag).replaceAll("{agent}", normalized);
+}
+
+function skillAddCommand(source: string, skills: string[], agent: string): string[] {
+  return [
+    "npm",
+    "exec",
+    "--yes",
+    "--package",
+    "skills",
+    "--",
+    "skills",
+    "add",
+    source,
+    ...skillAgentArgs(agent),
+    "--skill",
+    ...skills,
+    "--copy",
+    "-y"
+  ];
+}
+
+function skillAgentArgs(agent: string): string[] {
+  const normalized = assertKnownAgentTarget(agent);
+  return normalized === AUTO_AGENT ? [] : ["--agent", normalized];
+}
+
+function normalizeSkillIds(skills: string[]): string[] {
+  if (skills.length === 0) throw new Error("no skills selected");
+  const result: string[] = [];
+  for (const skill of skills) {
+    if (!/^[a-z0-9][a-z0-9._-]*$/.test(skill)) {
+      throw new Error(`invalid skill id: ${skill}`);
+    }
+    if (!result.includes(skill)) result.push(skill);
+  }
+  return result;
+}
+
+function skillSourceForId(skill: string): string | undefined {
+  for (const source of Object.values(AGENT_STACK.skill_sources)) {
+    if (source.skills.includes(skill)) return source.source;
+  }
+  return undefined;
 }
 
 function appendMcpPrerequisiteLines(

@@ -9,6 +9,7 @@ import {
   enableMcpServers,
   DEFAULT_AGENT,
   installMcpTools,
+  installSkillIds,
   installSkills,
   listInstalledSkills,
   mcpToolCommandTexts,
@@ -41,7 +42,15 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const packageVersion = readPackageVersion();
 
 const CREATE_FLAGS = flagSchema(
-  ["yes", "help", "version", "install-skills", "no-install-skills", "install-mcp-tools"],
+  [
+    "yes",
+    "help",
+    "version",
+    "install-skills",
+    "no-install-skills",
+    "install-mcp-tools",
+    "no-install-mcp-tools"
+  ],
   ["title", "slug", "package", "preset", "profile", "agent"]
 );
 
@@ -78,6 +87,9 @@ async function createMain(argv: string[]): Promise<number> {
   if (flagBool(parsed.flags, "install-skills") && flagBool(parsed.flags, "no-install-skills")) {
     throw new Error("cannot use --install-skills and --no-install-skills together");
   }
+  if (flagBool(parsed.flags, "install-mcp-tools") && flagBool(parsed.flags, "no-install-mcp-tools")) {
+    throw new Error("cannot use --install-mcp-tools and --no-install-mcp-tools together");
+  }
   if (parsed.positionals.length > 1) {
     throw new Error(`unexpected argument: ${parsed.positionals[1]}`);
   }
@@ -96,7 +108,10 @@ async function createMain(argv: string[]): Promise<number> {
     flagBool(parsed.flags, "install-skills") || flagBool(parsed.flags, "no-install-skills")
       ? defaults.installSkills
       : undefined;
-  const installMcpToolsLock = flagBool(parsed.flags, "install-mcp-tools") ? true : undefined;
+  const installMcpToolsLock =
+    flagBool(parsed.flags, "install-mcp-tools") || flagBool(parsed.flags, "no-install-mcp-tools")
+      ? defaults.installMcpTools
+      : undefined;
   const answers: CreatePromptAnswers = interactive
     ? await askInteractiveCreateOptions(defaults, {
         installSkills: installSkillsLock,
@@ -276,8 +291,19 @@ async function skillsCommand(argv: string[]): Promise<number> {
   if (subcommand === "install") {
     assertOnlyOptions(parsed.flags, "skills install", ["root", "preset", "agent"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
-    assertNoArguments(parsed.positionals, "skills install");
-    const preset = flagString(parsed.flags, "preset") ?? "default";
+    const explicitSkills = parsed.positionals;
+    const explicitPreset = flagString(parsed.flags, "preset");
+    if (explicitSkills.length > 0) {
+      if (explicitPreset) throw new Error("skills install does not accept --preset when skill ids are provided");
+      const result = await installSkillIds(root, explicitSkills, {
+        agent: flagString(parsed.flags, "agent")
+      });
+      console.log(
+        `Installed ${result.skills?.length ?? explicitSkills.length} skill(s) with ${result.count ?? 0} command(s).`
+      );
+      return 0;
+    }
+    const preset = explicitPreset ?? "default";
     const result = await installSkills(root, preset, {
       agent: flagString(parsed.flags, "agent")
     });
@@ -559,6 +585,7 @@ function printCreateHelp(): void {
       "  --install-skills          Install project-local skills without prompting.",
       "  --no-install-skills       Skip project-local skill installation.",
       "  --install-mcp-tools       Run finite external MCP install commands after creation.",
+      "  --no-install-mcp-tools    Skip finite external MCP install commands.",
       "  -h, --help               Show this help.",
       "  -v, --version            Show package version."
     ].join("\n")
@@ -626,13 +653,17 @@ function printAgentsHelp(): void {
 function printSkillsHelp(): void {
   console.log(
     [
-      "Usage: academic-research skills <list|status|presets|install|remove|uninstall|update> [options]",
+      "Usage: academic-research skills <list|status|presets|install|remove|uninstall|update> [skill-id...] [options]",
       "",
       "Manage project-local skill installs for a generated research repository.",
       "",
+      "Examples:",
+      "  academic-research skills install --preset default",
+      "  academic-research skills install source-ingestion sota-literature-review",
+      "",
       "Options:",
       "  --root <path>            Project root for list, status, install, remove, uninstall, update.",
-      "  --preset <name>          Capability preset for install.",
+      "  --preset <name>          Capability preset for install when no skill ids are provided.",
       "  --agent <id>             Agent selector for install. Default: project capability agent.",
       "  -h, --help               Show this help."
     ].join("\n")
