@@ -50,8 +50,8 @@ const MCP_FLAGS = flagSchema(["help"], ["root", "agent"]);
 
 export async function main(argv: string[] = process.argv.slice(2), mode: CliMode = "create"): Promise<number> {
   try {
-    if (mode === "create") return createMain(argv);
-    return lifecycleMain(argv);
+    if (mode === "create") return await createMain(argv);
+    return await lifecycleMain(argv);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     return 1;
@@ -96,7 +96,7 @@ async function createMain(argv: string[]): Promise<number> {
       : undefined;
   const installMcpToolsLock = flagBool(parsed.flags, "install-mcp-tools") ? true : undefined;
   const answers: CreatePromptAnswers = interactive
-    ? await askCreateOptions(defaults, {
+    ? await askInteractiveCreateOptions(defaults, {
         installSkills: installSkillsLock,
         installMcpTools: installMcpToolsLock
       })
@@ -117,6 +117,14 @@ async function createMain(argv: string[]): Promise<number> {
   console.log(`Created ${result.slug} at ${result.root}`);
   console.log("Next: cd into the project and run `npx academic-research doctor`.");
   return 0;
+}
+
+async function askInteractiveCreateOptions(
+  defaults: CreatePromptDefaults,
+  locks: { installSkills?: boolean; installMcpTools?: boolean }
+): Promise<CreatePromptAnswers> {
+  console.log(formatInteractiveCreateGuide());
+  return askCreateOptions(defaults, locks);
 }
 
 async function lifecycleMain(argv: string[]): Promise<number> {
@@ -422,6 +430,30 @@ function assertOnlyOptions(
 function mcpInstallMode(installCommand: string, runtimeCommand: string): string {
   if (installCommand) return installCommand;
   return runtimeCommand ? "runtime-only" : "manual";
+}
+
+export function formatInteractiveCreateGuide(): string {
+  const presetLines = Object.entries(AGENT_STACK.presets).map(
+    ([name, preset]) => `  ${name.padEnd(10)} ${preset.description}`
+  );
+  return [
+    "Setup choices:",
+    "",
+    "Capability presets:",
+    ...presetLines,
+    "",
+    "Agent target:",
+    "  universal  Default. Installs one shared project-local .agents/skills copy.",
+    "  codex      Codex-specific project-local skill install.",
+    "  auto       Lets the upstream skills CLI detect agents; may install to multiple agent loaders.",
+    "",
+    "Skill and MCP behavior:",
+    "  Skills are copied into the project, not installed globally.",
+    "  MCP records are written into configs/capabilities.yaml and docs/agent/generated/.",
+    "  MCP installers are optional and run only finite installer commands.",
+    "  runtime-only MCP servers are configured for the MCP client but have no install step.",
+    ""
+  ].join("\n");
 }
 
 function printCreateHelp(): void {

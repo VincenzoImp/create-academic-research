@@ -8,6 +8,24 @@ import YAML from "yaml";
 
 const root = new URL("..", import.meta.url).pathname;
 
+test("interactive create guide explains presets, agent targets, and MCP installer behavior", async () => {
+  const { formatInteractiveCreateGuide } = await import("../dist/src/cli.js");
+  const guide = formatInteractiveCreateGuide();
+
+  assert.match(guide, /Capability presets/);
+  for (const preset of ["minimal", "default", "enhanced", "literature", "writing", "full"]) {
+    assert.match(guide, new RegExp(`\\b${preset}\\b`));
+  }
+  assert.match(guide, /Agent target/);
+  assert.match(guide, /universal.*shared project-local/s);
+  assert.ok(guide.includes(".agents/skills"));
+  assert.match(guide, /codex.*Codex-specific/s);
+  assert.match(guide, /auto.*may install to multiple agent loaders/s);
+  assert.match(guide, /MCP records/);
+  assert.match(guide, /installer/);
+  assert.match(guide, /runtime-only/);
+});
+
 test("create-academic-research help exits successfully and explains framing", () => {
   const createHelp = spawnSync(process.execPath, ["dist/bin/create-academic-research.js", "--help"], {
     cwd: root,
@@ -39,7 +57,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.3\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.4\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -121,6 +139,8 @@ test("create-academic-research rejects conflicting skill install flags", async (
 
   assert.notEqual(create.status, 0);
   assert.match(create.stderr, /cannot use --install-skills and --no-install-skills together/);
+  assert.doesNotMatch(create.stderr, /at createMain/);
+  assert.doesNotMatch(create.stderr, /Node\.js v/);
 });
 
 test("academic-research lifecycle binary manages MCP records", async () => {
@@ -319,6 +339,9 @@ test("create-academic-research rejects unknown presets", async () => {
 
   assert.notEqual(create.status, 0);
   assert.match(create.stderr, /unknown capability preset/);
+  assert.match(create.stderr, /minimal, default, enhanced, literature, writing, full/);
+  assert.doesNotMatch(create.stderr, /at createProject/);
+  assert.doesNotMatch(create.stderr, /Node\.js v/);
 });
 
 test("create-academic-research rejects unknown presets before creating target files", async () => {

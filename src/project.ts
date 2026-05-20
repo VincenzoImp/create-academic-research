@@ -149,7 +149,9 @@ export async function createProject(options: CreateProjectOptions): Promise<Proj
   const preset = options.preset ?? "default";
   const agent = options.agent ?? DEFAULT_AGENT;
   if (!AGENT_STACK.presets[preset]) {
-    throw new Error(`unknown capability preset: ${preset}`);
+    throw new Error(
+      `unknown capability preset: ${preset}. Expected one of: ${Object.keys(AGENT_STACK.presets).join(", ")}`
+    );
   }
 
   await mkdir(dirname(target), { recursive: true });
@@ -270,7 +272,7 @@ async function writeGeneratedPackageJson(root: string, { slug }: { slug: string 
   const path = join(root, "package.json");
   const data = await readJson<GeneratedPackageJson>(path);
   const existingSpec = data.devDependencies?.["create-academic-research"];
-  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "^0.1.3";
+  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.4";
   data.name = slug;
   data.devDependencies = {
     ...(data.devDependencies ?? {}),
