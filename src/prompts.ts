@@ -36,7 +36,8 @@ export async function askCreateOptions(
     const installSkills =
       locks.installSkills ?? (await yesNo(rl, "Install project-local skills now", defaults.installSkills));
     const installMcpTools =
-      locks.installMcpTools ?? (await yesNo(rl, "Run external MCP installers now", defaults.installMcpTools));
+      locks.installMcpTools ??
+      (await yesNo(rl, "Run finite external MCP tool installers now", defaults.installMcpTools));
     return { title, slug, packageName, preset, agent, installSkills, installMcpTools };
   } finally {
     rl.close();

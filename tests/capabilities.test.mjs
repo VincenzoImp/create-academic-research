@@ -88,6 +88,26 @@ test("enhanced preset includes complementary external skill bundles explicitly",
   assert.ok(commands.every((command) => command.includes("--copy")));
 });
 
+test("full preset keeps research policy inside the academic research package", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-full-policy-"));
+  const target = join(root, "skills-full-policy-project");
+  await createProject({ target, title: "Skills Full Policy Project", preset: "full", installSkills: false });
+
+  const commands = await buildSkillInstallCommands(target, "full");
+  const rendered = commands.map((command) => command.join(" ")).join("\n");
+
+  assert.equal(commands.length, 4);
+  assert.match(rendered, /VincenzoImp\/academic-research-skills/);
+  assert.match(rendered, /obra\/superpowers/);
+  assert.match(rendered, /anthropics\/skills/);
+  assert.match(rendered, /existential-birds\/beagle/);
+  assert.doesNotMatch(rendered, /academic-writing-skills/);
+  assert.doesNotMatch(rendered, /ai-paper-reproduction-skill/);
+  assert.doesNotMatch(rendered, /openalex-database/);
+  assert.doesNotMatch(rendered, /semanticscholar-skill/);
+  assert.doesNotMatch(rendered, /zotero-paper-reader/);
+});
+
 test("skill install records the active preset and agent after a successful install", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-skills-state-"));
   const target = join(root, "skills-state-project");
@@ -232,6 +252,54 @@ test("MCP enable and disable update project-local records and snippets", async (
   assert.deepEqual(Object.keys(snippet.mcpServers), ["openalex"]);
 });
 
+test("default MCP preset enables only low-friction arXiv and keeps the wider catalog documented", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-default-policy-"));
+  const target = join(root, "mcp-default-policy-project");
+  await createProject({ target, title: "MCP Default Policy Project", preset: "default", installSkills: false });
+
+  const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  const snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/mcp.json"), "utf8"));
+  const setup = await readFile(join(target, "docs/agent/mcp-setup.md"), "utf8");
+
+  assert.deepEqual(capabilities.mcp_servers, ["arxiv"]);
+  assert.deepEqual(Object.keys(snippet.mcpServers), ["arxiv"]);
+  assert.match(setup, /`arxiv`/);
+  assert.match(setup, /`semantic-scholar`/);
+  assert.match(setup, /`openalex`/);
+  assert.match(setup, /Requires env/);
+  assert.match(setup, /Recommended env/);
+});
+
+test("full MCP preset stays practical and avoids domain-specific runtime prerequisites by default", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-full-policy-"));
+  const target = join(root, "mcp-full-policy-project");
+  await createProject({ target, title: "MCP Full Policy Project", preset: "full", installSkills: false });
+
+  const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  const setup = await readFile(join(target, "docs/agent/mcp-setup.md"), "utf8");
+
+  assert.deepEqual(capabilities.mcp_servers, ["arxiv", "dblp"]);
+  assert.match(setup, /`pubmed` \(available/);
+  assert.doesNotMatch(setup, /`pubmed` \(enabled/);
+});
+
+test("MCP setup documents execution mode, hosted endpoints, setup commands, and non-secret env requirements", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-setup-detail-"));
+  const target = join(root, "mcp-setup-detail-project");
+  await createProject({ target, title: "MCP Setup Detail Project", preset: "minimal", installSkills: false });
+
+  await enableMcpServers(target, ["openalex", "pubmed", "zotero", "paper-search"], { agent: "universal" });
+  const setup = await readFile(join(target, "docs/agent/mcp-setup.md"), "utf8");
+
+  assert.match(setup, /Execution mode: `npx-runtime`/);
+  assert.match(setup, /Hosted endpoint: <https:\/\/openalex\.caseyjhand\.com\/mcp>/);
+  assert.match(setup, /Hosted endpoint: <https:\/\/pubmed\.caseyjhand\.com\/mcp>/);
+  assert.match(setup, /Setup command: `uvx --refresh zoty setup`/);
+  assert.match(setup, /Setup command: `uvx --refresh zoty doctor`/);
+  assert.match(setup, /Requires env: `OPENALEX_API_KEY`/);
+  assert.doesNotMatch(setup, /your-key|your-email|api_key=YOUR_KEY|\$\{[^}]+}/i);
+});
+
 test("MCP commands reject unknown server ids", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-mcp-unknown-"));
   const target = join(root, "mcp-unknown-project");
@@ -257,6 +325,44 @@ test("MCP doctor reports invalid generated snippets distinctly from missing snip
   assert.doesNotMatch(result.errors.join("\n"), /missing generated MCP snippet/);
 });
 
+test("MCP doctor reports credentialed, manual, and local-service prerequisites", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-prereq-"));
+  const target = join(root, "mcp-prereq-project");
+  await createProject({ target, title: "MCP Prereq Project", preset: "minimal", installSkills: false });
+  const previousEnv = {
+    OPENALEX_API_KEY: process.env.OPENALEX_API_KEY,
+    OVERLEAF_TOKEN: process.env.OVERLEAF_TOKEN,
+    SEMANTIC_SCHOLAR_API_KEY: process.env.SEMANTIC_SCHOLAR_API_KEY
+  };
+  delete process.env.OPENALEX_API_KEY;
+  delete process.env.OVERLEAF_TOKEN;
+  delete process.env.SEMANTIC_SCHOLAR_API_KEY;
+
+  try {
+    await enableMcpServers(target, ["openalex", "semantic-scholar", "zotero", "crossref", "overleaf"], {
+      agent: "codex"
+    });
+    const result = await doctorMcpServers(target);
+    const warnings = result.warnings.join("\n");
+    const errors = result.errors.join("\n");
+
+    assert.equal(result.ok, false);
+    assert.match(errors, /openalex: missing required environment variable/);
+    assert.match(errors, /overleaf: missing required environment variable/);
+    assert.match(warnings, /semantic-scholar: recommended environment variable not set: SEMANTIC_SCHOLAR_API_KEY/);
+    assert.match(warnings, /zotero: requires local service/);
+    assert.match(warnings, /crossref: manual setup only; no generated client command/);
+  } finally {
+    for (const [name, value] of Object.entries(previousEnv)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+});
+
 test("MCP install and uninstall are explicit external tool operations", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-mcp-install-"));
   const target = join(root, "mcp-install-project");
@@ -277,7 +383,7 @@ test("MCP install skips runtime-only servers that would launch over stdio", asyn
   const root = await mkdtemp(join(tmpdir(), "academic-mcp-runtime-only-"));
   const target = join(root, "mcp-runtime-only-project");
   await createProject({ target, title: "MCP Runtime Only Project", preset: "minimal", installSkills: false });
-  const runtimeOnly = ["semantic-scholar", "openalex", "pubmed", "zotero"];
+  const runtimeOnly = ["semantic-scholar", "openalex", "pubmed", "zotero", "dblp"];
 
   const calls = [];
   const result = await installMcpTools(target, runtimeOnly, {
@@ -300,11 +406,12 @@ test("full preset MCP install runs only finite installers", async () => {
   });
   const rendered = calls.map((call) => call.command.join(" ")).join("\n");
 
-  assert.equal(result.count, 2);
+  assert.equal(result.count, 1);
   assert.match(rendered, /uv tool install arxiv-mcp-server/);
-  assert.match(rendered, /uv tool install overleaf-mcp-server/);
+  assert.doesNotMatch(rendered, /uv tool install overleaf-mcp-server/);
   assert.doesNotMatch(rendered, /semantic-scholar-mcp/);
   assert.doesNotMatch(rendered, /openalex-mcp-server/);
   assert.doesNotMatch(rendered, /pubmed-mcp-server/);
   assert.doesNotMatch(rendered, /zoty/);
+  assert.doesNotMatch(rendered, /mcp-dblp/);
 });

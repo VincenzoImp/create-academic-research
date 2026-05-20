@@ -27,8 +27,11 @@ test("interactive create guide explains presets, agent targets, and MCP installe
   assert.match(guide, /claude -> claude-code/);
   assert.doesNotMatch(guide, /Codex-specific/);
   assert.match(guide, /MCP records/);
+  assert.match(guide, /mcp-setup\.md/);
+  assert.match(guide, /default enables only low-friction arXiv/);
   assert.match(guide, /installer/);
-  assert.match(guide, /runtime-only/);
+  assert.match(guide, /execution modes are explicit/);
+  assert.match(guide, /mcp env <server>/);
 });
 
 test("create-academic-research help exits successfully and explains framing", () => {
@@ -63,7 +66,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.5\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.6\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -308,9 +311,10 @@ test("academic-research mcp list reports enabled and available servers", async (
 
   assert.equal(list.status, 0, list.stderr + list.stdout);
   assert.match(list.stdout, /enabled\tarxiv/);
-  assert.match(list.stdout, /enabled\tsemantic-scholar\t.*\truntime-only/);
+  assert.match(list.stdout, /available\tsemantic-scholar\tcredential-recommended\tuvx-runtime/);
+  assert.match(list.stdout, /available\tdblp\tlow-friction-cs\tuvx-runtime/);
   assert.match(list.stdout, /available\tzotero/);
-  assert.match(list.stdout, /available\tcrossref\t.*\tmanual/);
+  assert.match(list.stdout, /available\tcrossref\tmanual\tmanual/);
 
   const enabled = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "enabled", "--root", target], {
     cwd: root,
@@ -326,6 +330,37 @@ test("academic-research mcp list reports enabled and available servers", async (
   assert.doesNotMatch(enabled.stdout, /zotero/);
   assert.equal(available.status, 0, available.stderr + available.stdout);
   assert.match(available.stdout, /zotero/);
+});
+
+test("academic-research mcp env prints env vars and local setup prerequisites", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-env-"));
+  const target = join(temp, "cli-mcp-env-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const env = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "env",
+      "openalex",
+      "semantic-scholar",
+      "zotero",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(env.status, 0, env.stderr + env.stdout);
+  assert.match(env.stdout, /^openalex\trequired\tOPENALEX_API_KEY/m);
+  assert.match(env.stdout, /^semantic-scholar\trecommended\tSEMANTIC_SCHOLAR_API_KEY/m);
+  assert.match(env.stdout, /^zotero\tlocal-service\tZotero desktop/m);
+  assert.match(env.stdout, /^zotero\tsetup-command\tuvx --refresh zoty setup/m);
+  assert.doesNotMatch(env.stdout, /your-key|your-email|\$\{[^}]+}/i);
 });
 
 test("academic-research mcp commands are separate from mcp list", async () => {
@@ -356,7 +391,7 @@ test("academic-research mcp commands are separate from mcp list", async () => {
   assert.equal(commands.status, 0, commands.stderr + commands.stdout);
   assert.match(commands.stdout, /uv tool install 'arxiv-mcp-server\[pdf\]'/);
   assert.equal(doctor.status, 0, doctor.stderr + doctor.stdout);
-  assert.match(doctor.stdout, /OK: 3 MCP server\(s\) enabled/);
+  assert.match(doctor.stdout, /OK: 1 MCP server\(s\) enabled/);
 });
 
 test("academic-research rejects options that do not affect the selected MCP command", () => {
@@ -364,6 +399,7 @@ test("academic-research rejects options that do not affect the selected MCP comm
     [["mcp", "list", "--agent", "example-agent"], /mcp list does not accept --agent/],
     [["mcp", "available", "--root", "."], /mcp available does not accept --root/],
     [["mcp", "commands", "arxiv", "--agent", "example-agent"], /mcp commands does not accept --agent/],
+    [["mcp", "env", "openalex", "--agent", "example-agent"], /mcp env does not accept --agent/],
     [["mcp", "install", "arxiv", "--agent", "example-agent"], /mcp install does not accept --agent/],
     [["mcp", "uninstall", "arxiv", "--agent", "example-agent"], /mcp uninstall does not accept --agent/],
     [["mcp", "doctor", "--agent", "example-agent"], /mcp doctor does not accept --agent/]

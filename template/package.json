@@ -9,9 +9,10 @@
     "skills:presets": "academic-research skills presets",
     "mcp:list": "academic-research mcp list",
     "mcp:commands": "academic-research mcp commands",
+    "mcp:env": "academic-research mcp env",
     "mcp:doctor": "academic-research mcp doctor"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.5"
+    "create-academic-research": "0.1.6"
   }
 }

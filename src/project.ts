@@ -200,6 +200,7 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "configs/agent-stack.yaml",
     "configs/capabilities.yaml",
     "docs/agent/capability-profile.md",
+    "docs/agent/mcp-setup.md",
     "docs/agent/generated",
     "sources/source-ledger.csv",
     "sota/literature-matrix.csv",
@@ -273,7 +274,7 @@ async function writeGeneratedPackageJson(root: string, { slug }: { slug: string 
   const path = join(root, "package.json");
   const data = await readJson<GeneratedPackageJson>(path);
   const existingSpec = data.devDependencies?.["create-academic-research"];
-  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.5";
+  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.6";
   data.name = slug;
   data.devDependencies = {
     ...(data.devDependencies ?? {}),

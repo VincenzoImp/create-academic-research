@@ -58,19 +58,25 @@ npx academic-research skills install --preset default
 npx academic-research skills install --preset enhanced
 npx academic-research skills list
 npx academic-research skills status
-npx academic-research mcp enable arxiv semantic-scholar openalex
 npx academic-research mcp list
+npx academic-research mcp env openalex semantic-scholar zotero
+npx academic-research mcp enable arxiv dblp
 npx academic-research mcp commands arxiv
 npx academic-research mcp install arxiv
+npx academic-research mcp doctor
 ```
 
 `skills list` reports installed project-local skills. `skills presets` reports
 available install presets. `mcp enable` changes project records. `mcp commands`
-prints finite external install commands without running them. `mcp install`
-runs only finite tool installation commands; runtime-only `uvx`/`npx` MCP
-servers may have no install step and are started later by the MCP client.
+prints finite external install commands without running them. `mcp env` prints
+env vars, hosted endpoints, local prerequisites, and setup commands before you
+enable optional servers. `mcp install` runs only finite tool installation
+commands; runtime-only `uvx`/`npx` MCP servers may have no install step and are
+started later by the MCP client.
 
 `default` installs the companion academic research skill package and keeps the
-MCP records focused on core scholarly discovery. `enhanced` adds complementary
-external skills for agent engineering, frontend work, testing, document
-formats, and PDF conversion.
+MCP records focused on low-friction arXiv discovery. `literature` and `full`
+add DBLP for computer science bibliography. Credentialed, local-service, or
+domain-specific MCP servers such as OpenAlex, Semantic Scholar, PubMed, Zotero,
+and Overleaf should be enabled only after reading `docs/agent/mcp-setup.md` and
+checking their prerequisites with `mcp env`.

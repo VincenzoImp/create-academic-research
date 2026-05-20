@@ -3,6 +3,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  assertKnownMcpServers,
   disableMcpServers,
   doctorMcpServers,
   enableMcpServers,
@@ -280,10 +281,10 @@ async function mcpCommand(argv: string[]): Promise<number> {
     assertNoArguments(parsed.positionals, "mcp list");
     const state = await readCapabilities(root);
     const enabled = new Set(state.mcp_servers ?? []);
+    console.log("status\tid\treadiness\texecution_mode\tdescription");
     for (const [name, server] of Object.entries(AGENT_STACK.mcp_servers)) {
       const status = enabled.has(name) ? "enabled" : "available";
-      const installer = mcpInstallMode(server.install_command, server.command);
-      console.log(`${status}\t${name}\t${server.source_need}\t${installer}`);
+      console.log(`${status}\t${name}\t${server.readiness}\t${server.execution_mode}\t${server.source_need}`);
     }
     return 0;
   }
@@ -298,9 +299,9 @@ async function mcpCommand(argv: string[]): Promise<number> {
   if (subcommand === "available") {
     assertOnlyOptions(parsed.flags, "mcp available", []);
     assertNoArguments(parsed.positionals, "mcp available");
+    console.log("id\treadiness\texecution_mode\tdescription");
     for (const [name, server] of Object.entries(AGENT_STACK.mcp_servers)) {
-      const installer = mcpInstallMode(server.install_command, server.command);
-      console.log(`${name}\t${server.source_need}\t${installer}`);
+      console.log(`${name}\t${server.readiness}\t${server.execution_mode}\t${server.source_need}`);
     }
     return 0;
   }
@@ -310,6 +311,15 @@ async function mcpCommand(argv: string[]): Promise<number> {
     const selected = parsed.positionals.length > 0 ? parsed.positionals : (await readCapabilities(root)).mcp_servers;
     const commands = mcpToolCommandTexts(selected, "install_command");
     for (const command of commands) console.log(command);
+    return 0;
+  }
+  if (subcommand === "env") {
+    assertOnlyOptions(parsed.flags, "mcp env", ["root"]);
+    const root = resolve(flagString(parsed.flags, "root") ?? ".");
+    const selected = parsed.positionals.length > 0 ? parsed.positionals : (await readCapabilities(root)).mcp_servers;
+    assertKnownMcpServers(selected);
+    console.log("id\ttype\tvalue");
+    printMcpEnvironment(selected);
     return 0;
   }
   if (subcommand === "enable") {
@@ -445,11 +455,6 @@ function assertOnlyOptions(
   }
 }
 
-function mcpInstallMode(installCommand: string, runtimeCommand: string): string {
-  if (installCommand) return installCommand;
-  return runtimeCommand ? "runtime-only" : "manual";
-}
-
 export function formatInteractiveCreateGuide(): string {
   const presetLines = Object.entries(AGENT_STACK.presets).map(
     ([name, preset]) => `  ${name.padEnd(10)} ${preset.description}`
@@ -474,8 +479,11 @@ export function formatInteractiveCreateGuide(): string {
     "Skill and MCP behavior:",
     "  Skills are copied into the project, not installed globally.",
     "  MCP records are written into configs/capabilities.yaml and docs/agent/generated/.",
+    "  docs/agent/mcp-setup.md records enabled servers, optional catalog entries, env vars, and smoke tests.",
+    "  default enables only low-friction arXiv; credentialed/local services are opt-in.",
     "  MCP installers are optional and run only finite installer commands.",
-    "  runtime-only MCP servers are configured for the MCP client but have no install step.",
+    "  MCP execution modes are explicit: uvx-runtime, npx-runtime, local-service, manual, or fallback.",
+    "  Use `academic-research mcp env <server>` to inspect env vars and local prerequisites.",
     ""
   ].join("\n");
 }
@@ -567,7 +575,7 @@ function printSkillsHelp(): void {
 function printMcpHelp(): void {
   console.log(
     [
-      "Usage: academic-research mcp <list|enabled|available|commands|enable|disable|install|uninstall|doctor> [servers...]",
+      "Usage: academic-research mcp <list|enabled|available|commands|env|enable|disable|install|uninstall|doctor> [servers...]",
       "",
       "Manage MCP records and finite external MCP tool installs.",
       "",
@@ -577,6 +585,34 @@ function printMcpHelp(): void {
       "  -h, --help               Show this help."
     ].join("\n")
   );
+}
+
+function printMcpEnvironment(servers: string[]): void {
+  for (const name of servers) {
+    const server = AGENT_STACK.mcp_servers[name];
+    let wroteLine = false;
+    for (const envName of server.required_env) {
+      console.log(`${name}\trequired\t${envName}`);
+      wroteLine = true;
+    }
+    for (const envName of server.recommended_env) {
+      console.log(`${name}\trecommended\t${envName}`);
+      wroteLine = true;
+    }
+    if (server.hosted_url) {
+      console.log(`${name}\thosted-endpoint\t${server.hosted_url}`);
+      wroteLine = true;
+    }
+    if (server.local_service) {
+      console.log(`${name}\tlocal-service\t${server.local_service}`);
+      wroteLine = true;
+    }
+    for (const command of server.setup_commands) {
+      console.log(`${name}\tsetup-command\t${command}`);
+      wroteLine = true;
+    }
+    if (!wroteLine) console.log(`${name}\tnone\t-`);
+  }
 }
 
 function readPackageVersion(): string {

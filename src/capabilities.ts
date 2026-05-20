@@ -70,6 +70,7 @@ export async function writeCapabilities(root: string, state: Partial<CapabilityS
   };
   await writeFile(join(root, "configs/capabilities.yaml"), YAML.stringify(next), "utf8");
   await writeCapabilityProfile(root, next);
+  await writeMcpSetup(root, next);
   await writeMcpSnippet(root, next);
   await appendCapabilityLog(root, next);
 }
@@ -325,15 +326,25 @@ export async function doctorMcpServers(root: string): Promise<McpDoctorResult> {
   for (const name of enabled) {
     const server = AGENT_STACK.mcp_servers[name];
     if (!server) continue;
+    for (const envName of server.required_env) {
+      if (!process.env[envName]) {
+        errors.push(`${name}: missing required environment variable: ${envName}`);
+      }
+    }
+    for (const envName of server.recommended_env) {
+      if (!process.env[envName]) {
+        warnings.push(`${name}: recommended environment variable not set: ${envName}`);
+      }
+    }
+    if (server.local_service) {
+      warnings.push(`${name}: requires local service: ${server.local_service}`);
+    }
     if (!server.command) {
       warnings.push(`${name}: manual setup only; no generated client command`);
       continue;
     }
     if (!generatedServers.has(name)) {
       errors.push(`${name}: enabled but missing from generated MCP snippet`);
-    }
-    if (!server.install_command) {
-      warnings.push(`${name}: no automated install command is defined`);
     }
   }
 
@@ -386,7 +397,7 @@ async function writeCapabilityProfile(root: string, state: CapabilityState): Pro
   } else {
     for (const name of state.mcp_servers) {
       const server = AGENT_STACK.mcp_servers[name];
-      const status = server?.command ? "generated config" : "manual setup";
+      const status = server?.command ? server.execution_mode : "manual setup";
       lines.push(`- \`${name}\` (${status}): ${server?.smoke_test ?? "Smoke-test before use."}`);
     }
   }
@@ -402,6 +413,65 @@ async function writeCapabilityProfile(root: string, state: CapabilityState): Pro
     ""
   );
   await writeFile(join(root, "docs/agent/capability-profile.md"), lines.join("\n"), "utf8");
+}
+
+async function writeMcpSetup(root: string, state: CapabilityState): Promise<void> {
+  const enabled = new Set(state.mcp_servers ?? []);
+  const lines = [
+    "# MCP Setup",
+    "",
+    "This file is generated from the project-local academic research capability stack.",
+    "MCP records are configuration snippets and setup guidance; the active MCP client must load the generated snippet before these servers become live tools.",
+    "",
+    "## Enabled MCP Servers",
+    ""
+  ];
+  if (enabled.size === 0) {
+    lines.push("- None.");
+  } else {
+    for (const name of state.mcp_servers) {
+      const server = AGENT_STACK.mcp_servers[name];
+      if (!server) continue;
+      lines.push(
+        `- \`${name}\` (${server.readiness}, ${server.priority}): ${server.source_need}`,
+        `  - Source: \`${server.source}\``,
+        `  - Execution mode: \`${server.execution_mode}\``,
+        ...(server.hosted_url ? [`  - Hosted endpoint: <${server.hosted_url}>`] : []),
+        `  - Runtime: ${formatRuntime(server.command, server.args)}`,
+        `  - Install command: ${server.install_command ? `\`${server.install_command}\`` : "none; runtime-only or manual setup"}`,
+        ...server.setup_commands.map((command) => `  - Setup command: \`${command}\``),
+        `  - Smoke test: ${server.smoke_test}`,
+        `  - Risks: ${server.risks}`
+      );
+      appendMcpPrerequisiteLines(lines, server.required_env, server.recommended_env, server.local_service);
+    }
+  }
+
+  lines.push("", "## Available MCP Catalog", "");
+  for (const [name, server] of Object.entries(AGENT_STACK.mcp_servers)) {
+    const status = enabled.has(name) ? "enabled" : "available";
+    lines.push(
+      `- \`${name}\` (${status}, ${server.readiness}, ${server.priority}): ${server.source_need}`,
+      `  - Source: \`${server.source}\``,
+      `  - Execution mode: \`${server.execution_mode}\``,
+      ...(server.hosted_url ? [`  - Hosted endpoint: <${server.hosted_url}>`] : []),
+      ...server.setup_commands.map((command) => `  - Setup command: \`${command}\``)
+    );
+    appendMcpPrerequisiteLines(lines, server.required_env, server.recommended_env, server.local_service);
+  }
+
+  lines.push(
+    "",
+    "## Operating Rules",
+    "",
+    "- Keep secrets in your shell, MCP client secret store, or local untracked files; do not commit tokens or API keys.",
+    "- Prefer the smallest enabled MCP set that covers the current research question.",
+    "- Treat MCP output as retrieval metadata. Promote claims into repository source records only after source ingestion and citation audit.",
+    "- Run `npx academic-research mcp doctor` after changing MCP records or environment variables.",
+    ""
+  );
+  await mkdir(join(root, "docs/agent"), { recursive: true });
+  await writeFile(join(root, "docs/agent/mcp-setup.md"), lines.join("\n"), "utf8");
 }
 
 async function appendCapabilityLog(root: string, state: CapabilityState): Promise<void> {
@@ -423,6 +493,24 @@ function renderSkillCommand(command: string, agent: string): string {
   const normalized = assertKnownAgentTarget(agent);
   const agentFlag = normalized === AUTO_AGENT ? "" : `--agent '${normalized}'`;
   return command.replaceAll("{agent_flag}", agentFlag).replaceAll("{agent}", normalized);
+}
+
+function appendMcpPrerequisiteLines(
+  lines: string[],
+  requiredEnv: string[],
+  recommendedEnv: string[],
+  localService: string
+): void {
+  if (requiredEnv.length > 0) lines.push(`  - Requires env: ${requiredEnv.map((name) => `\`${name}\``).join(", ")}`);
+  if (recommendedEnv.length > 0) {
+    lines.push(`  - Recommended env: ${recommendedEnv.map((name) => `\`${name}\``).join(", ")}`);
+  }
+  if (localService) lines.push(`  - Local prerequisite: ${localService}`);
+}
+
+function formatRuntime(command: string, args: string[]): string {
+  if (!command) return "manual setup";
+  return `\`${[command, ...args].join(" ")}\``;
 }
 
 async function readCapabilitiesFile(root: string): Promise<CapabilityState> {

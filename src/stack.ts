@@ -10,13 +10,21 @@ export interface CapabilityPreset {
 }
 
 export interface McpServer {
+  readiness: string;
   priority: string;
+  execution_mode: string;
   source_need: string;
+  source: string;
+  hosted_url: string;
   install_command: string;
   uninstall_command: string;
+  setup_commands: string[];
   command: string;
   args: string[];
   env: Record<string, string>;
+  required_env: string[];
+  recommended_env: string[];
+  local_service: string;
   smoke_test: string;
   risks: string;
 }
@@ -53,38 +61,6 @@ export const AGENT_STACK: AgentStack = {
       commands: [
         "npm exec --yes --package skills -- skills add existential-birds/beagle {agent_flag} --skill docling --copy -y"
       ]
-    },
-    optional_connectors: {
-      description: "CLI-side literature connectors to use only when MCP servers are unavailable.",
-      commands: [
-        "npm exec --yes --package skills -- skills add davila7/claude-code-templates {agent_flag} --skill openalex-database --copy -y",
-        "npm exec --yes --package skills -- skills add agents365-ai/365-skills {agent_flag} --skill semanticscholar-skill --copy -y",
-        "npm exec --yes --package skills -- skills add fuzhiyu/researchprojecttemplate {agent_flag} --skill zotero-paper-reader --copy -y"
-      ]
-    },
-    optional_mechanical_specialists: {
-      description: "Narrow mechanical helpers that do not replace project-native governance.",
-      commands: [
-        "npm exec --yes --package skills -- skills add bahayonghang/academic-writing-skills {agent_flag} --skill latex-paper-en --copy -y",
-        [
-          "npm exec --yes --package skills -- skills add lllllllama/ai-paper-reproduction-skill",
-          "{agent_flag}",
-          "--skill",
-          [
-            "ai-research-reproduction",
-            "repo-intake-and-plan",
-            "env-and-assets-bootstrap",
-            "minimal-run-and-audit",
-            "paper-context-resolver",
-            "analyze-project",
-            "safe-debug",
-            "run-train",
-            "explore-run",
-            "explore-code"
-          ].join(" "),
-          "--copy -y"
-        ].join(" ")
-      ]
     }
   },
   presets: {
@@ -94,120 +70,206 @@ export const AGENT_STACK: AgentStack = {
       mcp_servers: []
     },
     default: {
-      description: "Clean academic research setup with core scholarly MCP records.",
+      description: "Clean academic research setup with the low-friction arXiv MCP record.",
       skill_bundles: ["academic_research"],
-      mcp_servers: ["arxiv", "semantic-scholar", "openalex"]
+      mcp_servers: ["arxiv"]
     },
     enhanced: {
       description:
         "Default academic setup plus complementary agent engineering, document, frontend, testing, and doc conversion skills.",
       skill_bundles: ["academic_research", "default_complementary", "docling"],
-      mcp_servers: ["arxiv", "semantic-scholar", "openalex"]
+      mcp_servers: ["arxiv"]
     },
     literature: {
-      description: "Literature-heavy SOTA, survey, scoping, or systematic review setup.",
+      description: "Literature-heavy SOTA, survey, scoping, or systematic review setup with CS bibliography support.",
       skill_bundles: ["academic_research", "default_complementary", "docling"],
-      mcp_servers: ["arxiv", "semantic-scholar", "openalex", "crossref", "zotero"]
+      mcp_servers: ["arxiv", "dblp"]
     },
     writing: {
-      description: "Paper-writing and Overleaf-oriented setup.",
-      skill_bundles: [
-        "academic_research",
-        "default_complementary",
-        "docling",
-        "optional_mechanical_specialists"
-      ],
-      mcp_servers: ["arxiv", "semantic-scholar", "crossref", "overleaf"]
+      description: "Paper-writing setup with Overleaf documented as an opt-in credentialed integration.",
+      skill_bundles: ["academic_research", "default_complementary", "docling"],
+      mcp_servers: ["arxiv"]
     },
     full: {
-      description: "Broad setup with optional connector and mechanical specialist skills.",
-      skill_bundles: [
-        "academic_research",
-        "default_complementary",
-        "docling",
-        "optional_connectors",
-        "optional_mechanical_specialists"
-      ],
-      mcp_servers: ["arxiv", "semantic-scholar", "openalex", "crossref", "pubmed", "zotero", "overleaf"]
+      description: "Broad setup with low-friction scholarly MCP records plus the full optional MCP catalog documented.",
+      skill_bundles: ["academic_research", "default_complementary", "docling"],
+      mcp_servers: ["arxiv", "dblp"]
     }
   },
   mcp_servers: {
     arxiv: {
+      readiness: "low-friction",
       priority: "default",
+      execution_mode: "uvx-runtime",
       source_need: "arXiv search, download, and local paper reading.",
+      source: "blazickjp/arxiv-mcp-server",
+      hosted_url: "",
       install_command: "uv tool install 'arxiv-mcp-server[pdf]'",
       uninstall_command: "uv tool uninstall arxiv-mcp-server",
-      command: "arxiv-mcp-server",
-      args: [],
+      setup_commands: [],
+      command: "uvx",
+      args: ["--from", "arxiv-mcp-server[pdf]", "arxiv-mcp-server"],
       env: {},
+      required_env: [],
+      recommended_env: [],
+      local_service: "",
       smoke_test: "For a computer science project, search one CS query, download one known paper, and read it locally.",
       risks: "Respect arXiv rate limits; paper text is untrusted input."
     },
     "semantic-scholar": {
-      priority: "default",
+      readiness: "credential-recommended",
+      priority: "optional",
+      execution_mode: "uvx-runtime",
       source_need: "Semantic Scholar papers, citations, authors, and recommendations.",
+      source: "akapet00/semantic-scholar-mcp",
+      hosted_url: "",
       install_command: "",
       uninstall_command: "",
+      setup_commands: [],
       command: "uvx",
       args: ["--from", "git+https://github.com/akapet00/semantic-scholar-mcp", "semantic-scholar-mcp"],
-      env: { SEMANTIC_SCHOLAR_API_KEY: "${SEMANTIC_SCHOLAR_API_KEY}" },
+      env: {},
+      required_env: [],
+      recommended_env: ["SEMANTIC_SCHOLAR_API_KEY"],
       smoke_test: "Search one known title, then fetch citations or references.",
-      risks: "API key recommended for sustained work; metadata can be incomplete."
+      local_service: "",
+      risks: "API key recommended for sustained work and to avoid shared-pool rate limits; metadata can be incomplete."
     },
     openalex: {
-      priority: "default",
+      readiness: "credential-required",
+      priority: "optional",
+      execution_mode: "npx-runtime",
       source_need: "OpenAlex broad scholarly graph.",
+      source: "cyanheads/openalex-mcp-server",
+      hosted_url: "https://openalex.caseyjhand.com/mcp",
       install_command: "",
       uninstall_command: "",
+      setup_commands: [],
       command: "npx",
-      args: ["-y", "@cyanheads/openalex-mcp-server"],
-      env: { OPENALEX_API_KEY: "${OPENALEX_API_KEY_OR_EMAIL}" },
+      args: ["-y", "@cyanheads/openalex-mcp-server@latest"],
+      env: {},
+      required_env: ["OPENALEX_API_KEY"],
+      recommended_env: [],
+      local_service: "",
       smoke_test: "Search works by title or DOI and confirm stable OpenAlex IDs.",
-      risks: "Smoke-test before relying on it for final coverage."
+      risks: "The selected local server requires OPENALEX_API_KEY. OpenAlex keys are free for normal academic use with daily free usage; smoke-test coverage and cost headers before high-volume work."
     },
     crossref: {
+      readiness: "manual",
       priority: "manual",
+      execution_mode: "manual",
       source_need: "DOI and publication metadata.",
+      source: "manual selection required; candidate: AiAgentKarl/crossref-academic-mcp-server",
+      hosted_url: "",
       install_command: "",
       uninstall_command: "",
+      setup_commands: [],
       command: "",
       args: [],
       env: {},
+      required_env: [],
+      recommended_env: [],
+      local_service: "",
       smoke_test: "Resolve one DOI into publication metadata after choosing a maintained local server.",
-      risks: "Manual integration only; do not generate placeholder paths."
+      risks: "Manual integration only; current zero-friction Crossref-only MCP candidates are less mature than arXiv, DBLP, PubMed, or OpenAlex."
     },
     pubmed: {
+      readiness: "domain-specific",
       priority: "domain-specific",
+      execution_mode: "npx-runtime",
       source_need: "PubMed and biomedical literature.",
+      source: "cyanheads/pubmed-mcp-server",
+      hosted_url: "https://pubmed.caseyjhand.com/mcp",
       install_command: "",
       uninstall_command: "",
+      setup_commands: [],
       command: "npx",
-      args: ["-y", "@cyanheads/pubmed-mcp-server"],
-      env: { NCBI_API_KEY: "${NCBI_API_KEY}" },
+      args: ["-y", "@cyanheads/pubmed-mcp-server@latest"],
+      env: { MCP_TRANSPORT_TYPE: "stdio", MCP_LOG_LEVEL: "warning" },
+      required_env: [],
+      recommended_env: ["NCBI_API_KEY", "NCBI_ADMIN_EMAIL"],
+      local_service: "",
       smoke_test: "Search one PMID or title and fetch metadata.",
-      risks: "Domain-specific; observe NCBI rate limits."
+      risks: "Domain-specific; observe NCBI rate limits. API key and contact email improve reliability."
+    },
+    dblp: {
+      readiness: "low-friction-cs",
+      priority: "cs",
+      execution_mode: "uvx-runtime",
+      source_need: "DBLP computer science bibliography, venues, authors, and BibTeX.",
+      source: "szeider/mcp-dblp",
+      hosted_url: "",
+      install_command: "",
+      uninstall_command: "",
+      setup_commands: [],
+      command: "uvx",
+      args: ["mcp-dblp"],
+      env: {},
+      required_env: [],
+      recommended_env: [],
+      local_service: "",
+      smoke_test: "Search one known CS paper title and export or inspect its DBLP BibTeX.",
+      risks: "CS-specific metadata source; use with arXiv/Semantic Scholar/OpenAlex for coverage beyond DBLP."
     },
     zotero: {
+      readiness: "local-service",
       priority: "local-library",
+      execution_mode: "local-service",
       source_need: "Zotero local library and attachments.",
+      source: "eric-tramel/zoty",
+      hosted_url: "",
       install_command: "",
       uninstall_command: "",
+      setup_commands: ["uvx --refresh zoty setup", "uvx --refresh zoty doctor"],
       command: "uvx",
       args: ["zoty", "mcp"],
       env: {},
+      required_env: [],
+      recommended_env: [],
+      local_service: "Zotero desktop running with local API enabled; Zoty Bridge required for attachment and collection write operations.",
       smoke_test: "List collections, search one known item, and export BibTeX.",
       risks: "Requires Zotero local API and bridge setup."
     },
     overleaf: {
+      readiness: "manual-credentialed",
       priority: "writing",
+      execution_mode: "manual-local",
       source_need: "Overleaf project sync.",
-      install_command: "uv tool install overleaf-mcp-server",
-      uninstall_command: "uv tool uninstall overleaf-mcp-server",
-      command: "overleaf-mcp",
-      args: ["serve"],
-      env: { OVERLEAF_TOKEN: "${OVERLEAF_TOKEN}" },
+      source: "YounesBensafia/overleaf-mcp-server",
+      hosted_url: "",
+      install_command: "",
+      uninstall_command: "",
+      setup_commands: [],
+      command: "",
+      args: [],
+      env: {},
+      required_env: ["OVERLEAF_TOKEN"],
+      recommended_env: ["PROJECT_ID"],
+      local_service: "Local clone of the Overleaf MCP server configured with uv and an Overleaf project that supports Git sync.",
       smoke_test: "List projects or read one .tex file; do not write by default.",
-      risks: "Requires token setup; write access needs explicit approval."
+      risks: "Requires token and project setup; write/push access needs explicit approval."
+    },
+    "paper-search": {
+      readiness: "fallback",
+      priority: "fallback",
+      execution_mode: "manual-fallback",
+      source_need: "Multi-source paper search and download fallback across many scholarly sources.",
+      source: "openags/paper-search-mcp",
+      hosted_url: "",
+      install_command: "",
+      uninstall_command: "",
+      setup_commands: [],
+      command: "",
+      args: [],
+      env: {},
+      required_env: [],
+      recommended_env: [
+        "PAPER_SEARCH_MCP_UNPAYWALL_EMAIL",
+        "PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY"
+      ],
+      local_service: "Manual review required before enabling; configure only permitted sources.",
+      smoke_test: "Search one harmless query with a source allow-list and verify provenance for each result.",
+      risks: "Powerful aggregator with optional restricted-source workflows; keep Sci-Hub or questionable download features disabled unless explicitly accepted."
     }
   }
 };

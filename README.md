@@ -46,10 +46,12 @@ By default, the wizard:
 
 - creates the repository structure;
 - installs the project-local `VincenzoImp/academic-research-skills` package;
-- enables the scholarly MCP records for `arxiv`, `semantic-scholar`, and
-  `openalex`;
+- enables only the low-friction `arxiv` MCP record;
+- documents the wider MCP catalog, including Semantic Scholar, OpenAlex, DBLP,
+  PubMed, Zotero, Crossref, Overleaf, and fallback aggregators;
 - writes `configs/capabilities.yaml`;
 - writes `docs/agent/capability-profile.md`;
+- writes `docs/agent/mcp-setup.md`;
 - writes `docs/agent/generated/mcp.json` unless an explicit agent target is set;
 - appends the onboarding event to `wiki/log.md`;
 - does not install external MCP tools unless explicitly requested.
@@ -57,6 +59,12 @@ By default, the wizard:
 Use `--preset enhanced` when you also want the curated complementary external
 skill bundles for agent engineering, frontend work, testing, document formats,
 and PDF conversion.
+
+Research-specific skills are intentionally not pulled from external packages by
+default. The academic research workflow, literature review, citation audit,
+paper writing, peer review, rebuttal, and reproduction policies come from
+`VincenzoImp/academic-research-skills`. External skills installed by the wizard
+are complementary tooling only.
 
 ## Non-Interactive Create
 
@@ -90,6 +98,7 @@ npx academic-research mcp list
 npx academic-research mcp enabled
 npx academic-research mcp available
 npx academic-research mcp commands arxiv
+npx academic-research mcp env openalex semantic-scholar zotero
 npx academic-research mcp enable arxiv openalex
 npx academic-research mcp disable arxiv
 npx academic-research mcp install arxiv
@@ -118,11 +127,12 @@ MCP commands are split by side-effect:
 | `mcp enabled` | List only enabled MCP server ids. |
 | `mcp available` | List the local MCP catalog. |
 | `mcp commands` | Print finite external install commands without running them. Runtime-only `uvx`/`npx` servers may have no install command. |
+| `mcp env` | Print required/recommended env vars, hosted endpoints, local prerequisites, and setup commands for selected servers. |
 | `mcp enable` | Enable an MCP server in project records and generated snippets. |
 | `mcp disable` | Remove an MCP server from project records and generated snippets. |
 | `mcp install` | Run finite external tool install commands for selected MCP servers. It must not launch stdio MCP servers. |
 | `mcp uninstall` | Run the external uninstall command when one exists. |
-| `mcp doctor` | Validate enabled MCP records and generated snippets. |
+| `mcp doctor` | Validate enabled MCP records, generated snippets, required env vars, and documented manual prerequisites. |
 
 ## Companion Skills
 
@@ -147,11 +157,34 @@ Preset intent:
 | Preset | Intent |
 |---|---|
 | `minimal` | Academic research skills only, no MCP records. |
-| `default` | Academic research skills plus core scholarly MCP records. |
+| `default` | Academic research skills plus the low-friction arXiv MCP record. |
 | `enhanced` | `default` plus curated external complementary skill bundles. |
-| `literature` | SOTA and systematic-review work with citation-library MCP records. |
-| `writing` | Paper-writing and Overleaf-oriented work. |
-| `full` | Broad optional connector and specialist setup. |
+| `literature` | SOTA and systematic-review work with arXiv plus DBLP for computer science bibliography. |
+| `writing` | Paper-writing work; Overleaf is documented as an opt-in credentialed integration. |
+| `full` | Broad setup with low-friction arXiv and DBLP records plus the full optional MCP catalog documented. |
+
+MCP defaults are intentionally conservative. Semantic Scholar, OpenAlex,
+Zotero, Overleaf, Crossref, and fallback aggregators are useful, but they need
+API keys, local apps, manual setup, or source-policy review. Enable them with
+`npx academic-research mcp enable <server>` after reading
+`docs/agent/mcp-setup.md`, use `npx academic-research mcp env <server>` to see
+runtime prerequisites, then run `npx academic-research mcp doctor`.
+
+The MCP catalog distinguishes local runtime adapters from hosted endpoints and
+manual integrations. arXiv and DBLP are low-friction local `uvx` runtimes.
+Semantic Scholar is useful for citation graphs but works best with
+`SEMANTIC_SCHOLAR_API_KEY`. OpenAlex requires `OPENALEX_API_KEY` for the
+selected local adapter; OpenAlex keys are free for normal academic use with
+daily free usage. PubMed is a biomedical-specific `npx` runtime and remains
+opt-in. Zotero needs the local Zotero desktop app and Zoty setup. Overleaf is
+manual and credentialed. Crossref and broad paper-search aggregators are kept
+as fallback/manual entries until a project explicitly needs them.
+
+Generated MCP snippets are project documentation and client-ready config, not
+live tools by themselves. Your MCP client must load the generated snippet, and
+the referenced commands must be available on your machine or runnable through
+`uvx`/`npx`. `mcp install` only runs finite setup commands such as the arXiv
+tool install; it deliberately does not launch stdio MCP servers.
 
 ## Validate This Package
 
@@ -169,8 +202,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.5 -m "v0.1.5"
-git push origin main v0.1.5
+git tag -a v0.1.6 -m "v0.1.6"
+git push origin main v0.1.6
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag
