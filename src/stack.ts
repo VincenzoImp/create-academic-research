@@ -89,12 +89,18 @@ export const AGENT_STACK: AgentStack = {
   },
   presets: {
     minimal: {
-      description: "Only the academic research skill package.",
+      description: "Academic research skills only, no MCP records.",
       skill_bundles: ["academic_research"],
       mcp_servers: []
     },
     default: {
-      description: "Recommended setup for most academic research projects.",
+      description: "Clean academic research setup with core scholarly MCP records.",
+      skill_bundles: ["academic_research"],
+      mcp_servers: ["arxiv", "semantic-scholar", "openalex"]
+    },
+    enhanced: {
+      description:
+        "Default academic setup plus complementary agent engineering, document, frontend, testing, and doc conversion skills.",
       skill_bundles: ["academic_research", "default_complementary", "docling"],
       mcp_servers: ["arxiv", "semantic-scholar", "openalex"]
     },

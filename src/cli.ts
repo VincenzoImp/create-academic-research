@@ -70,7 +70,7 @@ async function createMain(argv: string[]): Promise<number> {
     return 0;
   }
   if (!target) {
-    printCreateHelp();
+    printMissingTargetHelp();
     return 1;
   }
   if (flagBool(parsed.flags, "install-skills") && flagBool(parsed.flags, "no-install-skills")) {
@@ -431,7 +431,7 @@ function printCreateHelp(): void {
       "  --title <name>           Project title. Default: title-cased project name.",
       "  --slug <name>            Repository/package slug. Default: normalized project name.",
       "  --package <name>         Python package name. Default: normalized project name.",
-      "  --preset <name>           Capability preset: minimal, default, literature, writing, full.",
+      "  --preset <name>           Capability preset: minimal, default, enhanced, literature, writing, full.",
       "  --profile <name>          Project profile metadata. Default: academic-general.",
       "  --agent <name>            Agent target. Default: auto-detect.",
       "  --install-skills          Install project-local skills without prompting.",
@@ -439,6 +439,18 @@ function printCreateHelp(): void {
       "  --install-mcp-tools       Run external MCP install commands after creation.",
       "  -h, --help               Show this help.",
       "  -v, --version            Show package version."
+    ].join("\n")
+  );
+}
+
+function printMissingTargetHelp(): void {
+  console.error(
+    [
+      "Please specify the project directory.",
+      "",
+      "Usage:",
+      "  npm create academic-research@latest my-research-project",
+      "  npx create-academic-research@latest my-research-project"
     ].join("\n")
   );
 }

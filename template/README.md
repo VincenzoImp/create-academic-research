@@ -53,6 +53,7 @@ Project-local skills and MCP records are managed with:
 ```bash
 npx academic-research skills presets
 npx academic-research skills install --preset default
+npx academic-research skills install --preset enhanced
 npx academic-research skills list
 npx academic-research skills status
 npx academic-research mcp enable arxiv semantic-scholar openalex
@@ -66,3 +67,8 @@ available install presets. `mcp enable` changes project records. `mcp commands`
 prints external install commands without running them. `mcp install` runs
 external tool installation commands and should be used only after reviewing the
 selected MCP.
+
+`default` installs the companion academic research skill package and keeps the
+MCP records focused on core scholarly discovery. `enhanced` adds complementary
+external skills for agent engineering, frontend work, testing, document
+formats, and PDF conversion.

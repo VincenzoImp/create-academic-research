@@ -39,8 +39,20 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.0\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.1\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
+});
+
+test("create-academic-research requires an explicit project directory", () => {
+  const create = spawnSync(process.execPath, ["dist/bin/create-academic-research.js"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(create.status, 1);
+  assert.match(create.stderr, /Please specify the project directory\./);
+  assert.match(create.stderr, /npm create academic-research@latest my-research-project/);
+  assert.match(create.stderr, /npx create-academic-research@latest my-research-project/);
 });
 
 test("create-academic-research binary creates and validates a project", async () => {
@@ -170,7 +182,8 @@ test("academic-research skills list and presets have distinct meanings", async (
   assert.match(list.stdout, /paper-writing-review\t\.tabnine\/agent\/skills\/paper-writing-review/);
   assert.doesNotMatch(list.stdout, /Recommended setup/);
   assert.equal(presets.status, 0, presets.stderr + presets.stdout);
-  assert.match(presets.stdout, /default: Recommended setup/);
+  assert.match(presets.stdout, /default: Clean academic research setup/);
+  assert.match(presets.stdout, /enhanced: Default academic setup plus complementary/);
   assert.equal(status.status, 0, status.stderr + status.stdout);
   assert.match(status.stdout, /agent\tauto/);
   assert.match(status.stdout, /project_preset\tdefault/);

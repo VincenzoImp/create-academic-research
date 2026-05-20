@@ -36,7 +36,7 @@ test("createProject generates a personalized research project without global sid
   assert.equal(capabilities.agent, "auto");
   assert.deepEqual(capabilities.mcp_servers, ["arxiv", "semantic-scholar", "openalex"]);
   assert.equal(packageJson.name, "paper-project");
-  assert.equal(packageJson.devDependencies["create-academic-research"], "^0.1.0");
+  assert.equal(packageJson.devDependencies["create-academic-research"], "^0.1.1");
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));

@@ -41,7 +41,7 @@ specific target recognized by the `skills` CLI, such as `claude-code`,
 By default, the wizard:
 
 - creates the repository structure;
-- configures project-local skills;
+- installs the project-local `VincenzoImp/academic-research-skills` package;
 - enables the scholarly MCP records for `arxiv`, `semantic-scholar`, and
   `openalex`;
 - writes `configs/capabilities.yaml`;
@@ -49,6 +49,10 @@ By default, the wizard:
 - writes `docs/agent/generated/mcp.json` unless an explicit agent target is set;
 - appends the onboarding event to `wiki/log.md`;
 - does not install external MCP tools unless explicitly requested.
+
+Use `--preset enhanced` when you also want the curated complementary external
+skill bundles for agent engineering, frontend work, testing, document formats,
+and PDF conversion.
 
 ## Non-Interactive Create
 
@@ -71,6 +75,7 @@ npx academic-research doctor
 npx academic-research rename --title "New Title" --slug new-title --package new_title
 npx academic-research skills presets
 npx academic-research skills install --preset default
+npx academic-research skills install --preset enhanced
 npx academic-research skills list
 npx academic-research skills status
 npx academic-research skills remove source-ingestion
@@ -129,6 +134,17 @@ context. They are not automatic capabilities of every raw model API.
 Use `--agent <agent>` for explicit multi-tool setup; reserve `--agent '*'` for
 cases where you intentionally want every local agent loader populated.
 
+Preset intent:
+
+| Preset | Intent |
+|---|---|
+| `minimal` | Academic research skills only, no MCP records. |
+| `default` | Academic research skills plus core scholarly MCP records. |
+| `enhanced` | `default` plus curated external complementary skill bundles. |
+| `literature` | SOTA and systematic-review work with citation-library MCP records. |
+| `writing` | Paper-writing and Overleaf-oriented work. |
+| `full` | Broad optional connector and specialist setup. |
+
 ## Validate This Package
 
 ```bash
@@ -145,8 +161,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.0 -m "v0.1.0"
-git push origin main v0.1.0
+git tag -a v0.1.1 -m "v0.1.1"
+git push origin main v0.1.1
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

@@ -28,7 +28,11 @@ test("skill install commands are project-local and executable from the project r
   const commands = await buildSkillInstallCommands(target, "default");
   const rendered = commands.map((command) => command.join(" ")).join("\n");
 
+  assert.equal(commands.length, 1);
   assert.match(rendered, /VincenzoImp\/academic-research-skills/);
+  assert.doesNotMatch(rendered, /obra\/superpowers/);
+  assert.doesNotMatch(rendered, /anthropics\/skills/);
+  assert.doesNotMatch(rendered, /existential-birds\/beagle/);
   assert.doesNotMatch(rendered, /--global|\s-g\s/);
   assert.ok(commands.every((command) => command.includes("--copy")));
   assert.ok(commands.every((command) => command.includes("-y")));
@@ -64,6 +68,22 @@ test("skill install commands are project-local and executable from the project r
     "source-ingestion",
     "-y"
   ]);
+});
+
+test("enhanced preset includes complementary external skill bundles explicitly", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-enhanced-"));
+  const target = join(root, "skills-enhanced-project");
+  await createProject({ target, title: "Skills Enhanced Project", preset: "enhanced", installSkills: false });
+
+  const commands = await buildSkillInstallCommands(target, "enhanced");
+  const rendered = commands.map((command) => command.join(" ")).join("\n");
+
+  assert.equal(commands.length, 4);
+  assert.match(rendered, /VincenzoImp\/academic-research-skills/);
+  assert.match(rendered, /obra\/superpowers/);
+  assert.match(rendered, /anthropics\/skills/);
+  assert.match(rendered, /existential-birds\/beagle/);
+  assert.ok(commands.every((command) => command.includes("--copy")));
 });
 
 test("skill install records the active preset and agent after a successful install", async () => {
