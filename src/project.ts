@@ -3,7 +3,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-import { DEFAULT_AGENT, initializeCapabilities, installSkills } from "./capabilities.js";
+import { DEFAULT_AGENT, initializeCapabilities, installSkills, writeMcpEnvironmentExample } from "./capabilities.js";
 import { assertKnownAgentTarget } from "./agents.js";
 import { copyDirectory, exists, isNonEmptyDirectory, movePath, readJson, writeJson } from "./files.js";
 import { packageify, slugify, titleFromSlug } from "./names.js";
@@ -160,6 +160,7 @@ export async function createProject(options: CreateProjectOptions): Promise<Proj
   await personalizeProject(target, { title, slug, packageName, profile: options.profile ?? "academic-general" });
   await writeGeneratedPackageJson(target, { slug });
   await writeAgentStack(target);
+  await writeMcpEnvironmentExample(target);
   await initializeCapabilities(target, { preset, agent });
 
   if (options.installSkills) {
@@ -193,6 +194,7 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
   const errors: string[] = [];
   const required = [
     "README.md",
+    ".env.example",
     "package.json",
     "pyproject.toml",
     "AGENTS.md",
@@ -201,6 +203,7 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "configs/capabilities.yaml",
     "docs/agent/capability-profile.md",
     "docs/agent/mcp-setup.md",
+    "docs/agent/mcp-client-setup.md",
     "docs/agent/generated",
     "scripts/README.md",
     "sources/source-ledger.csv",
@@ -281,7 +284,7 @@ async function writeGeneratedPackageJson(root: string, { slug }: { slug: string 
   const path = join(root, "package.json");
   const data = await readJson<GeneratedPackageJson>(path);
   const existingSpec = data.devDependencies?.["create-academic-research"];
-  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.8";
+  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.9";
   data.name = slug;
   data.devDependencies = {
     ...(data.devDependencies ?? {}),

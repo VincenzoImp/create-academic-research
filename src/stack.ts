@@ -229,7 +229,7 @@ export const AGENT_STACK: AgentStack = {
       recommended_env: [],
       local_service: "",
       smoke_test: "Search works by title or DOI and confirm stable OpenAlex IDs.",
-      risks: "The selected local server requires OPENALEX_API_KEY. OpenAlex keys are free for normal academic use with daily free usage; smoke-test coverage and cost headers before high-volume work."
+      risks: "The selected local server requires OPENALEX_API_KEY. OpenAlex keys are free and include a free daily quota; check current credit limits, smoke-test coverage, and inspect cost headers before high-volume work."
     },
     crossref: {
       readiness: "manual",

@@ -104,6 +104,7 @@ npx academic-research mcp enabled
 npx academic-research mcp available
 npx academic-research mcp commands arxiv
 npx academic-research mcp env openalex semantic-scholar zotero
+npx academic-research mcp env --dotenv --all > .env.example
 npx academic-research mcp enable arxiv dblp
 npx academic-research mcp disable arxiv
 npx academic-research mcp install arxiv
@@ -137,7 +138,7 @@ MCP commands are split by side-effect:
 | `mcp enabled` | List only enabled MCP server ids. |
 | `mcp available` | List the local MCP catalog. |
 | `mcp commands` | Print finite external install commands without running them. Runtime-only `uvx`/`npx` servers may have no install command. |
-| `mcp env` | Print required/recommended env vars, hosted endpoints, local prerequisites, and setup commands for selected servers. |
+| `mcp env` | Print required/recommended env vars, hosted endpoints, local prerequisites, and setup commands for selected servers. Use `--dotenv --all` to regenerate `.env.example`. |
 | `mcp enable` | Enable an MCP server in project records and generated snippets. |
 | `mcp disable` | Remove an MCP server from project records and generated snippets. |
 | `mcp install` | Run finite external tool install commands for selected MCP servers. It must not launch stdio MCP servers. |
@@ -185,11 +186,17 @@ The MCP catalog distinguishes local runtime adapters from hosted endpoints and
 manual integrations. arXiv and DBLP are low-friction local `uvx` runtimes.
 Semantic Scholar is useful for citation graphs but works best with
 `SEMANTIC_SCHOLAR_API_KEY`. OpenAlex requires `OPENALEX_API_KEY` for the
-selected local adapter; OpenAlex keys are free for normal academic use with
-daily free usage. PubMed is a biomedical-specific `npx` runtime and remains
-opt-in. Zotero needs the local Zotero desktop app and Zoty setup. Overleaf is
-manual and credentialed. Crossref and broad paper-search aggregators are kept
-as fallback/manual entries until a project explicitly needs them.
+selected local adapter; OpenAlex keys are free and include a free daily quota,
+but high-volume work should check current credit limits. PubMed is a
+biomedical-specific `npx` runtime and remains opt-in. Zotero needs the local
+Zotero desktop app and Zoty setup. Overleaf is manual and credentialed.
+Crossref and broad paper-search aggregators are kept as fallback/manual entries
+until a project explicitly needs them.
+
+Generated projects include a committed `.env.example` with empty MCP variables
+and ignore filled `.env` or `.env.local` files. `mcp doctor` checks the current
+process environment or client-provided secrets; it does not load `.env.local`
+automatically.
 
 Generated MCP snippets are project documentation and client-ready config, not
 live tools by themselves. Your MCP client must load the generated snippet, and
@@ -216,8 +223,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.8 -m "v0.1.8"
-git push origin main v0.1.8
+git tag -a v0.1.9 -m "v0.1.9"
+git push origin main v0.1.9
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

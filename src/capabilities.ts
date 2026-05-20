@@ -47,6 +47,13 @@ export interface McpDoctorResult {
   enabled: string[];
 }
 
+export interface McpEnvironmentEntry {
+  server: string;
+  kind: "required" | "recommended" | "default";
+  name: string;
+  value: string;
+}
+
 interface SkillInstallOptions {
   agent?: string;
 }
@@ -74,6 +81,10 @@ export async function writeCapabilities(root: string, state: Partial<CapabilityS
   await writeMcpSetup(root, next);
   await writeMcpSnippet(root, next);
   await appendCapabilityLog(root, next);
+}
+
+export async function writeMcpEnvironmentExample(root: string): Promise<void> {
+  await writeFile(join(root, ".env.example"), formatMcpDotenv(Object.keys(AGENT_STACK.mcp_servers)), "utf8");
 }
 
 export async function initializeCapabilities(
@@ -301,6 +312,57 @@ export function mcpToolCommandTexts(servers: string[], key: McpToolCommandKey = 
   return commands;
 }
 
+export function listMcpEnvironmentEntries(
+  servers: string[],
+  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
+): McpEnvironmentEntry[] {
+  assertKnownMcpServers(servers);
+  const entries: McpEnvironmentEntry[] = [];
+  for (const serverName of servers) {
+    const server = AGENT_STACK.mcp_servers[serverName];
+    if (!options.recommendedOnly) {
+      for (const envName of server.required_env) {
+        entries.push({ server: serverName, kind: "required", name: envName, value: "" });
+      }
+    }
+    if (!options.requiredOnly) {
+      for (const envName of server.recommended_env) {
+        entries.push({ server: serverName, kind: "recommended", name: envName, value: "" });
+      }
+      for (const [envName, value] of Object.entries(server.env)) {
+        entries.push({ server: serverName, kind: "default", name: envName, value });
+      }
+    }
+  }
+  return dedupeMcpEnvironmentEntries(entries);
+}
+
+export function formatMcpDotenv(
+  servers: string[],
+  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
+): string {
+  const entries = listMcpEnvironmentEntries(servers, options);
+  const lines = [
+    "# Academic research MCP environment example.",
+    "# Copy to .env.local, your shell profile, or your MCP client secret store.",
+    "# Do not commit filled secrets. Empty values mean optional or user-supplied.",
+    ""
+  ];
+  let previousServer = "";
+  for (const entry of entries) {
+    if (entry.server !== previousServer) {
+      if (previousServer) lines.push("");
+      lines.push(`# ${entry.server} environment`);
+      previousServer = entry.server;
+    }
+    lines.push(`${entry.name}=${dotenvValue(entry.value)}`);
+  }
+  if (entries.length === 0) {
+    lines.push("# No environment variables are required for the selected MCP servers.");
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 export async function installMcpTools(
   root: string,
   servers: string[],
@@ -511,6 +573,8 @@ async function writeMcpSetup(root: string, state: CapabilityState): Promise<void
     "",
     "## Operating Rules",
     "",
+    "- Use `.env.example` as a committed reference and put filled secrets in `.env.local`, your shell, or your MCP client secret store.",
+    "- Regenerate a dotenv-style reference with `npx academic-research mcp env --dotenv --all`.",
     "- Keep secrets in your shell, MCP client secret store, or local untracked files; do not commit tokens or API keys.",
     "- Prefer the smallest enabled MCP set that covers the current research question.",
     "- Treat MCP output as retrieval metadata. Promote claims into repository source records only after source ingestion and citation audit.",
@@ -534,6 +598,24 @@ async function appendCapabilityLog(root: string, state: CapabilityState): Promis
 
 function dedupe(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function dedupeMcpEnvironmentEntries(entries: McpEnvironmentEntry[]): McpEnvironmentEntry[] {
+  const priority = { required: 0, default: 1, recommended: 2 } as const;
+  const byName = new Map<string, McpEnvironmentEntry>();
+  for (const entry of entries) {
+    const previous = byName.get(entry.name);
+    if (!previous || priority[entry.kind] < priority[previous.kind]) {
+      byName.set(entry.name, entry);
+    }
+  }
+  return [...byName.values()];
+}
+
+function dotenvValue(value: string): string {
+  if (!value) return "";
+  if (/^[A-Za-z0-9_./:-]+$/.test(value)) return value;
+  return JSON.stringify(value);
 }
 
 function renderSkillCommand(command: string, agent: string): string {

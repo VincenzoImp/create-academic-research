@@ -32,6 +32,7 @@ test("interactive create guide explains presets, agent targets, and MCP installe
   assert.match(guide, /installer/);
   assert.match(guide, /execution modes are explicit/);
   assert.match(guide, /mcp env <server>/);
+  assert.match(guide, /mcp env --dotenv --all/);
 });
 
 test("create-academic-research help exits successfully and explains framing", () => {
@@ -68,7 +69,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.8\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.9\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -140,6 +141,7 @@ test("academic-research setup prints project onboarding status without changing 
   assert.match(setup.stdout, /installed_skill_ids\t0/);
   assert.match(setup.stdout, /mcp_enabled\tarxiv/);
   assert.match(setup.stdout, /academic-research mcp smoke/);
+  assert.match(setup.stdout, /academic-research mcp env --dotenv --all/);
 });
 
 test("create-academic-research accepts equals-style string flags", async () => {
@@ -482,6 +484,25 @@ test("academic-research mcp env prints env vars and local setup prerequisites", 
     ],
     { cwd: root, encoding: "utf8" }
   );
+  const dotenv = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "env", "--dotenv", "--all", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const requiredOnly = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "env",
+      "openalex",
+      "semantic-scholar",
+      "--required",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
 
   assert.equal(env.status, 0, env.stderr + env.stdout);
   assert.match(env.stdout, /^openalex\trequired\tOPENALEX_API_KEY/m);
@@ -489,6 +510,15 @@ test("academic-research mcp env prints env vars and local setup prerequisites", 
   assert.match(env.stdout, /^zotero\tlocal-service\tZotero desktop/m);
   assert.match(env.stdout, /^zotero\tsetup-command\tuvx --refresh zoty setup/m);
   assert.doesNotMatch(env.stdout, /your-key|your-email|\$\{[^}]+}/i);
+  assert.equal(dotenv.status, 0, dotenv.stderr + dotenv.stdout);
+  assert.match(dotenv.stdout, /^SEMANTIC_SCHOLAR_API_KEY=/m);
+  assert.match(dotenv.stdout, /^OPENALEX_API_KEY=/m);
+  assert.match(dotenv.stdout, /^MCP_TRANSPORT_TYPE=stdio/m);
+  assert.match(dotenv.stdout, /^PAPER_SEARCH_MCP_UNPAYWALL_EMAIL=/m);
+  assert.doesNotMatch(dotenv.stdout, /your-key|your-token|\$\{[^}]+}/i);
+  assert.equal(requiredOnly.status, 0, requiredOnly.stderr + requiredOnly.stdout);
+  assert.match(requiredOnly.stdout, /^openalex\trequired\tOPENALEX_API_KEY/m);
+  assert.doesNotMatch(requiredOnly.stdout, /SEMANTIC_SCHOLAR_API_KEY/);
 });
 
 test("academic-research mcp commands are separate from mcp list", async () => {
@@ -557,6 +587,7 @@ test("academic-research rejects options that do not affect the selected MCP comm
     [["mcp", "available", "--root", "."], /mcp available does not accept --root/],
     [["mcp", "commands", "arxiv", "--agent", "example-agent"], /mcp commands does not accept --agent/],
     [["mcp", "env", "openalex", "--agent", "example-agent"], /mcp env does not accept --agent/],
+    [["mcp", "env", "openalex", "--required", "--recommended"], /mcp env cannot use --required and --recommended together/],
     [["mcp", "install", "arxiv", "--agent", "example-agent"], /mcp install does not accept --agent/],
     [["mcp", "uninstall", "arxiv", "--agent", "example-agent"], /mcp uninstall does not accept --agent/],
     [["mcp", "smoke", "arxiv", "--agent", "example-agent"], /mcp smoke does not accept --agent/],

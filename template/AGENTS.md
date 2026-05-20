@@ -11,6 +11,8 @@ scholarly record.
 - Tie claims to sources, datasets, experiment records, or decision records.
 - Update durable records when project knowledge changes.
 - Keep large data, generated caches, credentials, and private review material out of git.
+- Keep `.env.example` as a public reference only; never commit filled `.env`,
+  `.env.local`, API keys, tokens, cookies, or browser sessions.
 
 ## First Read
 

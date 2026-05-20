@@ -63,6 +63,7 @@ npx academic-research skills status
 npx academic-research setup
 npx academic-research mcp list
 npx academic-research mcp env openalex semantic-scholar zotero
+npx academic-research mcp env --dotenv --all > .env.example
 npx academic-research mcp enable arxiv dblp
 npx academic-research mcp commands arxiv
 npx academic-research mcp install arxiv
@@ -77,6 +78,11 @@ env vars, hosted endpoints, local prerequisites, and setup commands before you
 enable optional servers. `mcp install` runs only finite tool installation
 commands; runtime-only `uvx`/`npx` MCP servers may have no install step and are
 started later by the MCP client.
+
+`.env.example` is the committed MCP environment reference. Copy it to
+`.env.local`, your shell profile, or your MCP client secret store when secrets
+are needed. Filled `.env` files are ignored by git. `mcp doctor` checks the
+current process environment; it does not automatically load `.env.local`.
 
 `setup` prints the current project capability state, installed skill counts,
 enabled MCP records, and the next onboarding commands without changing files.

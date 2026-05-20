@@ -111,7 +111,9 @@ if (releaseWorkflow) {
 }
 
 const requiredTemplateFiles = [
+  "template/.env.example",
   "template/scripts/README.md",
+  "template/docs/agent/mcp-client-setup.md",
   "template/wiki/templates/source-page.md",
   "template/wiki/templates/claim-page.md",
   "template/wiki/templates/experiment-page.md",
@@ -130,10 +132,24 @@ for (const relative of requiredTemplateFiles) {
 }
 
 const templatePackageJson = JSON.parse(await readFile(join(root, "template/package.json"), "utf8"));
-for (const scriptName of ["setup", "mcp:smoke"]) {
+for (const scriptName of ["setup", "mcp:smoke", "mcp:dotenv"]) {
   if (!templatePackageJson.scripts?.[scriptName]) {
     errors.push(`template/package.json missing script: ${scriptName}`);
   }
+}
+
+const gitignore = await readFile(join(root, "template/.gitignore"), "utf8");
+if (!gitignore.includes("!.env.example")) {
+  errors.push("template/.gitignore must keep .env.example tracked");
+}
+const envExample = await readFile(join(root, "template/.env.example"), "utf8");
+for (const envName of ["SEMANTIC_SCHOLAR_API_KEY", "OPENALEX_API_KEY", "NCBI_API_KEY", "OVERLEAF_TOKEN"]) {
+  if (!envExample.includes(`${envName}=`)) {
+    errors.push(`template/.env.example missing ${envName}`);
+  }
+}
+if (/your-key|your-token|your-secret|your-api/i.test(envExample) || /\$\{[^}]+}/.test(envExample)) {
+  errors.push("template/.env.example must not contain fake secret placeholders");
 }
 
 const requiredCsvColumns = {

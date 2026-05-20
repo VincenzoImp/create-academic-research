@@ -11,10 +11,11 @@
     "mcp:list": "academic-research mcp list",
     "mcp:commands": "academic-research mcp commands",
     "mcp:env": "academic-research mcp env",
+    "mcp:dotenv": "academic-research mcp env --dotenv --all",
     "mcp:smoke": "academic-research mcp smoke",
     "mcp:doctor": "academic-research mcp doctor"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.8"
+    "create-academic-research": "0.1.9"
   }
 }

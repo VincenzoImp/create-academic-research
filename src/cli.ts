@@ -11,7 +11,9 @@ import {
   installMcpTools,
   installSkillIds,
   installSkills,
+  formatMcpDotenv,
   listInstalledSkills,
+  listMcpEnvironmentEntries,
   mcpToolCommandTexts,
   readCapabilities,
   removeSkills,
@@ -57,7 +59,7 @@ const CREATE_FLAGS = flagSchema(
 const ROOT_FLAGS = flagSchema(["help"], ["root"]);
 const RENAME_FLAGS = flagSchema(["help"], ["root", "title", "slug", "package"]);
 const SKILLS_FLAGS = flagSchema(["help"], ["root", "preset", "agent"]);
-const MCP_FLAGS = flagSchema(["help"], ["root", "agent"]);
+const MCP_FLAGS = flagSchema(["help", "all", "dotenv", "required", "recommended"], ["root", "agent"]);
 
 export async function main(argv: string[] = process.argv.slice(2), mode: CliMode = "create"): Promise<number> {
   try {
@@ -208,6 +210,7 @@ async function setupCommand(argv: string[]): Promise<number> {
   console.log("academic-research skills status");
   console.log("academic-research mcp list");
   console.log("academic-research mcp env");
+  console.log("academic-research mcp env --dotenv --all");
   console.log("academic-research mcp smoke");
   console.log("academic-research doctor");
   return project.ok ? 0 : 1;
@@ -377,12 +380,27 @@ async function mcpCommand(argv: string[]): Promise<number> {
     return 0;
   }
   if (subcommand === "env") {
-    assertOnlyOptions(parsed.flags, "mcp env", ["root"]);
+    assertOnlyOptions(parsed.flags, "mcp env", ["root", "all", "dotenv", "required", "recommended"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
-    const selected = parsed.positionals.length > 0 ? parsed.positionals : (await readCapabilities(root)).mcp_servers;
+    if (flagBool(parsed.flags, "required") && flagBool(parsed.flags, "recommended")) {
+      throw new Error("mcp env cannot use --required and --recommended together");
+    }
+    const selected = flagBool(parsed.flags, "all")
+      ? Object.keys(AGENT_STACK.mcp_servers)
+      : parsed.positionals.length > 0
+        ? parsed.positionals
+        : (await readCapabilities(root)).mcp_servers;
     assertKnownMcpServers(selected);
+    const filters = {
+      requiredOnly: flagBool(parsed.flags, "required"),
+      recommendedOnly: flagBool(parsed.flags, "recommended")
+    };
+    if (flagBool(parsed.flags, "dotenv")) {
+      process.stdout.write(formatMcpDotenv(selected, filters));
+      return 0;
+    }
     console.log("id\ttype\tvalue");
-    printMcpEnvironment(selected);
+    printMcpEnvironment(selected, filters);
     return 0;
   }
   if (subcommand === "enable") {
@@ -563,6 +581,7 @@ export function formatInteractiveCreateGuide(): string {
     "  MCP installers are optional and run only finite installer commands.",
     "  MCP execution modes are explicit: uvx-runtime, npx-runtime, local-service, manual, or fallback.",
     "  Use `academic-research mcp env <server>` to inspect env vars and local prerequisites.",
+    "  Use `academic-research mcp env --dotenv --all` to regenerate a committed env example.",
     ""
   ].join("\n");
 }
@@ -677,9 +696,18 @@ function printMcpHelp(): void {
       "",
       "Manage MCP records, readiness checks, and finite external MCP tool installs.",
       "",
+      "Examples:",
+      "  academic-research mcp env openalex semantic-scholar",
+      "  academic-research mcp env --dotenv --all > .env.example",
+      "  academic-research mcp smoke",
+      "",
       "Options:",
       "  --root <path>            Project root for project-state commands.",
       "  --agent <id>             Agent for enable/disable generated snippets.",
+      "  --all                    Select all catalog MCP servers for mcp env.",
+      "  --dotenv                Print mcp env as dotenv content.",
+      "  --required              Print only required env vars for mcp env.",
+      "  --recommended           Print only recommended/default env vars for mcp env.",
       "  -h, --help               Show this help."
     ].join("\n")
   );
@@ -708,29 +736,37 @@ function printMcpSmokeDiagnostics(servers: string[]): boolean {
   return failed;
 }
 
-function printMcpEnvironment(servers: string[]): void {
+function printMcpEnvironment(
+  servers: string[],
+  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
+): void {
+  const grouped = new Map<string, ReturnType<typeof listMcpEnvironmentEntries>>();
+  for (const entry of listMcpEnvironmentEntries(servers, options)) {
+    const entries = grouped.get(entry.server) ?? [];
+    entries.push(entry);
+    grouped.set(entry.server, entries);
+  }
   for (const name of servers) {
     const server = AGENT_STACK.mcp_servers[name];
+    const entries = grouped.get(name) ?? [];
     let wroteLine = false;
-    for (const envName of server.required_env) {
-      console.log(`${name}\trequired\t${envName}`);
+    for (const entry of entries) {
+      console.log(`${name}\t${entry.kind}\t${entry.name}${entry.value ? `=${entry.value}` : ""}`);
       wroteLine = true;
     }
-    for (const envName of server.recommended_env) {
-      console.log(`${name}\trecommended\t${envName}`);
-      wroteLine = true;
-    }
-    if (server.hosted_url) {
+    if (!options.requiredOnly && !options.recommendedOnly && server.hosted_url) {
       console.log(`${name}\thosted-endpoint\t${server.hosted_url}`);
       wroteLine = true;
     }
-    if (server.local_service) {
+    if (!options.requiredOnly && !options.recommendedOnly && server.local_service) {
       console.log(`${name}\tlocal-service\t${server.local_service}`);
       wroteLine = true;
     }
-    for (const command of server.setup_commands) {
-      console.log(`${name}\tsetup-command\t${command}`);
-      wroteLine = true;
+    if (!options.requiredOnly && !options.recommendedOnly) {
+      for (const command of server.setup_commands) {
+        console.log(`${name}\tsetup-command\t${command}`);
+        wroteLine = true;
+      }
     }
     if (!wroteLine) console.log(`${name}\tnone\t-`);
   }

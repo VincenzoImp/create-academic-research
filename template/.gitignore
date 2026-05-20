@@ -50,5 +50,6 @@ artifacts/cache/**
 docs/agent/generated/*.local.json
 .env
 .env.*
+!.env.example
 !.gitkeep
 !README.md

@@ -36,11 +36,18 @@ test("createProject generates a personalized research project without global sid
   assert.equal(capabilities.agent, "universal");
   assert.deepEqual(capabilities.mcp_servers, ["arxiv"]);
   assert.equal(packageJson.name, "paper-project");
-  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.8");
+  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.9");
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));
   await stat(join(target, "docs/agent/generated/mcp.json"));
+  await stat(join(target, ".env.example"));
+  await stat(join(target, "docs/agent/mcp-client-setup.md"));
+  const envExample = await readFile(join(target, ".env.example"), "utf8");
+  assert.match(envExample, /SEMANTIC_SCHOLAR_API_KEY=/);
+  assert.match(envExample, /OPENALEX_API_KEY=/);
+  assert.match(envExample, /MCP_TRANSPORT_TYPE=stdio/);
+  assert.doesNotMatch(envExample, /your-key|your-token|\$\{[^}]+}/i);
   const mcpSetup = await readFile(join(target, "docs/agent/mcp-setup.md"), "utf8");
   assert.match(mcpSetup, /## Enabled MCP Servers/);
   assert.match(mcpSetup, /`arxiv`/);
@@ -243,6 +250,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "configs/capabilities.yaml"), "agent: [\n", "utf8");
   await writeFile(join(target, "sources/source-ledger.csv"), "source_id,title\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
+  await rm(join(target, ".env.example"));
 
   const result = await doctorProject(target);
 
@@ -251,6 +259,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("invalid configs/capabilities.yaml")));
   assert.ok(result.errors.some((error) => error.includes("sources/source-ledger.csv missing column type")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
+  assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
 });
 
 test("createProject creates missing parent directories", async () => {
