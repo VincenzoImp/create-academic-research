@@ -53,6 +53,9 @@ By default, the wizard:
 - writes `docs/agent/capability-profile.md`;
 - writes `docs/agent/mcp-setup.md`;
 - writes `docs/agent/generated/mcp.json` unless an explicit agent target is set;
+- includes `scripts/README.md` for repeatable command entrypoints;
+- includes reusable `wiki/templates/` pages for sources, claims, experiments,
+  decisions, reviewer concerns, and research questions;
 - appends the onboarding event to `wiki/log.md`;
 - does not install external MCP tools unless explicitly requested.
 
@@ -84,6 +87,7 @@ Inside a generated project:
 
 ```bash
 npx academic-research doctor
+npx academic-research setup
 npx academic-research rename --title "New Title" --slug new-title --package new_title
 npx academic-research agents list
 npx academic-research skills presets
@@ -99,14 +103,19 @@ npx academic-research mcp enabled
 npx academic-research mcp available
 npx academic-research mcp commands arxiv
 npx academic-research mcp env openalex semantic-scholar zotero
-npx academic-research mcp enable arxiv openalex
+npx academic-research mcp enable arxiv dblp
 npx academic-research mcp disable arxiv
 npx academic-research mcp install arxiv
 npx academic-research mcp uninstall arxiv
+npx academic-research mcp smoke
 npx academic-research mcp doctor
 ```
 
 ## Command Model
+
+`academic-research setup` is a non-destructive onboarding status command. It
+prints the active preset, agent, skill counts, enabled MCP records, and next
+commands without changing files.
 
 Skills are project-local by default.
 
@@ -132,6 +141,7 @@ MCP commands are split by side-effect:
 | `mcp disable` | Remove an MCP server from project records and generated snippets. |
 | `mcp install` | Run finite external tool install commands for selected MCP servers. It must not launch stdio MCP servers. |
 | `mcp uninstall` | Run the external uninstall command when one exists. |
+| `mcp smoke` | Print non-launching readiness diagnostics for enabled or selected MCP servers. |
 | `mcp doctor` | Validate enabled MCP records, generated snippets, required env vars, and documented manual prerequisites. |
 
 ## Companion Skills
@@ -185,6 +195,9 @@ live tools by themselves. Your MCP client must load the generated snippet, and
 the referenced commands must be available on your machine or runnable through
 `uvx`/`npx`. `mcp install` only runs finite setup commands such as the arXiv
 tool install; it deliberately does not launch stdio MCP servers.
+Use `mcp smoke` for a non-launching readiness pass before wiring a client: it
+checks required env vars, manual/local-service status, and whether runtime
+commands are visible on `PATH`.
 
 ## Validate This Package
 
@@ -202,8 +215,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.6 -m "v0.1.6"
-git push origin main v0.1.6
+git tag -a v0.1.7 -m "v0.1.7"
+git push origin main v0.1.7
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

@@ -202,10 +202,17 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "docs/agent/capability-profile.md",
     "docs/agent/mcp-setup.md",
     "docs/agent/generated",
+    "scripts/README.md",
     "sources/source-ledger.csv",
     "sota/literature-matrix.csv",
     "wiki/index.md",
-    "wiki/log.md"
+    "wiki/log.md",
+    "wiki/templates/source-page.md",
+    "wiki/templates/claim-page.md",
+    "wiki/templates/experiment-page.md",
+    "wiki/templates/decision-record.md",
+    "wiki/templates/reviewer-concern.md",
+    "wiki/templates/research-question.md"
   ];
   for (const relative of required) {
     if (!(await exists(join(target, relative)))) errors.push(`missing ${relative}`);
@@ -274,7 +281,7 @@ async function writeGeneratedPackageJson(root: string, { slug }: { slug: string 
   const path = join(root, "package.json");
   const data = await readJson<GeneratedPackageJson>(path);
   const existingSpec = data.devDependencies?.["create-academic-research"];
-  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.6";
+  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.7";
   data.name = slug;
   data.devDependencies = {
     ...(data.devDependencies ?? {}),

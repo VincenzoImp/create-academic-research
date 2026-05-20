@@ -6,7 +6,8 @@ scholarly record.
 ## Core Rules
 
 - Preserve source originals under `sources/`, `data/raw/`, and `data/external/`.
-- Keep reusable logic in `src/`; keep notebooks for exploration and narrative output.
+- Keep reusable logic in `src/`; keep `scripts/` as thin repeatable entrypoints.
+- Keep notebooks for exploration and narrative output.
 - Tie claims to sources, datasets, experiment records, or decision records.
 - Update durable records when project knowledge changes.
 - Keep large data, generated caches, credentials, and private review material out of git.
@@ -35,6 +36,8 @@ scholarly record.
 - `wiki/synthesis.md` changes only when the project-level interpretation changes.
 - `wiki/open_questions.md` tracks unresolved questions.
 - `wiki/contradictions.md` tracks conflicts across sources, data, or runs.
+- `wiki/templates/` contains reusable source, claim, experiment, decision,
+  reviewer-concern, and research-question page structures.
 
 ## Evidence
 
@@ -45,3 +48,4 @@ scholarly record.
 - Citation issues go in `sources/bib/citation-audit.csv`.
 - SOTA records go in `sota/`.
 - Curated experiment records go in `experiments/`.
+- Repeatable command entrypoints go in `scripts/`.

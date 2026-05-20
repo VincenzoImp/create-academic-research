@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -36,7 +36,7 @@ test("createProject generates a personalized research project without global sid
   assert.equal(capabilities.agent, "universal");
   assert.deepEqual(capabilities.mcp_servers, ["arxiv"]);
   assert.equal(packageJson.name, "paper-project");
-  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.6");
+  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.7");
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));
@@ -47,7 +47,14 @@ test("createProject generates a personalized research project without global sid
   assert.match(mcpSetup, /## Available MCP Catalog/);
   assert.match(mcpSetup, /`semantic-scholar`/);
   assert.match(mcpSetup, /`openalex`/);
+  await stat(join(target, "scripts/README.md"));
   await stat(join(target, "notebooks/README.md"));
+  await stat(join(target, "wiki/templates/source-page.md"));
+  await stat(join(target, "wiki/templates/claim-page.md"));
+  await stat(join(target, "wiki/templates/experiment-page.md"));
+  await stat(join(target, "wiki/templates/decision-record.md"));
+  await stat(join(target, "wiki/templates/reviewer-concern.md"));
+  await stat(join(target, "wiki/templates/research-question.md"));
   await assert.rejects(stat(join(target, ".agents")));
   await assert.rejects(stat(join(target, "skills-lock.json")));
 });
@@ -235,6 +242,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "configs/default.yaml"), "project: [\n", "utf8");
   await writeFile(join(target, "configs/capabilities.yaml"), "agent: [\n", "utf8");
   await writeFile(join(target, "sources/source-ledger.csv"), "source_id,title\n", "utf8");
+  await rm(join(target, "wiki/templates/source-page.md"));
 
   const result = await doctorProject(target);
 
@@ -242,6 +250,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("invalid configs/default.yaml")));
   assert.ok(result.errors.some((error) => error.includes("invalid configs/capabilities.yaml")));
   assert.ok(result.errors.some((error) => error.includes("sources/source-ledger.csv missing column type")));
+  assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
 });
 
 test("createProject creates missing parent directories", async () => {

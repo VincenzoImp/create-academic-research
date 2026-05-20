@@ -8,6 +8,7 @@ def test_core_research_structure_exists() -> None:
         "configs/default.yaml",
         "configs/capabilities.yaml",
         "docs/agent/capability-profile.md",
+        "scripts/README.md",
         "notebooks/README.md",
         "outputs/figures",
         "outputs/tables",
@@ -21,5 +22,11 @@ def test_core_research_structure_exists() -> None:
         "sota/literature-matrix.csv",
         "wiki/index.md",
         "wiki/log.md",
+        "wiki/templates/source-page.md",
+        "wiki/templates/claim-page.md",
+        "wiki/templates/experiment-page.md",
+        "wiki/templates/decision-record.md",
+        "wiki/templates/reviewer-concern.md",
+        "wiki/templates/research-question.md",
     ):
         assert (root / relative).exists()

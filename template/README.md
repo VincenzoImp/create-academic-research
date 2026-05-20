@@ -41,6 +41,7 @@ npx academic-research doctor
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
 - `docs/methodology/`: research design, evaluation plan, and validity threats.
 - `experiments/`: curated experiment registry and run records.
+- `scripts/`: thin repeatable entrypoints that call reusable code in `src/`.
 - `notebooks/`: optional exploratory and narrative notebooks.
 - `outputs/`: final figures, tables, models, and paper-supporting derived assets.
 - `reports/`: proposal, paper, slides, reviews, and rebuttal material.
@@ -58,11 +59,13 @@ npx academic-research skills install --preset default
 npx academic-research skills install --preset enhanced
 npx academic-research skills list
 npx academic-research skills status
+npx academic-research setup
 npx academic-research mcp list
 npx academic-research mcp env openalex semantic-scholar zotero
 npx academic-research mcp enable arxiv dblp
 npx academic-research mcp commands arxiv
 npx academic-research mcp install arxiv
+npx academic-research mcp smoke
 npx academic-research mcp doctor
 ```
 
@@ -73,6 +76,12 @@ env vars, hosted endpoints, local prerequisites, and setup commands before you
 enable optional servers. `mcp install` runs only finite tool installation
 commands; runtime-only `uvx`/`npx` MCP servers may have no install step and are
 started later by the MCP client.
+
+`setup` prints the current project capability state, installed skill counts,
+enabled MCP records, and the next onboarding commands without changing files.
+`mcp smoke` performs a non-launching MCP readiness check: it reports required
+env vars, local/manual setup, and whether client runtime commands such as `uvx`
+or `npx` are available.
 
 `default` installs the companion academic research skill package and keeps the
 MCP records focused on low-friction arXiv discovery. `literature` and `full`

@@ -110,6 +110,32 @@ if (releaseWorkflow) {
   }
 }
 
+const requiredTemplateFiles = [
+  "template/scripts/README.md",
+  "template/wiki/templates/source-page.md",
+  "template/wiki/templates/claim-page.md",
+  "template/wiki/templates/experiment-page.md",
+  "template/wiki/templates/decision-record.md",
+  "template/wiki/templates/reviewer-concern.md",
+  "template/wiki/templates/research-question.md"
+];
+
+for (const relative of requiredTemplateFiles) {
+  try {
+    const content = await readFile(join(root, relative), "utf8");
+    if (!content.trim()) errors.push(`${relative} must not be empty`);
+  } catch {
+    errors.push(`missing required template file: ${relative}`);
+  }
+}
+
+const templatePackageJson = JSON.parse(await readFile(join(root, "template/package.json"), "utf8"));
+for (const scriptName of ["setup", "mcp:smoke"]) {
+  if (!templatePackageJson.scripts?.[scriptName]) {
+    errors.push(`template/package.json missing script: ${scriptName}`);
+  }
+}
+
 const requiredCsvColumns = {
   "template/sources/source-ledger.csv": [
     "source_id",

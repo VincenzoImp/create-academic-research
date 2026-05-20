@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -140,6 +140,7 @@ async function lifecycleMain(argv: string[]): Promise<number> {
     return 0;
   }
   if (command === "doctor") return doctorCommand(argv.slice(1));
+  if (command === "setup") return setupCommand(argv.slice(1));
   if (command === "rename") return renameCommand(argv.slice(1));
   if (command === "agents") return agentsCommand(argv.slice(1));
   if (command === "skills") return skillsCommand(argv.slice(1));
@@ -159,6 +160,42 @@ async function doctorCommand(argv: string[]): Promise<number> {
   for (const error of result.errors) console.error(`ERROR: ${error}`);
   if (result.ok) console.log(`OK: ${root}`);
   return result.ok ? 0 : 1;
+}
+
+async function setupCommand(argv: string[]): Promise<number> {
+  const parsed = parseFlags(argv, ROOT_FLAGS);
+  if (flagBool(parsed.flags, "help")) {
+    printSetupHelp();
+    return 0;
+  }
+  assertNoArguments(parsed.positionals, "setup");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  const project = await doctorProject(root);
+  const state = await readCapabilities(root);
+  const skills = await listInstalledSkills(root);
+  const skillIds = new Set(skills.map((skill) => skill.name));
+
+  console.log("Project Setup");
+  console.log(`root\t${root}`);
+  console.log(`doctor\t${project.ok ? "ok" : "error"}`);
+  console.log(`agent\t${state.agent}`);
+  console.log(`preset\t${state.preset}`);
+  console.log(`scope\t${state.scope}`);
+  console.log(`installed_skill_ids\t${skillIds.size}`);
+  console.log(`installed_skill_copies\t${skills.length}`);
+  console.log(`mcp_enabled\t${state.mcp_servers.length > 0 ? state.mcp_servers.join(",") : "none"}`);
+  if (!project.ok) {
+    for (const error of project.errors) console.error(`ERROR: ${error}`);
+  }
+  console.log("");
+  console.log("Next Commands");
+  console.log(`academic-research skills install --preset ${state.preset}`);
+  console.log("academic-research skills status");
+  console.log("academic-research mcp list");
+  console.log("academic-research mcp env");
+  console.log("academic-research mcp smoke");
+  console.log("academic-research doctor");
+  return project.ok ? 0 : 1;
 }
 
 async function renameCommand(argv: string[]): Promise<number> {
@@ -352,6 +389,22 @@ async function mcpCommand(argv: string[]): Promise<number> {
     console.log(`Ran ${result.count ?? 0} MCP uninstall command(s).`);
     return 0;
   }
+  if (subcommand === "smoke") {
+    assertOnlyOptions(parsed.flags, "mcp smoke", ["root"]);
+    const root = resolve(flagString(parsed.flags, "root") ?? ".");
+    const state = await readCapabilities(root);
+    const explicitSelection = parsed.positionals.length > 0;
+    const selected = explicitSelection ? parsed.positionals : state.mcp_servers;
+    assertKnownMcpServers(selected);
+    const failed = printMcpSmokeDiagnostics(selected);
+    if (!explicitSelection) {
+      const result = await doctorMcpServers(root);
+      for (const error of result.errors) console.error(`ERROR: ${error}`);
+      for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
+      return result.ok && !failed ? 0 : 1;
+    }
+    return failed ? 1 : 0;
+  }
   if (subcommand === "doctor") {
     assertOnlyOptions(parsed.flags, "mcp doctor", ["root"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
@@ -527,13 +580,27 @@ function printMissingTargetHelp(): void {
 function printLifecycleHelp(): void {
   console.log(
     [
-      "Usage: academic-research <doctor|rename|agents|skills|mcp>",
+      "Usage: academic-research <doctor|setup|rename|agents|skills|mcp>",
       "",
       "Manage a generated academic research repository after creation.",
       "",
       "Options:",
       "  -h, --help               Show this help.",
       "  -v, --version            Show package version."
+    ].join("\n")
+  );
+}
+
+function printSetupHelp(): void {
+  console.log(
+    [
+      "Usage: academic-research setup [options]",
+      "",
+      "Print project onboarding status and next commands without changing files.",
+      "",
+      "Options:",
+      "  --root <path>            Project root. Default: current directory.",
+      "  -h, --help               Show this help."
     ].join("\n")
   );
 }
@@ -575,9 +642,9 @@ function printSkillsHelp(): void {
 function printMcpHelp(): void {
   console.log(
     [
-      "Usage: academic-research mcp <list|enabled|available|commands|env|enable|disable|install|uninstall|doctor> [servers...]",
+      "Usage: academic-research mcp <list|enabled|available|commands|env|enable|disable|install|uninstall|smoke|doctor> [servers...]",
       "",
-      "Manage MCP records and finite external MCP tool installs.",
+      "Manage MCP records, readiness checks, and finite external MCP tool installs.",
       "",
       "Options:",
       "  --root <path>            Project root for project-state commands.",
@@ -585,6 +652,29 @@ function printMcpHelp(): void {
       "  -h, --help               Show this help."
     ].join("\n")
   );
+}
+
+function printMcpSmokeDiagnostics(servers: string[]): boolean {
+  let failed = false;
+  console.log("id\tstatus\truntime\tcheck");
+  for (const name of servers) {
+    const server = AGENT_STACK.mcp_servers[name];
+    const missingRequired = server.required_env.filter((envName) => !process.env[envName]);
+    if (missingRequired.length > 0) failed = true;
+    const runtime = server.command ? [server.command, ...server.args].join(" ") : "manual setup";
+    let status = "manual";
+    if (missingRequired.length > 0) {
+      status = `missing-required-env:${missingRequired.join(",")}`;
+    } else if (server.command && commandExists(server.command)) {
+      status = "runtime-found";
+    } else if (server.command) {
+      status = "runtime-missing";
+    } else if (server.local_service) {
+      status = "manual-local-service";
+    }
+    console.log(`${name}\t${status}\t${runtime}\t${server.smoke_test}`);
+  }
+  return failed;
 }
 
 function printMcpEnvironment(servers: string[]): void {
@@ -613,6 +703,23 @@ function printMcpEnvironment(servers: string[]): void {
     }
     if (!wroteLine) console.log(`${name}\tnone\t-`);
   }
+}
+
+function commandExists(command: string): boolean {
+  if (!command) return false;
+  if (command.includes("/") || command.includes("\\")) return existsSync(command);
+  const pathValue = process.env.PATH ?? "";
+  const extensions = process.platform === "win32"
+    ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
+    : [""];
+  for (const directory of pathValue.split(delimiter).filter(Boolean)) {
+    for (const extension of extensions) {
+      const hasExtension = extension && command.toLowerCase().endsWith(extension.toLowerCase());
+      const candidate = join(directory, hasExtension ? command : `${command}${extension}`);
+      if (existsSync(candidate)) return true;
+    }
+  }
+  return false;
 }
 
 function readPackageVersion(): string {

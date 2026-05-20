@@ -4,15 +4,17 @@
   "type": "module",
   "scripts": {
     "doctor": "academic-research doctor",
+    "setup": "academic-research setup",
     "skills:install": "academic-research skills install --preset default",
     "skills:list": "academic-research skills list",
     "skills:presets": "academic-research skills presets",
     "mcp:list": "academic-research mcp list",
     "mcp:commands": "academic-research mcp commands",
     "mcp:env": "academic-research mcp env",
+    "mcp:smoke": "academic-research mcp smoke",
     "mcp:doctor": "academic-research mcp doctor"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.6"
+    "create-academic-research": "0.1.7"
   }
 }

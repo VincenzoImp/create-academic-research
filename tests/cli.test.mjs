@@ -51,6 +51,7 @@ test("create-academic-research help exits successfully and explains framing", ()
   });
   assert.equal(lifecycleHelp.status, 0, lifecycleHelp.stderr + lifecycleHelp.stdout);
   assert.match(lifecycleHelp.stdout, /Manage a generated academic research repository/);
+  assert.match(lifecycleHelp.stdout, /setup/);
   assert.match(lifecycleHelp.stdout, /agents/);
 });
 
@@ -66,7 +67,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.6\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.7\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -115,6 +116,29 @@ test("create-academic-research binary creates and validates a project", async ()
 
   const config = YAML.parse(await readFile(join(target, "configs/default.yaml"), "utf8"));
   assert.equal(config.project.slug, "cli-project");
+});
+
+test("academic-research setup prints project onboarding status without changing files", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-setup-"));
+  const target = join(temp, "cli-setup-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const setup = spawnSync(process.execPath, ["dist/bin/academic-research.js", "setup", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(setup.status, 0, setup.stderr + setup.stdout);
+  assert.match(setup.stdout, /Project Setup/);
+  assert.match(setup.stdout, /doctor\tok/);
+  assert.match(setup.stdout, /agent\tuniversal/);
+  assert.match(setup.stdout, /preset\tdefault/);
+  assert.match(setup.stdout, /installed_skill_ids\t0/);
+  assert.match(setup.stdout, /mcp_enabled\tarxiv/);
+  assert.match(setup.stdout, /academic-research mcp smoke/);
 });
 
 test("create-academic-research accepts equals-style string flags", async () => {
@@ -394,6 +418,35 @@ test("academic-research mcp commands are separate from mcp list", async () => {
   assert.match(doctor.stdout, /OK: 1 MCP server\(s\) enabled/);
 });
 
+test("academic-research mcp smoke reports readiness without launching servers", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-smoke-"));
+  const target = join(temp, "cli-mcp-smoke-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const smoke = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "smoke", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const openalex = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "smoke", "openalex", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_API_KEY: "" }
+    }
+  );
+
+  assert.equal(smoke.status, 0, smoke.stderr + smoke.stdout);
+  assert.match(smoke.stdout, /^id\tstatus\truntime\tcheck/m);
+  assert.match(smoke.stdout, /^arxiv\t(?:runtime-found|runtime-missing)\tuvx --from arxiv-mcp-server\[pdf\] arxiv-mcp-server/m);
+  assert.equal(openalex.status, 1, openalex.stderr + openalex.stdout);
+  assert.match(openalex.stdout, /^openalex\tmissing-required-env:OPENALEX_API_KEY/m);
+});
+
 test("academic-research rejects options that do not affect the selected MCP command", () => {
   const cases = [
     [["mcp", "list", "--agent", "example-agent"], /mcp list does not accept --agent/],
@@ -402,6 +455,7 @@ test("academic-research rejects options that do not affect the selected MCP comm
     [["mcp", "env", "openalex", "--agent", "example-agent"], /mcp env does not accept --agent/],
     [["mcp", "install", "arxiv", "--agent", "example-agent"], /mcp install does not accept --agent/],
     [["mcp", "uninstall", "arxiv", "--agent", "example-agent"], /mcp uninstall does not accept --agent/],
+    [["mcp", "smoke", "arxiv", "--agent", "example-agent"], /mcp smoke does not accept --agent/],
     [["mcp", "doctor", "--agent", "example-agent"], /mcp doctor does not accept --agent/]
   ];
 
