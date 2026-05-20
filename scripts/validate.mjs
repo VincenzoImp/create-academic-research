@@ -84,6 +84,7 @@ if (!Array.isArray(packageJson.files) || !packageJson.files.includes("template")
 }
 let releaseWorkflow = "";
 for (const path of [
+  "CHANGELOG.md",
   ".github/workflows/validate.yml",
   ".github/workflows/release.yml",
   ".github/release.yml",
@@ -112,6 +113,7 @@ if (releaseWorkflow) {
 
 const requiredTemplateFiles = [
   "template/.env.example",
+  "template/docs/getting-started.md",
   "template/scripts/README.md",
   "template/docs/agent/mcp-client-setup.md",
   "template/wiki/templates/source-page.md",
@@ -132,7 +134,7 @@ for (const relative of requiredTemplateFiles) {
 }
 
 const templatePackageJson = JSON.parse(await readFile(join(root, "template/package.json"), "utf8"));
-for (const scriptName of ["setup", "mcp:smoke", "mcp:dotenv"]) {
+for (const scriptName of ["setup", "mcp:smoke", "mcp:dotenv", "mcp:probe"]) {
   if (!templatePackageJson.scripts?.[scriptName]) {
     errors.push(`template/package.json missing script: ${scriptName}`);
   }

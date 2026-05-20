@@ -105,12 +105,14 @@ npx academic-research mcp available
 npx academic-research mcp commands arxiv
 npx academic-research mcp env openalex semantic-scholar zotero
 npx academic-research mcp env --dotenv --all > .env.example
+npx academic-research mcp env --write .env.example --all
 npx academic-research mcp enable arxiv dblp
 npx academic-research mcp disable arxiv
 npx academic-research mcp install arxiv
 npx academic-research mcp uninstall arxiv
-npx academic-research mcp smoke
-npx academic-research mcp doctor
+npx academic-research mcp smoke --env-file .env.local
+npx academic-research mcp doctor --env-file .env.local
+npx academic-research mcp probe arxiv --timeout-ms 5000
 ```
 
 ## Command Model
@@ -138,13 +140,14 @@ MCP commands are split by side-effect:
 | `mcp enabled` | List only enabled MCP server ids. |
 | `mcp available` | List the local MCP catalog. |
 | `mcp commands` | Print finite external install commands without running them. Runtime-only `uvx`/`npx` servers may have no install command. |
-| `mcp env` | Print required/recommended env vars, hosted endpoints, local prerequisites, and setup commands for selected servers. Use `--dotenv --all` to regenerate `.env.example`. |
+| `mcp env` | Print required/recommended env vars, hosted endpoints, local prerequisites, and setup commands for selected servers. Use `--dotenv --all` to print dotenv content or `--write .env.example --all` to regenerate `.env.example`. |
 | `mcp enable` | Enable an MCP server in project records and generated snippets. |
 | `mcp disable` | Remove an MCP server from project records and generated snippets. |
 | `mcp install` | Run finite external tool install commands for selected MCP servers. It must not launch stdio MCP servers. |
 | `mcp uninstall` | Run the external uninstall command when one exists. |
 | `mcp smoke` | Print non-launching readiness diagnostics for enabled or selected MCP servers. |
-| `mcp doctor` | Validate enabled MCP records, generated snippets, required env vars, and documented manual prerequisites. |
+| `mcp doctor` | Validate enabled MCP records, generated snippets, required env vars, and documented manual prerequisites. Pass `--env-file .env.local` to read explicit local secrets. |
+| `mcp probe` | Opt-in runtime check that starts selected MCP servers and performs a stdio JSON-RPC handshake. |
 
 ## Companion Skills
 
@@ -194,9 +197,10 @@ Crossref and broad paper-search aggregators are kept as fallback/manual entries
 until a project explicitly needs them.
 
 Generated projects include a committed `.env.example` with empty MCP variables
-and ignore filled `.env` or `.env.local` files. `mcp doctor` checks the current
-process environment or client-provided secrets; it does not load `.env.local`
-automatically.
+and ignore filled `.env` or `.env.local` files. Regenerate the example with
+`mcp env --write .env.example --all`. `mcp doctor`, `mcp smoke`, and
+`mcp probe` check the current process environment unless you explicitly pass
+`--env-file .env.local`.
 
 Generated MCP snippets are project documentation and client-ready config, not
 live tools by themselves. Your MCP client must load the generated snippet, and
@@ -206,6 +210,8 @@ tool install; it deliberately does not launch stdio MCP servers.
 Use `mcp smoke` for a non-launching readiness pass before wiring a client: it
 checks required env vars, manual/local-service status, and whether runtime
 commands are visible on `PATH`.
+Use `mcp probe` only when you intentionally want to start selected MCP server
+processes and verify a real stdio JSON-RPC handshake.
 
 ## Validate This Package
 
@@ -223,8 +229,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.9 -m "v0.1.9"
-git push origin main v0.1.9
+git tag -a v0.1.10 -m "v0.1.10"
+git push origin main v0.1.10
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

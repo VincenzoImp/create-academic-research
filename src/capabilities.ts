@@ -11,6 +11,19 @@ import {
 } from "./agents.js";
 import { defaultRunner, type Runner } from "./runner.js";
 import { AGENT_STACK, presetMcpServers, type McpToolCommandKey } from "./stack.js";
+import { formatMcpDotenv, listMcpEnvironmentEntries } from "./mcp-env.js";
+import { probeMcpServerList, type McpProbeResult as ProbeResult } from "./mcp-probe.js";
+export { formatMcpDotenv, listMcpEnvironmentEntries };
+export {
+  mergeMcpEnvironment,
+  readMcpEnvironmentFile,
+  type McpEnvironmentEntry
+} from "./mcp-env.js";
+export {
+  type McpProbeResult,
+  type McpProbeServerResult,
+  type McpProbeStatus
+} from "./mcp-probe.js";
 
 export { DEFAULT_AGENT, SUPPORTED_SKILL_AGENT_TARGETS };
 
@@ -47,11 +60,14 @@ export interface McpDoctorResult {
   enabled: string[];
 }
 
-export interface McpEnvironmentEntry {
-  server: string;
-  kind: "required" | "recommended" | "default";
-  name: string;
-  value: string;
+export interface McpDoctorOptions {
+  env?: NodeJS.ProcessEnv;
+}
+
+export interface McpProbeOptions {
+  env?: NodeJS.ProcessEnv;
+  timeoutMs?: number;
+  clientVersion?: string;
 }
 
 interface SkillInstallOptions {
@@ -312,57 +328,6 @@ export function mcpToolCommandTexts(servers: string[], key: McpToolCommandKey = 
   return commands;
 }
 
-export function listMcpEnvironmentEntries(
-  servers: string[],
-  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
-): McpEnvironmentEntry[] {
-  assertKnownMcpServers(servers);
-  const entries: McpEnvironmentEntry[] = [];
-  for (const serverName of servers) {
-    const server = AGENT_STACK.mcp_servers[serverName];
-    if (!options.recommendedOnly) {
-      for (const envName of server.required_env) {
-        entries.push({ server: serverName, kind: "required", name: envName, value: "" });
-      }
-    }
-    if (!options.requiredOnly) {
-      for (const envName of server.recommended_env) {
-        entries.push({ server: serverName, kind: "recommended", name: envName, value: "" });
-      }
-      for (const [envName, value] of Object.entries(server.env)) {
-        entries.push({ server: serverName, kind: "default", name: envName, value });
-      }
-    }
-  }
-  return dedupeMcpEnvironmentEntries(entries);
-}
-
-export function formatMcpDotenv(
-  servers: string[],
-  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
-): string {
-  const entries = listMcpEnvironmentEntries(servers, options);
-  const lines = [
-    "# Academic research MCP environment example.",
-    "# Copy to .env.local, your shell profile, or your MCP client secret store.",
-    "# Do not commit filled secrets. Empty values mean optional or user-supplied.",
-    ""
-  ];
-  let previousServer = "";
-  for (const entry of entries) {
-    if (entry.server !== previousServer) {
-      if (previousServer) lines.push("");
-      lines.push(`# ${entry.server} environment`);
-      previousServer = entry.server;
-    }
-    lines.push(`${entry.name}=${dotenvValue(entry.value)}`);
-  }
-  if (entries.length === 0) {
-    lines.push("# No environment variables are required for the selected MCP servers.");
-  }
-  return `${lines.join("\n")}\n`;
-}
-
 export async function installMcpTools(
   root: string,
   servers: string[],
@@ -391,9 +356,10 @@ export async function uninstallMcpTools(
   return { ok: true, count: commands.length };
 }
 
-export async function doctorMcpServers(root: string): Promise<McpDoctorResult> {
+export async function doctorMcpServers(root: string, options: McpDoctorOptions = {}): Promise<McpDoctorResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const env = options.env ?? process.env;
   let state: CapabilityState;
   try {
     state = await readCapabilitiesFile(root);
@@ -435,12 +401,12 @@ export async function doctorMcpServers(root: string): Promise<McpDoctorResult> {
     const server = AGENT_STACK.mcp_servers[name];
     if (!server) continue;
     for (const envName of server.required_env) {
-      if (!process.env[envName]) {
+      if (!envHasValue(env, envName)) {
         errors.push(`${name}: missing required environment variable: ${envName}`);
       }
     }
     for (const envName of server.recommended_env) {
-      if (!process.env[envName]) {
+      if (!envHasValue(env, envName)) {
         warnings.push(`${name}: recommended environment variable not set: ${envName}`);
       }
     }
@@ -457,6 +423,17 @@ export async function doctorMcpServers(root: string): Promise<McpDoctorResult> {
   }
 
   return { ok: errors.length === 0, errors, warnings, enabled };
+}
+
+export async function probeMcpServers(
+  root: string,
+  servers: string[],
+  options: McpProbeOptions = {}
+): Promise<ProbeResult> {
+  const selected = servers.length > 0 ? servers : (await readCapabilities(root)).mcp_servers ?? [];
+  const env = options.env ?? process.env;
+  const timeoutMs = options.timeoutMs ?? 5000;
+  return probeMcpServerList(root, selected, env, timeoutMs, options.clientVersion);
 }
 
 async function writeMcpSnippet(root: string, state: CapabilityState): Promise<void> {
@@ -574,11 +551,14 @@ async function writeMcpSetup(root: string, state: CapabilityState): Promise<void
     "## Operating Rules",
     "",
     "- Use `.env.example` as a committed reference and put filled secrets in `.env.local`, your shell, or your MCP client secret store.",
-    "- Regenerate a dotenv-style reference with `npx academic-research mcp env --dotenv --all`.",
+    "- Print a dotenv-style reference with `npx academic-research mcp env --dotenv --all`.",
+    "- Regenerate a dotenv-style reference with `npx academic-research mcp env --write .env.example --all`.",
+    "- Pass `--env-file .env.local` to `mcp doctor`, `mcp smoke`, or `mcp probe` when you want the CLI to read explicit local secrets.",
     "- Keep secrets in your shell, MCP client secret store, or local untracked files; do not commit tokens or API keys.",
     "- Prefer the smallest enabled MCP set that covers the current research question.",
     "- Treat MCP output as retrieval metadata. Promote claims into repository source records only after source ingestion and citation audit.",
     "- Run `npx academic-research mcp doctor` after changing MCP records or environment variables.",
+    "- Run `npx academic-research mcp probe <server>` only when you intentionally want to start selected MCP server processes.",
     ""
   );
   await mkdir(join(root, "docs/agent"), { recursive: true });
@@ -600,22 +580,8 @@ function dedupe(values: string[]): string[] {
   return [...new Set(values)];
 }
 
-function dedupeMcpEnvironmentEntries(entries: McpEnvironmentEntry[]): McpEnvironmentEntry[] {
-  const priority = { required: 0, default: 1, recommended: 2 } as const;
-  const byName = new Map<string, McpEnvironmentEntry>();
-  for (const entry of entries) {
-    const previous = byName.get(entry.name);
-    if (!previous || priority[entry.kind] < priority[previous.kind]) {
-      byName.set(entry.name, entry);
-    }
-  }
-  return [...byName.values()];
-}
-
-function dotenvValue(value: string): string {
-  if (!value) return "";
-  if (/^[A-Za-z0-9_./:-]+$/.test(value)) return value;
-  return JSON.stringify(value);
+function envHasValue(env: NodeJS.ProcessEnv, name: string): boolean {
+  return typeof env[name] === "string" && env[name] !== "";
 }
 
 function renderSkillCommand(command: string, agent: string): string {

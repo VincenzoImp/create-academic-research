@@ -61,14 +61,15 @@ npx academic-research skills install source-ingestion sota-literature-review
 npx academic-research skills list
 npx academic-research skills status
 npx academic-research setup
+npx academic-research mcp env --write .env.example --all
 npx academic-research mcp list
 npx academic-research mcp env openalex semantic-scholar zotero
-npx academic-research mcp env --dotenv --all > .env.example
 npx academic-research mcp enable arxiv dblp
 npx academic-research mcp commands arxiv
 npx academic-research mcp install arxiv
-npx academic-research mcp smoke
-npx academic-research mcp doctor
+npx academic-research mcp smoke --env-file .env.local
+npx academic-research mcp doctor --env-file .env.local
+npx academic-research mcp probe arxiv --timeout-ms 5000
 ```
 
 `skills list` reports installed project-local skills. `skills presets` reports
@@ -79,16 +80,18 @@ enable optional servers. `mcp install` runs only finite tool installation
 commands; runtime-only `uvx`/`npx` MCP servers may have no install step and are
 started later by the MCP client.
 
-`.env.example` is the committed MCP environment reference. Copy it to
-`.env.local`, your shell profile, or your MCP client secret store when secrets
-are needed. Filled `.env` files are ignored by git. `mcp doctor` checks the
-current process environment; it does not automatically load `.env.local`.
+`.env.example` is the committed MCP environment reference. Regenerate it with
+`mcp env --write .env.example --all`. Copy it to `.env.local`, your shell
+profile, or your MCP client secret store when secrets are needed. Filled `.env`
+files are ignored by git. `mcp doctor` checks the current process environment
+unless you explicitly pass `--env-file .env.local`.
 
 `setup` prints the current project capability state, installed skill counts,
 enabled MCP records, and the next onboarding commands without changing files.
 `mcp smoke` performs a non-launching MCP readiness check: it reports required
 env vars, local/manual setup, and whether client runtime commands such as `uvx`
-or `npx` are available.
+or `npx` are available. `mcp probe` is opt-in and starts selected MCP servers
+for a real stdio JSON-RPC handshake.
 
 `default` installs the companion academic research skill package and keeps the
 MCP records focused on low-friction arXiv discovery. `literature` and `full`
@@ -96,3 +99,5 @@ add DBLP for computer science bibliography. Credentialed, local-service, or
 domain-specific MCP servers such as OpenAlex, Semantic Scholar, PubMed, Zotero,
 and Overleaf should be enabled only after reading `docs/agent/mcp-setup.md` and
 checking their prerequisites with `mcp env`.
+
+See `docs/getting-started.md` for the recommended first session workflow.

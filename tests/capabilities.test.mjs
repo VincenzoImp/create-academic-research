@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -15,6 +15,7 @@ import {
   installSkillIds,
   installSkills,
   mcpToolCommandTexts,
+  probeMcpServers,
   readCapabilities,
   removeSkills,
   SUPPORTED_SKILL_AGENT_TARGETS,
@@ -22,6 +23,7 @@ import {
   updateSkills
 } from "../dist/src/capabilities.js";
 import { createProject } from "../dist/src/project.js";
+import { AGENT_STACK } from "../dist/src/stack.js";
 
 test("skill install commands are project-local and executable from the project root", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-skills-"));
@@ -392,6 +394,71 @@ test("MCP doctor reports credentialed, manual, and local-service prerequisites",
         process.env[name] = value;
       }
     }
+  }
+});
+
+test("MCP doctor accepts explicit environment maps without mutating process env", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-env-map-"));
+  const target = join(root, "mcp-env-map-project");
+  await createProject({ target, title: "MCP Env Map Project", preset: "minimal", installSkills: false });
+  await enableMcpServers(target, ["openalex"], { agent: "codex" });
+
+  const missing = await doctorMcpServers(target, { env: { OPENALEX_API_KEY: "" } });
+  const present = await doctorMcpServers(target, { env: { OPENALEX_API_KEY: "file-openalex-key" } });
+
+  assert.equal(missing.ok, false);
+  assert.match(missing.errors.join("\n"), /OPENALEX_API_KEY/);
+  assert.equal(present.ok, true);
+});
+
+test("MCP probe can complete a minimal stdio JSON-RPC handshake", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-probe-fake-"));
+  const target = join(root, "mcp-probe-fake-project");
+  await createProject({ target, title: "MCP Probe Fake Project", preset: "minimal", installSkills: false });
+  const fakeServer = join(root, "fake-mcp-server.mjs");
+  await writeFile(
+    fakeServer,
+    `
+let buffer = Buffer.alloc(0);
+process.stdin.on("data", (chunk) => {
+  buffer = Buffer.concat([buffer, chunk]);
+  while (true) {
+    const sep = buffer.indexOf("\\r\\n\\r\\n");
+    if (sep === -1) return;
+    const header = buffer.slice(0, sep).toString("utf8");
+    const match = /Content-Length: (\\d+)/i.exec(header);
+    if (!match) throw new Error("missing content length");
+    const length = Number(match[1]);
+    const start = sep + 4;
+    const end = start + length;
+    if (buffer.length < end) return;
+    const message = JSON.parse(buffer.slice(start, end).toString("utf8"));
+    buffer = buffer.slice(end);
+    if (message.id === 1) respond({ jsonrpc: "2.0", id: 1, result: { protocolVersion: "2025-06-18", capabilities: {}, serverInfo: { name: "fake", version: "1.0.0" } } });
+    if (message.id === 2) respond({ jsonrpc: "2.0", id: 2, result: { tools: [] } });
+  }
+});
+function respond(message) {
+  const body = JSON.stringify(message);
+  process.stdout.write("Content-Length: " + Buffer.byteLength(body) + "\\r\\n\\r\\n" + body);
+}
+`,
+    "utf8"
+  );
+  await chmod(fakeServer, 0o755);
+  const original = {
+    command: AGENT_STACK.mcp_servers.arxiv.command,
+    args: AGENT_STACK.mcp_servers.arxiv.args
+  };
+  AGENT_STACK.mcp_servers.arxiv.command = process.execPath;
+  AGENT_STACK.mcp_servers.arxiv.args = [fakeServer];
+  try {
+    const result = await probeMcpServers(target, ["arxiv"], { timeoutMs: 1000 });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.results, [{ server: "arxiv", status: "ok", detail: "tools=0" }]);
+  } finally {
+    AGENT_STACK.mcp_servers.arxiv.command = original.command;
+    AGENT_STACK.mcp_servers.arxiv.args = original.args;
   }
 });
 

@@ -55,6 +55,17 @@ test("create-academic-research help exits successfully and explains framing", ()
   assert.match(lifecycleHelp.stdout, /Manage a generated academic research repository/);
   assert.match(lifecycleHelp.stdout, /setup/);
   assert.match(lifecycleHelp.stdout, /agents/);
+
+  const mcpHelp = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "help"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  assert.equal(mcpHelp.status, 0, mcpHelp.stderr + mcpHelp.stdout);
+  assert.match(mcpHelp.stdout, /mcp <list\|enabled\|available/);
+  assert.match(mcpHelp.stdout, /--env-file <path>/);
+  assert.match(mcpHelp.stdout, /--write <path>/);
+  assert.match(mcpHelp.stdout, /--timeout-ms <ms>/);
+  assert.equal((mcpHelp.stdout.match(/--root <path>/g) ?? []).length, 1);
 });
 
 test("create-academic-research version flags report package version", () => {
@@ -69,7 +80,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.9\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.10\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -141,7 +152,7 @@ test("academic-research setup prints project onboarding status without changing 
   assert.match(setup.stdout, /installed_skill_ids\t0/);
   assert.match(setup.stdout, /mcp_enabled\tarxiv/);
   assert.match(setup.stdout, /academic-research mcp smoke/);
-  assert.match(setup.stdout, /academic-research mcp env --dotenv --all/);
+  assert.match(setup.stdout, /academic-research mcp env --write \.env\.example --all/);
 });
 
 test("create-academic-research accepts equals-style string flags", async () => {
@@ -503,6 +514,21 @@ test("academic-research mcp env prints env vars and local setup prerequisites", 
     ],
     { cwd: root, encoding: "utf8" }
   );
+  const writePath = join(target, "custom-mcp.env.example");
+  const writeEnv = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "env",
+      "--write",
+      writePath,
+      "--all",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
 
   assert.equal(env.status, 0, env.stderr + env.stdout);
   assert.match(env.stdout, /^openalex\trequired\tOPENALEX_API_KEY/m);
@@ -519,6 +545,12 @@ test("academic-research mcp env prints env vars and local setup prerequisites", 
   assert.equal(requiredOnly.status, 0, requiredOnly.stderr + requiredOnly.stdout);
   assert.match(requiredOnly.stdout, /^openalex\trequired\tOPENALEX_API_KEY/m);
   assert.doesNotMatch(requiredOnly.stdout, /SEMANTIC_SCHOLAR_API_KEY/);
+  assert.equal(writeEnv.status, 0, writeEnv.stderr + writeEnv.stdout);
+  assert.match(writeEnv.stdout, /Wrote MCP dotenv environment reference/);
+  const written = await readFile(writePath, "utf8");
+  assert.match(written, /^OPENALEX_API_KEY=/m);
+  assert.match(written, /^MCP_TRANSPORT_TYPE=stdio/m);
+  assert.doesNotMatch(written, /your-key|your-token|\$\{[^}]+}/i);
 });
 
 test("academic-research mcp commands are separate from mcp list", async () => {
@@ -573,12 +605,96 @@ test("academic-research mcp smoke reports readiness without launching servers", 
       env: { ...process.env, OPENALEX_API_KEY: "" }
     }
   );
+  const envFile = join(target, ".env.local");
+  await writeFile(envFile, "OPENALEX_API_KEY=file-openalex-key\n", "utf8");
+  const pathEnvFile = join(target, ".env.path.local");
+  await writeFile(pathEnvFile, "PATH=/nonexistent\n", "utf8");
+  const openalexWithEnvFile = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "smoke", "openalex", "--env-file", envFile, "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_API_KEY: "" }
+    }
+  );
+  const runtimeWithEnvFilePath = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "smoke", "pubmed", "--env-file", pathEnvFile, "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
 
   assert.equal(smoke.status, 0, smoke.stderr + smoke.stdout);
   assert.match(smoke.stdout, /^id\tstatus\truntime\tcheck/m);
   assert.match(smoke.stdout, /^arxiv\t(?:runtime-found|runtime-missing)\tuvx --from arxiv-mcp-server\[pdf\] arxiv-mcp-server/m);
   assert.equal(openalex.status, 1, openalex.stderr + openalex.stdout);
   assert.match(openalex.stdout, /^openalex\tmissing-required-env:OPENALEX_API_KEY/m);
+  assert.equal(openalexWithEnvFile.status, 0, openalexWithEnvFile.stderr + openalexWithEnvFile.stdout);
+  assert.doesNotMatch(openalexWithEnvFile.stdout, /missing-required-env/);
+  assert.equal(runtimeWithEnvFilePath.status, 0, runtimeWithEnvFilePath.stderr + runtimeWithEnvFilePath.stdout);
+  assert.match(runtimeWithEnvFilePath.stdout, /^pubmed\truntime-missing\tnpx -y @cyanheads\/pubmed-mcp-server/m);
+});
+
+test("academic-research mcp doctor can read an explicit env file", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-env-file-"));
+  const target = join(temp, "cli-mcp-env-file-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "enable", "openalex", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const envFile = join(target, ".env.local");
+  await writeFile(envFile, "# local secrets\nOPENALEX_API_KEY=file-openalex-key\n", "utf8");
+
+  const withoutEnvFile = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "doctor", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_API_KEY: "" }
+    }
+  );
+  const withEnvFile = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "doctor", "--env-file", envFile, "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_API_KEY: "" }
+    }
+  );
+
+  assert.equal(withoutEnvFile.status, 1, withoutEnvFile.stderr + withoutEnvFile.stdout);
+  assert.match(withoutEnvFile.stderr, /openalex: missing required environment variable: OPENALEX_API_KEY/);
+  assert.equal(withEnvFile.status, 0, withEnvFile.stderr + withEnvFile.stdout);
+  assert.match(withEnvFile.stdout, /OK: 1 MCP server\(s\) enabled/);
+});
+
+test("academic-research mcp probe reports missing env without launching credentialed servers", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-probe-"));
+  const target = join(temp, "cli-mcp-probe-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const probe = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "probe", "openalex", "--timeout-ms", "100", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_API_KEY: "" }
+    }
+  );
+
+  assert.equal(probe.status, 1, probe.stderr + probe.stdout);
+  assert.match(probe.stdout, /^id\tstatus\tdetail/m);
+  assert.match(probe.stdout, /^openalex\tmissing-env\tOPENALEX_API_KEY/m);
 });
 
 test("academic-research rejects options that do not affect the selected MCP command", () => {
@@ -591,7 +707,8 @@ test("academic-research rejects options that do not affect the selected MCP comm
     [["mcp", "install", "arxiv", "--agent", "example-agent"], /mcp install does not accept --agent/],
     [["mcp", "uninstall", "arxiv", "--agent", "example-agent"], /mcp uninstall does not accept --agent/],
     [["mcp", "smoke", "arxiv", "--agent", "example-agent"], /mcp smoke does not accept --agent/],
-    [["mcp", "doctor", "--agent", "example-agent"], /mcp doctor does not accept --agent/]
+    [["mcp", "doctor", "--agent", "example-agent"], /mcp doctor does not accept --agent/],
+    [["mcp", "probe", "arxiv", "--agent", "example-agent"], /mcp probe does not accept --agent/]
   ];
 
   for (const [args, message] of cases) {

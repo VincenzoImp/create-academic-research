@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,8 +14,11 @@ import {
   formatMcpDotenv,
   listInstalledSkills,
   listMcpEnvironmentEntries,
+  mergeMcpEnvironment,
   mcpToolCommandTexts,
+  probeMcpServers,
   readCapabilities,
+  readMcpEnvironmentFile,
   removeSkills,
   uninstallMcpTools,
   updateSkills
@@ -59,7 +62,10 @@ const CREATE_FLAGS = flagSchema(
 const ROOT_FLAGS = flagSchema(["help"], ["root"]);
 const RENAME_FLAGS = flagSchema(["help"], ["root", "title", "slug", "package"]);
 const SKILLS_FLAGS = flagSchema(["help"], ["root", "preset", "agent"]);
-const MCP_FLAGS = flagSchema(["help", "all", "dotenv", "required", "recommended"], ["root", "agent"]);
+const MCP_FLAGS = flagSchema(
+  ["help", "all", "dotenv", "required", "recommended"],
+  ["root", "agent", "env-file", "write", "timeout-ms"]
+);
 
 export async function main(argv: string[] = process.argv.slice(2), mode: CliMode = "create"): Promise<number> {
   try {
@@ -210,8 +216,9 @@ async function setupCommand(argv: string[]): Promise<number> {
   console.log("academic-research skills status");
   console.log("academic-research mcp list");
   console.log("academic-research mcp env");
-  console.log("academic-research mcp env --dotenv --all");
+  console.log("academic-research mcp env --write .env.example --all");
   console.log("academic-research mcp smoke");
+  console.log("academic-research mcp probe arxiv");
   console.log("academic-research doctor");
   return project.ok ? 0 : 1;
 }
@@ -380,7 +387,7 @@ async function mcpCommand(argv: string[]): Promise<number> {
     return 0;
   }
   if (subcommand === "env") {
-    assertOnlyOptions(parsed.flags, "mcp env", ["root", "all", "dotenv", "required", "recommended"]);
+    assertOnlyOptions(parsed.flags, "mcp env", ["root", "all", "dotenv", "required", "recommended", "write"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     if (flagBool(parsed.flags, "required") && flagBool(parsed.flags, "recommended")) {
       throw new Error("mcp env cannot use --required and --recommended together");
@@ -395,6 +402,13 @@ async function mcpCommand(argv: string[]): Promise<number> {
       requiredOnly: flagBool(parsed.flags, "required"),
       recommendedOnly: flagBool(parsed.flags, "recommended")
     };
+    const writePath = flagString(parsed.flags, "write");
+    if (writePath) {
+      const outputPath = resolve(root, writePath);
+      writeFileSync(outputPath, formatMcpDotenv(selected, filters), "utf8");
+      console.log(`Wrote MCP dotenv environment reference: ${outputPath}`);
+      return 0;
+    }
     if (flagBool(parsed.flags, "dotenv")) {
       process.stdout.write(formatMcpDotenv(selected, filters));
       return 0;
@@ -434,15 +448,16 @@ async function mcpCommand(argv: string[]): Promise<number> {
     return 0;
   }
   if (subcommand === "smoke") {
-    assertOnlyOptions(parsed.flags, "mcp smoke", ["root"]);
+    assertOnlyOptions(parsed.flags, "mcp smoke", ["root", "env-file"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
+    const env = await mcpCommandEnvironment(root, parsed.flags);
     const state = await readCapabilities(root);
     const explicitSelection = parsed.positionals.length > 0;
     const selected = explicitSelection ? parsed.positionals : state.mcp_servers;
     assertKnownMcpServers(selected);
-    const failed = printMcpSmokeDiagnostics(selected);
+    const failed = printMcpSmokeDiagnostics(selected, env);
     if (!explicitSelection) {
-      const result = await doctorMcpServers(root);
+      const result = await doctorMcpServers(root, { env });
       for (const error of result.errors) console.error(`ERROR: ${error}`);
       for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
       return result.ok && !failed ? 0 : 1;
@@ -450,13 +465,30 @@ async function mcpCommand(argv: string[]): Promise<number> {
     return failed ? 1 : 0;
   }
   if (subcommand === "doctor") {
-    assertOnlyOptions(parsed.flags, "mcp doctor", ["root"]);
+    assertOnlyOptions(parsed.flags, "mcp doctor", ["root", "env-file"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     assertNoArguments(parsed.positionals, "mcp doctor");
-    const result = await doctorMcpServers(root);
+    const env = await mcpCommandEnvironment(root, parsed.flags);
+    const result = await doctorMcpServers(root, { env });
     for (const error of result.errors) console.error(`ERROR: ${error}`);
     for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
     if (result.ok) console.log(`OK: ${result.enabled.length} MCP server(s) enabled.`);
+    return result.ok ? 0 : 1;
+  }
+  if (subcommand === "probe") {
+    assertOnlyOptions(parsed.flags, "mcp probe", ["root", "all", "env-file", "timeout-ms"]);
+    const root = resolve(flagString(parsed.flags, "root") ?? ".");
+    const selected = flagBool(parsed.flags, "all")
+      ? Object.keys(AGENT_STACK.mcp_servers)
+      : parsed.positionals.length > 0
+        ? parsed.positionals
+        : (await readCapabilities(root)).mcp_servers;
+    assertKnownMcpServers(selected);
+    const timeoutMs = parseTimeoutMs(flagString(parsed.flags, "timeout-ms"));
+    const env = await mcpCommandEnvironment(root, parsed.flags);
+    const result = await probeMcpServers(root, selected, { env, timeoutMs, clientVersion: packageVersion });
+    console.log("id\tstatus\tdetail");
+    for (const item of result.results) console.log(`${item.server}\t${item.status}\t${item.detail}`);
     return result.ok ? 0 : 1;
   }
   throw new Error(`unknown mcp command: ${subcommand}`);
@@ -552,6 +584,23 @@ function assertOnlyOptions(
   }
 }
 
+async function mcpCommandEnvironment(root: string, flags: Record<string, FlagValue>): Promise<NodeJS.ProcessEnv> {
+  const envFile = flagString(flags, "env-file");
+  if (!envFile) return process.env;
+  const fileEnv = await readMcpEnvironmentFile(resolve(root, envFile));
+  return mergeMcpEnvironment(process.env, fileEnv);
+}
+
+function parseTimeoutMs(value: string | undefined): number {
+  if (value === undefined) return 5000;
+  if (!/^[0-9]+$/.test(value)) throw new Error(`--timeout-ms must be a positive integer, got: ${value}`);
+  const timeoutMs = Number(value);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 120000) {
+    throw new Error("--timeout-ms must be between 100 and 120000");
+  }
+  return timeoutMs;
+}
+
 export function formatInteractiveCreateGuide(): string {
   const presetLines = Object.entries(AGENT_STACK.presets).map(
     ([name, preset]) => `  ${name.padEnd(10)} ${preset.description}`
@@ -581,7 +630,9 @@ export function formatInteractiveCreateGuide(): string {
     "  MCP installers are optional and run only finite installer commands.",
     "  MCP execution modes are explicit: uvx-runtime, npx-runtime, local-service, manual, or fallback.",
     "  Use `academic-research mcp env <server>` to inspect env vars and local prerequisites.",
-    "  Use `academic-research mcp env --dotenv --all` to regenerate a committed env example.",
+    "  Use `academic-research mcp env --dotenv --all` to print a committed env example.",
+    "  Use `academic-research mcp env --write .env.example --all` to regenerate a committed env example.",
+    "  Use `academic-research mcp doctor --env-file .env.local` to check explicit local secrets.",
     ""
   ].join("\n");
 }
@@ -692,20 +743,26 @@ function printSkillsHelp(): void {
 function printMcpHelp(): void {
   console.log(
     [
-      "Usage: academic-research mcp <list|enabled|available|commands|env|enable|disable|install|uninstall|smoke|doctor> [servers...]",
+      "Usage: academic-research mcp <list|enabled|available|commands|env|enable|disable|install|uninstall|smoke|doctor|probe> [servers...]",
       "",
       "Manage MCP records, readiness checks, and finite external MCP tool installs.",
       "",
       "Examples:",
       "  academic-research mcp env openalex semantic-scholar",
       "  academic-research mcp env --dotenv --all > .env.example",
+      "  academic-research mcp env --write .env.example --all",
+      "  academic-research mcp doctor --env-file .env.local",
       "  academic-research mcp smoke",
+      "  academic-research mcp probe arxiv --timeout-ms 5000",
       "",
       "Options:",
       "  --root <path>            Project root for project-state commands.",
       "  --agent <id>             Agent for enable/disable generated snippets.",
       "  --all                    Select all catalog MCP servers for mcp env.",
       "  --dotenv                Print mcp env as dotenv content.",
+      "  --write <path>           Write mcp env dotenv content to a file.",
+      "  --env-file <path>        Read local env values for mcp smoke, doctor, and probe.",
+      "  --timeout-ms <ms>        Per-server probe timeout. Default: 5000.",
       "  --required              Print only required env vars for mcp env.",
       "  --recommended           Print only recommended/default env vars for mcp env.",
       "  -h, --help               Show this help."
@@ -713,18 +770,18 @@ function printMcpHelp(): void {
   );
 }
 
-function printMcpSmokeDiagnostics(servers: string[]): boolean {
+function printMcpSmokeDiagnostics(servers: string[], env: NodeJS.ProcessEnv = process.env): boolean {
   let failed = false;
   console.log("id\tstatus\truntime\tcheck");
   for (const name of servers) {
     const server = AGENT_STACK.mcp_servers[name];
-    const missingRequired = server.required_env.filter((envName) => !process.env[envName]);
+    const missingRequired = server.required_env.filter((envName) => !env[envName]);
     if (missingRequired.length > 0) failed = true;
     const runtime = server.command ? [server.command, ...server.args].join(" ") : "manual setup";
     let status = "manual";
     if (missingRequired.length > 0) {
       status = `missing-required-env:${missingRequired.join(",")}`;
-    } else if (server.command && commandExists(server.command)) {
+    } else if (server.command && commandExists(server.command, env)) {
       status = "runtime-found";
     } else if (server.command) {
       status = "runtime-missing";
@@ -772,12 +829,12 @@ function printMcpEnvironment(
   }
 }
 
-function commandExists(command: string): boolean {
+function commandExists(command: string, env: NodeJS.ProcessEnv = process.env): boolean {
   if (!command) return false;
   if (command.includes("/") || command.includes("\\")) return existsSync(command);
-  const pathValue = process.env.PATH ?? "";
+  const pathValue = env.PATH ?? "";
   const extensions = process.platform === "win32"
-    ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
+    ? (env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
     : [""];
   for (const directory of pathValue.split(delimiter).filter(Boolean)) {
     for (const extension of extensions) {

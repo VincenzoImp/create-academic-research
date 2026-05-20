@@ -57,6 +57,10 @@ interface GeneratedPackageJson {
   [key: string]: unknown;
 }
 
+interface PackageJson {
+  version?: string;
+}
+
 interface PersonalizeOptions {
   title: string;
   slug: string;
@@ -185,7 +189,7 @@ export async function renameProject(root: string, options: RenameProjectOptions)
     profile: config.project.profile,
     previousPackage
   });
-  await writeGeneratedPackageJson(target, { slug });
+  await writeGeneratedPackageJson(target, { slug, preserveExistingSpec: true });
   return { root: target, title, slug, packageName };
 }
 
@@ -280,17 +284,31 @@ async function personalizeProject(
   }
 }
 
-async function writeGeneratedPackageJson(root: string, { slug }: { slug: string }): Promise<void> {
+async function writeGeneratedPackageJson(
+  root: string,
+  { slug, preserveExistingSpec = false }: { slug: string; preserveExistingSpec?: boolean }
+): Promise<void> {
   const path = join(root, "package.json");
   const data = await readJson<GeneratedPackageJson>(path);
   const existingSpec = data.devDependencies?.["create-academic-research"];
-  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.9";
+  const packageSpec =
+    process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ??
+    (preserveExistingSpec ? existingSpec : undefined) ??
+    await currentPackageVersion();
   data.name = slug;
   data.devDependencies = {
     ...(data.devDependencies ?? {}),
     "create-academic-research": packageSpec
   };
   await writeJson(path, data);
+}
+
+async function currentPackageVersion(): Promise<string> {
+  const packageJson = await readJson<PackageJson>(join(packageRoot, "package.json"));
+  if (!packageJson.version) {
+    throw new Error("package.json missing version");
+  }
+  return packageJson.version;
 }
 
 async function writeAgentStack(root: string): Promise<void> {

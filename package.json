@@ -1,6 +1,6 @@
 {
   "name": "create-academic-research",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Create and manage agent-ready academic research repositories.",
   "type": "module",
   "license": "MIT",
@@ -36,6 +36,7 @@
     "dist",
     "template",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "SECURITY.md"
   ],
