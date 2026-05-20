@@ -2,11 +2,17 @@ import { appendFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/pro
 import { join, relative } from "node:path";
 import YAML from "yaml";
 
+import {
+  assertKnownAgentTarget,
+  AUTO_AGENT,
+  DEFAULT_AGENT,
+  normalizeAgentTarget,
+  SUPPORTED_SKILL_AGENT_TARGETS
+} from "./agents.js";
 import { defaultRunner, type Runner } from "./runner.js";
 import { AGENT_STACK, presetMcpServers, type McpToolCommandKey } from "./stack.js";
 
-export const DEFAULT_AGENT = "universal";
-const AUTO_AGENT = "auto";
+export { DEFAULT_AGENT, SUPPORTED_SKILL_AGENT_TARGETS };
 
 export interface CapabilityState {
   agent: string;
@@ -57,7 +63,7 @@ export async function readCapabilities(root: string): Promise<CapabilityState> {
 
 export async function writeCapabilities(root: string, state: Partial<CapabilityState>): Promise<void> {
   const next: CapabilityState = {
-    agent: normalizeAgent(state.agent),
+    agent: assertKnownAgentTarget(state.agent),
     preset: state.preset ?? "default",
     scope: "project-local",
     mcp_servers: [...(state.mcp_servers ?? [])]
@@ -89,7 +95,7 @@ export async function buildSkillInstallCommands(
   const selected = AGENT_STACK.presets[preset];
   if (!selected) throw new Error(`unknown skill preset: ${preset}`);
   const state = await readCapabilities(root);
-  const agent = normalizeAgent(options.agent ?? state.agent);
+  const agent = assertKnownAgentTarget(options.agent ?? state.agent);
   const commands: string[][] = [];
   for (const bundleName of selected.skill_bundles) {
     const bundle = AGENT_STACK.skill_bundles[bundleName];
@@ -113,7 +119,7 @@ export async function installSkills(
   runner: Runner = defaultRunner
 ): Promise<CapabilityCommandResult> {
   const state = await readCapabilities(root);
-  const agent = normalizeAgent(options.agent ?? state.agent);
+  const agent = assertKnownAgentTarget(options.agent ?? state.agent);
   const commands = await buildSkillInstallCommands(root, preset, options);
   for (const command of commands) {
     await runner.run(command, { cwd: root });
@@ -205,7 +211,7 @@ export async function enableMcpServers(
   const selected = dedupe([...(state.mcp_servers ?? []), ...servers]);
   await writeCapabilities(root, {
     ...state,
-    agent: options.agent ?? state.agent,
+    agent: assertKnownAgentTarget(options.agent ?? state.agent),
     mcp_servers: selected
   });
   return { ok: true, servers: selected };
@@ -222,7 +228,7 @@ export async function disableMcpServers(
   const selected = (state.mcp_servers ?? []).filter((server: string) => !blocked.has(server));
   await writeCapabilities(root, {
     ...state,
-    agent: options.agent ?? state.agent,
+    agent: assertKnownAgentTarget(options.agent ?? state.agent),
     mcp_servers: selected
   });
   return { ok: true, servers: selected };
@@ -360,7 +366,7 @@ async function writeCapabilityProfile(root: string, state: CapabilityState): Pro
   const lines = [
     "# Agent Capability Profile",
     "",
-    `- Agent target: \`${normalizeAgent(state.agent)}\``,
+    `- Agent target: \`${assertKnownAgentTarget(state.agent)}\``,
     `- Preset: \`${state.preset ?? "default"}\``,
     "- Scope: `project-local`",
     "",
@@ -414,7 +420,7 @@ function dedupe(values: string[]): string[] {
 }
 
 function renderSkillCommand(command: string, agent: string): string {
-  const normalized = normalizeAgent(agent);
+  const normalized = assertKnownAgentTarget(agent);
   const agentFlag = normalized === AUTO_AGENT ? "" : `--agent '${normalized}'`;
   return command.replaceAll("{agent_flag}", agentFlag).replaceAll("{agent}", normalized);
 }
@@ -461,7 +467,7 @@ function splitCommand(command: string): string[] {
 function normalizeCapabilityState(value: unknown): CapabilityState {
   const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   return {
-    agent: normalizeAgent(typeof record.agent === "string" ? record.agent : undefined),
+    agent: assertKnownAgentTarget(typeof record.agent === "string" ? record.agent : undefined),
     preset: typeof record.preset === "string" ? record.preset : "default",
     scope: "project-local",
     mcp_servers: Array.isArray(record.mcp_servers)
@@ -510,13 +516,8 @@ async function removeSkillsFromLock(root: string, skills: string[]): Promise<voi
   }
 }
 
-function normalizeAgent(agent: string | undefined): string {
-  const value = agent?.trim();
-  return value ? value : DEFAULT_AGENT;
-}
-
 function mcpSnippetFileName(agent: string | undefined): string {
-  const normalized = normalizeAgent(agent);
+  const normalized = normalizeAgentTarget(agent);
   return normalized === DEFAULT_AGENT || normalized === AUTO_AGENT ? "mcp.json" : `${normalized}-mcp.json`;
 }
 

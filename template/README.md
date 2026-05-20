@@ -53,6 +53,7 @@ Project-local skills and MCP records are managed with:
 
 ```bash
 npx academic-research skills presets
+npx academic-research agents list
 npx academic-research skills install --preset default
 npx academic-research skills install --preset enhanced
 npx academic-research skills list

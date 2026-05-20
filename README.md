@@ -35,9 +35,10 @@ adjacent interdisciplinary CS.
 
 The generated repository is agent-neutral. By default the wizard records
 `agent: universal`, installs one shared project-local `.agents/skills` copy,
-and writes generic MCP snippets. Use `--agent <name>` only when you want to
-force a specific target recognized by the `skills` CLI, such as `claude-code`,
-`codex`, `cursor`, `windsurf`, or another supported local loader.
+and writes generic MCP snippets. Use `--agent <id>` only when you want to force
+a specific target recognized by the `skills` CLI. Run
+`npx academic-research agents list` inside a generated project to see every
+supported target and alias.
 
 ## Default Experience
 
@@ -76,6 +77,7 @@ Inside a generated project:
 ```bash
 npx academic-research doctor
 npx academic-research rename --title "New Title" --slug new-title --package new_title
+npx academic-research agents list
 npx academic-research skills presets
 npx academic-research skills install --preset default
 npx academic-research skills install --preset enhanced
@@ -134,8 +136,9 @@ The create wizard can install that project-local package automatically.
 Those skills are portable `SKILL.md` instructions, but they require an
 agent/runtime that can load skills or include the relevant instructions in
 context. They are not automatic capabilities of every raw model API.
-Use `--agent <agent>` for explicit setup, for example `--agent codex` or
-`--agent claude-code`.
+Use `--agent <id>` for explicit setup with any id from
+`academic-research agents list`. The shorthand `--agent claude` is normalized
+to the supported `claude-code` target.
 Avoid `--agent auto` for unattended setup: the upstream `skills` CLI may expand
 it to every agent it detects on the machine.
 
@@ -166,8 +169,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.4 -m "v0.1.4"
-git push origin main v0.1.4
+git tag -a v0.1.5 -m "v0.1.5"
+git push origin main v0.1.5
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

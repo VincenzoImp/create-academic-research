@@ -15,6 +15,7 @@ import {
   mcpToolCommandTexts,
   readCapabilities,
   removeSkills,
+  SUPPORTED_SKILL_AGENT_TARGETS,
   uninstallMcpTools,
   updateSkills
 } from "../dist/src/capabilities.js";
@@ -108,6 +109,52 @@ test("skill install records the active preset and agent after a successful insta
   assert.match(profile, /Preset: `minimal`/);
 });
 
+test("skill install normalizes aliases and validates agent targets before running commands", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-agent-target-"));
+  const target = join(root, "skills-agent-target-project");
+  await createProject({ target, title: "Skills Agent Target Project", preset: "default", installSkills: false });
+
+  const calls = [];
+  await installSkills(target, "minimal", { agent: "claude" }, {
+    run: async (command, options) => calls.push({ command, cwd: options.cwd })
+  });
+
+  const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  assert.ok(calls[0].command.includes("--agent"));
+  assert.ok(calls[0].command.includes("claude-code"));
+  assert.equal(capabilities.agent, "claude-code");
+  assert.ok(SUPPORTED_SKILL_AGENT_TARGETS.includes("claude-code"));
+  assert.ok(SUPPORTED_SKILL_AGENT_TARGETS.includes("codex"));
+  assert.ok(SUPPORTED_SKILL_AGENT_TARGETS.includes("cursor"));
+
+  await assert.rejects(
+    installSkills(target, "minimal", { agent: "not-real-agent" }, {
+      run: async () => {
+        throw new Error("runner should not be called");
+      }
+    }),
+    /unknown agent target: not-real-agent/
+  );
+});
+
+test("auto agent target delegates agent selection to the skills CLI", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-auto-agent-"));
+  const target = join(root, "skills-auto-agent-project");
+  await createProject({
+    target,
+    title: "Skills Auto Agent Project",
+    preset: "minimal",
+    agent: "auto",
+    installSkills: false
+  });
+
+  const commands = await buildSkillInstallCommands(target, "minimal");
+  const rendered = commands.map((command) => command.join(" ")).join("\n");
+
+  assert.doesNotMatch(rendered, /--agent/);
+  assert.match(rendered, /VincenzoImp\/academic-research-skills/);
+});
+
 test("default capability state is agent-neutral and uses the universal skill target", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-agent-neutral-"));
   const target = join(root, "agent-neutral-project");
@@ -156,7 +203,7 @@ test("capability commands do not silently overwrite invalid capability state", a
   await writeFile(path, invalidYaml, "utf8");
 
   await assert.rejects(readCapabilities(target));
-  await assert.rejects(enableMcpServers(target, ["arxiv"], { agent: "example-agent" }));
+  await assert.rejects(enableMcpServers(target, ["arxiv"], { agent: "codex" }));
   assert.equal(await readFile(path, "utf8"), invalidYaml);
 });
 
@@ -166,19 +213,20 @@ test("MCP enable and disable update project-local records and snippets", async (
   await createProject({ target, title: "MCP Project", preset: "minimal", installSkills: false });
 
   await stat(join(target, "docs/agent/generated/mcp.json"));
-  await enableMcpServers(target, ["arxiv", "openalex"], { agent: "example-agent" });
+  await enableMcpServers(target, ["arxiv", "openalex"], { agent: "cursor" });
   let capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
   let snippet = JSON.parse(
-    await readFile(join(target, "docs/agent/generated/example-agent-mcp.json"), "utf8")
+    await readFile(join(target, "docs/agent/generated/cursor-mcp.json"), "utf8")
   );
 
   assert.deepEqual(capabilities.mcp_servers, ["arxiv", "openalex"]);
+  assert.equal(capabilities.agent, "cursor");
   assert.deepEqual(Object.keys(snippet.mcpServers).sort(), ["arxiv", "openalex"]);
   await assert.rejects(stat(join(target, "docs/agent/generated/mcp.json")));
 
-  await disableMcpServers(target, ["arxiv"], { agent: "example-agent" });
+  await disableMcpServers(target, ["arxiv"], { agent: "cursor" });
   capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
-  snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/example-agent-mcp.json"), "utf8"));
+  snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/cursor-mcp.json"), "utf8"));
 
   assert.deepEqual(capabilities.mcp_servers, ["openalex"]);
   assert.deepEqual(Object.keys(snippet.mcpServers), ["openalex"]);

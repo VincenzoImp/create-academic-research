@@ -12,11 +12,12 @@ The generator and the skills package are independently useful:
 - The skills package can be installed in any compatible repo.
 - Together they produce the intended agentic academic research environment.
 
-The generated project is agent-neutral. `agent: auto` is the default capability
-state, which means project-local skill installation relies on the local
-`skills` CLI to detect the active agent. Passing `--agent <name>` is an
-explicit override for users who want agent-specific skill installs and MCP
-snippets.
+The generated project is agent-neutral. `agent: universal` is the default
+capability state, which installs one shared project-local `.agents/skills` copy
+and writes generic MCP snippets. Passing `--agent <id>` is an explicit override
+for users who want a supported skills.sh agent target, while `--agent auto`
+delegates detection to the upstream `skills` CLI and may create multiple
+agent-specific copies.
 
 The generator does not depend on a separate public template repository. The
 template is an implementation detail under `template/`.

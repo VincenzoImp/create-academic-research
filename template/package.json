@@ -12,6 +12,6 @@
     "mcp:doctor": "academic-research mcp doctor"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.4"
+    "create-academic-research": "0.1.5"
   }
 }

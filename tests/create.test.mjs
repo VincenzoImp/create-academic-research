@@ -36,7 +36,7 @@ test("createProject generates a personalized research project without global sid
   assert.equal(capabilities.agent, "universal");
   assert.deepEqual(capabilities.mcp_servers, ["arxiv", "semantic-scholar", "openalex"]);
   assert.equal(packageJson.name, "paper-project");
-  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.4");
+  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.5");
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));
@@ -53,13 +53,46 @@ test("createProject writes agent-specific MCP snippets when requested", async ()
     target,
     title: "Explicit Agent Project",
     preset: "default",
-    agent: "example-agent",
+    agent: "cursor",
     installSkills: false
   });
 
   const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
-  assert.equal(capabilities.agent, "example-agent");
-  await stat(join(target, "docs/agent/generated/example-agent-mcp.json"));
+  assert.equal(capabilities.agent, "cursor");
+  await stat(join(target, "docs/agent/generated/cursor-mcp.json"));
+});
+
+test("createProject normalizes common agent aliases before writing files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-agent-alias-"));
+  const target = join(root, "agent-alias-project");
+  await createProject({
+    target,
+    title: "Agent Alias Project",
+    preset: "default",
+    agent: "claude",
+    installSkills: false
+  });
+
+  const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  assert.equal(capabilities.agent, "claude-code");
+  await stat(join(target, "docs/agent/generated/claude-code-mcp.json"));
+});
+
+test("createProject rejects unknown agent targets before creating files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-agent-invalid-"));
+  const target = join(root, "agent-invalid-project");
+
+  await assert.rejects(
+    createProject({
+      target,
+      title: "Agent Invalid Project",
+      preset: "minimal",
+      agent: "not-real-agent",
+      installSkills: false
+    }),
+    /unknown agent target: not-real-agent/
+  );
+  await assert.rejects(stat(join(target, "README.md")));
 });
 
 test("renameProject updates metadata and the Python package directory", async () => {

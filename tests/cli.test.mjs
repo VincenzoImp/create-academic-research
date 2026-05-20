@@ -17,10 +17,15 @@ test("interactive create guide explains presets, agent targets, and MCP installe
     assert.match(guide, new RegExp(`\\b${preset}\\b`));
   }
   assert.match(guide, /Agent target/);
-  assert.match(guide, /universal.*shared project-local/s);
+  assert.match(guide, /universal.*Recommended.*shared project-local/s);
   assert.ok(guide.includes(".agents/skills"));
-  assert.match(guide, /codex.*Codex-specific/s);
-  assert.match(guide, /auto.*may install to multiple agent loaders/s);
+  assert.match(guide, /auto.*detect installed agents/s);
+  assert.match(guide, /Supported specific agent ids/s);
+  assert.match(guide, /\bclaude-code\b/);
+  assert.match(guide, /\bcodex\b/);
+  assert.match(guide, /\bcursor\b/);
+  assert.match(guide, /claude -> claude-code/);
+  assert.doesNotMatch(guide, /Codex-specific/);
   assert.match(guide, /MCP records/);
   assert.match(guide, /installer/);
   assert.match(guide, /runtime-only/);
@@ -43,6 +48,7 @@ test("create-academic-research help exits successfully and explains framing", ()
   });
   assert.equal(lifecycleHelp.status, 0, lifecycleHelp.stderr + lifecycleHelp.stdout);
   assert.match(lifecycleHelp.stdout, /Manage a generated academic research repository/);
+  assert.match(lifecycleHelp.stdout, /agents/);
 });
 
 test("create-academic-research version flags report package version", () => {
@@ -57,8 +63,23 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.4\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.5\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
+});
+
+test("academic-research agents list prints special targets, aliases, and supported agent ids", () => {
+  const agents = spawnSync(process.execPath, ["dist/bin/academic-research.js", "agents", "list"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(agents.status, 0, agents.stderr + agents.stdout);
+  assert.match(agents.stdout, /^universal\t/m);
+  assert.match(agents.stdout, /^auto\t/m);
+  assert.match(agents.stdout, /^claude-code\t/m);
+  assert.match(agents.stdout, /^codex\t/m);
+  assert.match(agents.stdout, /^cursor\t/m);
+  assert.match(agents.stdout, /^alias\tclaude\tclaude-code/m);
 });
 
 test("create-academic-research requires an explicit project directory", () => {
@@ -112,6 +133,36 @@ test("create-academic-research accepts equals-style string flags", async () => {
   assert.equal(create.status, 0, create.stderr + create.stdout);
   const config = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
   assert.equal(config.preset, "minimal");
+});
+
+test("create-academic-research normalizes agent aliases", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-agent-alias-"));
+  const target = join(temp, "agent-alias-project");
+  const create = spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--agent", "claude", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(create.status, 0, create.stderr + create.stdout);
+  const config = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  assert.equal(config.agent, "claude-code");
+});
+
+test("create-academic-research rejects unknown agent targets before creating files", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-agent-invalid-"));
+  const target = join(temp, "agent-invalid-project");
+  const create = spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--agent", "not-real-agent", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.notEqual(create.status, 0);
+  assert.match(create.stderr, /unknown agent target: not-real-agent/);
+  assert.match(create.stderr, /claude-code/);
+  assert.doesNotMatch(create.stderr, /Node\.js v/);
+  await assert.rejects(readFile(join(target, "README.md"), "utf8"));
 });
 
 test("create-academic-research rejects unknown flags", async () => {

@@ -20,6 +20,7 @@ import { createProject, doctorProject, renameProject } from "./project.js";
 import { askCreateOptions } from "./prompts.js";
 import type { CreatePromptAnswers, CreatePromptDefaults } from "./prompts.js";
 import { AGENT_STACK, presetMcpServers } from "./stack.js";
+import { formatAgentAliasLines, formatAgentTargetList, formatSupportedAgentTargetLines } from "./agents.js";
 import { packageify, slugify, titleFromSlug } from "./names.js";
 
 type CliMode = "create" | "lifecycle";
@@ -139,6 +140,7 @@ async function lifecycleMain(argv: string[]): Promise<number> {
   }
   if (command === "doctor") return doctorCommand(argv.slice(1));
   if (command === "rename") return renameCommand(argv.slice(1));
+  if (command === "agents") return agentsCommand(argv.slice(1));
   if (command === "skills") return skillsCommand(argv.slice(1));
   if (command === "mcp") return mcpCommand(argv.slice(1));
   printLifecycleHelp();
@@ -172,6 +174,22 @@ async function renameCommand(argv: string[]): Promise<number> {
   });
   console.log(`Renamed project to ${result.slug}`);
   return 0;
+}
+
+async function agentsCommand(argv: string[]): Promise<number> {
+  const subcommand = argv[0] ?? "list";
+  const parsed = parseFlags(argv.slice(1), ROOT_FLAGS);
+  if (subcommand === "help" || subcommand === "--help" || subcommand === "-h" || flagBool(parsed.flags, "help")) {
+    printAgentsHelp();
+    return 0;
+  }
+  if (subcommand === "list") {
+    assertOnlyOptions(parsed.flags, "agents list", []);
+    assertNoArguments(parsed.positionals, "agents list");
+    process.stdout.write(formatAgentTargetList());
+    return 0;
+  }
+  throw new Error(`unknown agents command: ${subcommand}`);
 }
 
 async function skillsCommand(argv: string[]): Promise<number> {
@@ -443,9 +461,15 @@ export function formatInteractiveCreateGuide(): string {
     ...presetLines,
     "",
     "Agent target:",
-    "  universal  Default. Installs one shared project-local .agents/skills copy.",
-    "  codex      Codex-specific project-local skill install.",
-    "  auto       Lets the upstream skills CLI detect agents; may install to multiple agent loaders.",
+    "  universal  Recommended. One shared project-local .agents/skills copy.",
+    "  auto       Let the skills CLI detect installed agents; may create multiple agent-specific copies.",
+    "  <id>       Any supported skills.sh agent id.",
+    "",
+    "Supported specific agent ids:",
+    ...formatSupportedAgentTargetLines(),
+    "",
+    "Aliases:",
+    ...formatAgentAliasLines(),
     "",
     "Skill and MCP behavior:",
     "  Skills are copied into the project, not installed globally.",
@@ -470,7 +494,7 @@ function printCreateHelp(): void {
       "  --package <name>         Python package name. Default: normalized project name.",
       "  --preset <name>           Capability preset: minimal, default, enhanced, literature, writing, full.",
       "  --profile <name>          Project profile metadata. Default: academic-general.",
-      "  --agent <name>            Agent target. Default: universal.",
+      "  --agent <id>              Agent target: universal, auto, or a supported skills.sh id.",
       "  --install-skills          Install project-local skills without prompting.",
       "  --no-install-skills       Skip project-local skill installation.",
       "  --install-mcp-tools       Run finite external MCP install commands after creation.",
@@ -495,13 +519,31 @@ function printMissingTargetHelp(): void {
 function printLifecycleHelp(): void {
   console.log(
     [
-      "Usage: academic-research <doctor|rename|skills|mcp>",
+      "Usage: academic-research <doctor|rename|agents|skills|mcp>",
       "",
       "Manage a generated academic research repository after creation.",
       "",
       "Options:",
       "  -h, --help               Show this help.",
       "  -v, --version            Show package version."
+    ].join("\n")
+  );
+}
+
+function printAgentsHelp(): void {
+  console.log(
+    [
+      "Usage: academic-research agents <list>",
+      "",
+      "List supported project-local agent targets.",
+      "",
+      "Targets:",
+      "  universal                 Recommended shared project-local .agents/skills copy.",
+      "  auto                      Let the skills CLI detect installed agents.",
+      "  <id>                      A supported skills.sh agent id.",
+      "",
+      "Options:",
+      "  -h, --help                Show this help."
     ].join("\n")
   );
 }
@@ -516,7 +558,7 @@ function printSkillsHelp(): void {
       "Options:",
       "  --root <path>            Project root for list, status, install, remove, uninstall, update.",
       "  --preset <name>          Capability preset for install.",
-      "  --agent <name>           Agent selector for install. Default: project capability agent.",
+      "  --agent <id>             Agent selector for install. Default: project capability agent.",
       "  -h, --help               Show this help."
     ].join("\n")
   );
@@ -531,7 +573,7 @@ function printMcpHelp(): void {
       "",
       "Options:",
       "  --root <path>            Project root for project-state commands.",
-      "  --agent <name>           Agent for enable/disable generated snippets.",
+      "  --agent <id>             Agent for enable/disable generated snippets.",
       "  -h, --help               Show this help."
     ].join("\n")
   );

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
 import { DEFAULT_AGENT, initializeCapabilities, installSkills } from "./capabilities.js";
+import { assertKnownAgentTarget } from "./agents.js";
 import { copyDirectory, exists, isNonEmptyDirectory, movePath, readJson, writeJson } from "./files.js";
 import { packageify, slugify, titleFromSlug } from "./names.js";
 import { AGENT_STACK } from "./stack.js";
@@ -147,7 +148,7 @@ export async function createProject(options: CreateProjectOptions): Promise<Proj
   const slug = slugify(options.slug ?? title);
   const packageName = packageify(options.packageName ?? slug);
   const preset = options.preset ?? "default";
-  const agent = options.agent ?? DEFAULT_AGENT;
+  const agent = assertKnownAgentTarget(options.agent ?? DEFAULT_AGENT);
   if (!AGENT_STACK.presets[preset]) {
     throw new Error(
       `unknown capability preset: ${preset}. Expected one of: ${Object.keys(AGENT_STACK.presets).join(", ")}`
@@ -272,7 +273,7 @@ async function writeGeneratedPackageJson(root: string, { slug }: { slug: string 
   const path = join(root, "package.json");
   const data = await readJson<GeneratedPackageJson>(path);
   const existingSpec = data.devDependencies?.["create-academic-research"];
-  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.4";
+  const packageSpec = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC ?? existingSpec ?? "0.1.5";
   data.name = slug;
   data.devDependencies = {
     ...(data.devDependencies ?? {}),
