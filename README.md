@@ -1,8 +1,19 @@
 # Create Academic Research
 
+[![npm](https://img.shields.io/npm/v/create-academic-research)](https://www.npmjs.com/package/create-academic-research)
+[![Validate](https://github.com/VincenzoImp/create-academic-research/actions/workflows/validate.yml/badge.svg)](https://github.com/VincenzoImp/create-academic-research/actions/workflows/validate.yml)
+[![Release](https://github.com/VincenzoImp/create-academic-research/actions/workflows/release.yml/badge.svg)](https://github.com/VincenzoImp/create-academic-research/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Create agent-ready academic research repositories with one command.
 
-From the npm registry:
+`create-academic-research` scaffolds a serious research workspace: source
+ledgers, SOTA files, citation audit tables, experiment records, reproducibility
+docs, durable wiki/log memory, project-local skills, and MCP setup for scholarly
+search. The template is discipline-general and especially strong for computer
+science research.
+
+## Quickstart
 
 ```bash
 npm create academic-research@latest my-project
@@ -23,9 +34,16 @@ From GitHub:
 npx --yes github:VincenzoImp/create-academic-research my-project
 ```
 
-The generator creates a complete research repository, personalizes the project
-name and Python package, configures project-local skills, writes MCP records,
-and prepares a durable wiki/log structure for agentic academic work.
+## What It Creates
+
+| Area | Generated Support |
+|---|---|
+| Sources | PDFs, derived Markdown, metadata, BibTeX, conversion ledger, source ledger. |
+| Literature Review | Search strategy, screening decisions, literature matrix, SOTA synthesis, gaps, PRISMA flow. |
+| Agent Memory | `AGENTS.md`, capability profile, MCP setup docs, generated MCP snippets, wiki index/log/templates. |
+| Reproducibility | Python package scaffold, tests, experiment registry, output folders, artifact checklist. |
+| Skills | Project-local installation flow for `VincenzoImp/academic-research-skills`. |
+| MCP | Conservative default records for scholarly discovery plus documented optional integrations. |
 
 The wizard is discipline-general: it creates a clean structure for academic
 research projects in any field. Its companion skill stack gives first-class
@@ -39,6 +57,15 @@ and writes generic MCP snippets. Use `--agent <id>` only when you want to force
 a specific target recognized by the `skills` CLI. Run
 `npx academic-research agents list` inside a generated project to see every
 supported target and alias.
+
+## When To Use It
+
+Use this when starting or cleaning up an academic research project that needs
+evidence tracking, literature-review discipline, repeatable experiments, paper
+writing support, or LLM-agent collaboration. It is not a paper generator and it
+does not replace methodological judgment; it gives the repository enough
+structure for serious research work to compound instead of scattering across
+chat history, notebooks, PDFs, and ad hoc folders.
 
 ## Default Experience
 
@@ -229,8 +256,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.11 -m "v0.1.11"
-git push origin main v0.1.11
+git tag -a v0.1.12 -m "v0.1.12"
+git push origin main v0.1.12
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

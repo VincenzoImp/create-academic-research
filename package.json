@@ -1,17 +1,24 @@
 {
   "name": "create-academic-research",
-  "version": "0.1.11",
-  "description": "Create and manage agent-ready academic research repositories.",
+  "version": "0.1.12",
+  "description": "Scaffold agent-ready academic research repositories with SOTA, source ledgers, wiki memory, MCP setup, and project-local skills.",
   "type": "module",
   "license": "MIT",
   "author": "Vincenzo Imperati",
   "keywords": [
     "academic-research",
+    "academic-writing",
+    "arxiv",
+    "citation-management",
     "research-project",
+    "research-scaffold",
     "agent-skills",
+    "llm-agents",
     "mcp",
     "literature-review",
-    "reproducibility"
+    "open-science",
+    "reproducibility",
+    "sota"
   ],
   "repository": {
     "type": "git",
