@@ -438,7 +438,7 @@ function printCreateHelp(): void {
       "  --package <name>         Python package name. Default: normalized project name.",
       "  --preset <name>           Capability preset: minimal, default, enhanced, literature, writing, full.",
       "  --profile <name>          Project profile metadata. Default: academic-general.",
-      "  --agent <name>            Agent target. Default: auto-detect.",
+      "  --agent <name>            Agent target. Default: universal.",
       "  --install-skills          Install project-local skills without prompting.",
       "  --no-install-skills       Skip project-local skill installation.",
       "  --install-mcp-tools       Run finite external MCP install commands after creation.",

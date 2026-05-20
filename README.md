@@ -34,10 +34,10 @@ software engineering, databases, theory, robotics, IR, PL, graphics, and
 adjacent interdisciplinary CS.
 
 The generated repository is agent-neutral. By default the wizard records
-`agent: auto`, lets the `skills` CLI detect the current local agent, and writes
-generic MCP snippets. Use `--agent <name>` only when you want to force a
-specific target recognized by the `skills` CLI, such as `claude-code`,
-`cursor`, `windsurf`, or another supported local loader.
+`agent: universal`, installs one shared project-local `.agents/skills` copy,
+and writes generic MCP snippets. Use `--agent <name>` only when you want to
+force a specific target recognized by the `skills` CLI, such as `claude-code`,
+`codex`, `cursor`, `windsurf`, or another supported local loader.
 
 ## Default Experience
 
@@ -134,8 +134,10 @@ The create wizard can install that project-local package automatically.
 Those skills are portable `SKILL.md` instructions, but they require an
 agent/runtime that can load skills or include the relevant instructions in
 context. They are not automatic capabilities of every raw model API.
-Use `--agent <agent>` for explicit multi-tool setup; reserve `--agent '*'` for
-cases where you intentionally want every local agent loader populated.
+Use `--agent <agent>` for explicit setup, for example `--agent codex` or
+`--agent claude-code`.
+Avoid `--agent auto` for unattended setup: the upstream `skills` CLI may expand
+it to every agent it detects on the machine.
 
 Preset intent:
 
@@ -164,8 +166,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.2 -m "v0.1.2"
-git push origin main v0.1.2
+git tag -a v0.1.3 -m "v0.1.3"
+git push origin main v0.1.3
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

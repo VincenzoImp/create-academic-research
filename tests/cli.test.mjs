@@ -39,7 +39,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.2\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.3\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -185,7 +185,7 @@ test("academic-research skills list and presets have distinct meanings", async (
   assert.match(presets.stdout, /default: Clean academic research setup/);
   assert.match(presets.stdout, /enhanced: Default academic setup plus complementary/);
   assert.equal(status.status, 0, status.stderr + status.stdout);
-  assert.match(status.stdout, /agent\tauto/);
+  assert.match(status.stdout, /agent\tuniversal/);
   assert.match(status.stdout, /project_preset\tdefault/);
   assert.match(status.stdout, /skill_roots\t3/);
   assert.match(status.stdout, /installed_skill_ids\t2/);

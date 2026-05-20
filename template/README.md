@@ -16,7 +16,8 @@ actual discipline. The companion `academic-research-skills` package gives
 first-class support to computer science research while keeping the repository
 structure useful for broader academic work.
 
-The repository is agent-neutral. Capability state uses `agent: auto` unless a
+The repository is agent-neutral. Capability state uses `agent: universal` by
+default, which installs one shared project-local `.agents/skills` copy unless a
 specific agent target is selected with `--agent`.
 
 ## Quickstart

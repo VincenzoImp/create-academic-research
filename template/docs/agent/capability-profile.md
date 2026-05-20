@@ -1,6 +1,6 @@
 # Agent Capability Profile
 
-- Agent target: `auto`
+- Agent target: `universal`
 - Scope: `project-local`
 
 This file is written during project creation.

@@ -36,7 +36,8 @@ test("skill install commands are project-local and executable from the project r
   assert.doesNotMatch(rendered, /--global|\s-g\s/);
   assert.ok(commands.every((command) => command.includes("--copy")));
   assert.ok(commands.every((command) => command.includes("-y")));
-  assert.ok(commands.every((command) => !command.includes("--agent")));
+  assert.ok(commands.every((command) => command.includes("--agent")));
+  assert.ok(commands.every((command) => command.includes("universal")));
   assert.ok(commands.every((command) => !command.includes("--all")));
   assert.ok(
     commands.every(
@@ -107,15 +108,15 @@ test("skill install records the active preset and agent after a successful insta
   assert.match(profile, /Preset: `minimal`/);
 });
 
-test("default capability state is agent-neutral and uses auto-detection", async () => {
+test("default capability state is agent-neutral and uses the universal skill target", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-agent-neutral-"));
   const target = join(root, "agent-neutral-project");
   await createProject({ target, title: "Agent Neutral Project", preset: "minimal", installSkills: false });
 
   const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
   const profile = await readFile(join(target, "docs/agent/capability-profile.md"), "utf8");
-  assert.equal(capabilities.agent, "auto");
-  assert.match(profile, /Agent target: `auto`/);
+  assert.equal(capabilities.agent, "universal");
+  assert.match(profile, /Agent target: `universal`/);
 });
 
 test("skill removal prunes the project lock so updates do not restore removed skills", async () => {

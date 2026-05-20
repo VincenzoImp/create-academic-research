@@ -5,7 +5,8 @@ import YAML from "yaml";
 import { defaultRunner, type Runner } from "./runner.js";
 import { AGENT_STACK, presetMcpServers, type McpToolCommandKey } from "./stack.js";
 
-export const DEFAULT_AGENT = "auto";
+export const DEFAULT_AGENT = "universal";
+const AUTO_AGENT = "auto";
 
 export interface CapabilityState {
   agent: string;
@@ -388,7 +389,7 @@ async function writeCapabilityProfile(root: string, state: CapabilityState): Pro
     "## Rules",
     "",
     "- Skill installation is project-local by default.",
-    "- Agent target `auto` lets the local skills CLI detect the active agent.",
+    "- Agent target `universal` installs one shared project-local `.agents/skills` copy.",
     "- MCP enable/disable changes project records; install/uninstall changes external tools.",
     "- Keep API keys, tokens, cookies, and browser sessions out of git.",
     "- Cite repository source records, not raw MCP output alone.",
@@ -414,7 +415,7 @@ function dedupe(values: string[]): string[] {
 
 function renderSkillCommand(command: string, agent: string): string {
   const normalized = normalizeAgent(agent);
-  const agentFlag = normalized === DEFAULT_AGENT ? "" : `--agent '${normalized}'`;
+  const agentFlag = normalized === AUTO_AGENT ? "" : `--agent '${normalized}'`;
   return command.replaceAll("{agent_flag}", agentFlag).replaceAll("{agent}", normalized);
 }
 
@@ -516,7 +517,7 @@ function normalizeAgent(agent: string | undefined): string {
 
 function mcpSnippetFileName(agent: string | undefined): string {
   const normalized = normalizeAgent(agent);
-  return normalized === DEFAULT_AGENT ? "mcp.json" : `${normalized}-mcp.json`;
+  return normalized === DEFAULT_AGENT || normalized === AUTO_AGENT ? "mcp.json" : `${normalized}-mcp.json`;
 }
 
 async function removeInactiveMcpSnippets(outputDir: string, activeFile: string): Promise<void> {
