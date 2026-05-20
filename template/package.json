@@ -17,6 +17,6 @@
     "mcp:probe": "academic-research mcp probe"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.10"
+    "create-academic-research": "0.1.11"
   }
 }

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
@@ -161,6 +161,7 @@ export async function createProject(options: CreateProjectOptions): Promise<Proj
 
   await mkdir(dirname(target), { recursive: true });
   await copyDirectory(templateRoot, target);
+  await writeGeneratedGitignore(target);
   await personalizeProject(target, { title, slug, packageName, profile: options.profile ?? "academic-general" });
   await writeGeneratedPackageJson(target, { slug });
   await writeAgentStack(target);
@@ -198,6 +199,7 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
   const errors: string[] = [];
   const required = [
     "README.md",
+    ".gitignore",
     ".env.example",
     "package.json",
     "pyproject.toml",
@@ -301,6 +303,14 @@ async function writeGeneratedPackageJson(
     "create-academic-research": packageSpec
   };
   await writeJson(path, data);
+}
+
+async function writeGeneratedGitignore(root: string): Promise<void> {
+  const source = join(root, "_gitignore");
+  if (await exists(source)) {
+    await writeFile(join(root, ".gitignore"), await readFile(source, "utf8"), "utf8");
+    await rm(source);
+  }
 }
 
 async function currentPackageVersion(): Promise<string> {

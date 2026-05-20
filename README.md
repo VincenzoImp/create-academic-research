@@ -229,8 +229,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.10 -m "v0.1.10"
-git push origin main v0.1.10
+git tag -a v0.1.11 -m "v0.1.11"
+git push origin main v0.1.11
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

@@ -80,7 +80,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.10\s*$/);
+  assert.match(createVersion.stdout, /^0\.1\.11\s*$/);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 

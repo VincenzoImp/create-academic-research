@@ -36,11 +36,13 @@ test("createProject generates a personalized research project without global sid
   assert.equal(capabilities.agent, "universal");
   assert.deepEqual(capabilities.mcp_servers, ["arxiv"]);
   assert.equal(packageJson.name, "paper-project");
-  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.10");
+  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.11");
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));
   await stat(join(target, "docs/agent/generated/mcp.json"));
+  await stat(join(target, ".gitignore"));
+  await assert.rejects(stat(join(target, "_gitignore")));
   await stat(join(target, ".env.example"));
   await stat(join(target, "docs/getting-started.md"));
   await stat(join(target, "docs/agent/mcp-client-setup.md"));
@@ -49,6 +51,10 @@ test("createProject generates a personalized research project without global sid
   assert.match(envExample, /OPENALEX_API_KEY=/);
   assert.match(envExample, /MCP_TRANSPORT_TYPE=stdio/);
   assert.doesNotMatch(envExample, /your-key|your-token|\$\{[^}]+}/i);
+  const gitignore = await readFile(join(target, ".gitignore"), "utf8");
+  assert.match(gitignore, /node_modules\//);
+  assert.match(gitignore, /\*\.egg-info\//);
+  assert.match(gitignore, /!\.env\.example/);
   const mcpSetup = await readFile(join(target, "docs/agent/mcp-setup.md"), "utf8");
   assert.match(mcpSetup, /## Enabled MCP Servers/);
   assert.match(mcpSetup, /`arxiv`/);

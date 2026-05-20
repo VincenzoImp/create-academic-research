@@ -112,6 +112,8 @@ if (releaseWorkflow) {
 }
 
 const requiredTemplateFiles = [
+  "template/_gitignore",
+  "template/.gitignore",
   "template/.env.example",
   "template/docs/getting-started.md",
   "template/scripts/README.md",
@@ -141,8 +143,14 @@ for (const scriptName of ["setup", "mcp:smoke", "mcp:dotenv", "mcp:probe"]) {
 }
 
 const gitignore = await readFile(join(root, "template/.gitignore"), "utf8");
-if (!gitignore.includes("!.env.example")) {
-  errors.push("template/.gitignore must keep .env.example tracked");
+const packedGitignore = await readFile(join(root, "template/_gitignore"), "utf8");
+if (gitignore !== packedGitignore) {
+  errors.push("template/.gitignore and template/_gitignore must stay identical");
+}
+for (const required of ["!.env.example", "node_modules/", "*.egg-info/"]) {
+  if (!gitignore.includes(required)) {
+    errors.push(`template gitignore missing ${required}`);
+  }
 }
 const envExample = await readFile(join(root, "template/.env.example"), "utf8");
 for (const envName of ["SEMANTIC_SCHOLAR_API_KEY", "OPENALEX_API_KEY", "NCBI_API_KEY", "OVERLEAF_TOKEN"]) {
