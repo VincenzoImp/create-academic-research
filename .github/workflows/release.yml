@@ -77,10 +77,10 @@ jobs:
 
           cd "$tmpdir/e2e-research"
           npm install --ignore-scripts
-          npx academic-research doctor
-          npx academic-research mcp env --write .env.example --all
-          npx academic-research mcp doctor --env-file .env.example
-          npx academic-research mcp smoke --env-file .env.example
+          npm run doctor
+          npm run mcp:dotenv
+          npm run mcp:doctor -- --env-file .env.example
+          npm run mcp:smoke -- --env-file .env.example
           python -m pip install -e ".[dev]"
           python -m pytest -q
 

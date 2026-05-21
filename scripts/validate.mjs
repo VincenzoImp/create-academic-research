@@ -110,6 +110,11 @@ if (releaseWorkflow) {
       errors.push(`release workflow missing required guard/action: ${required}`);
     }
   }
+  for (const stale of ["npx academic-research", "npx academic-research mcp"]) {
+    if (releaseWorkflow.includes(stale)) {
+      errors.push(`release workflow contains stale lifecycle command: ${stale}`);
+    }
+  }
 }
 
 const requiredTemplateFiles = [
