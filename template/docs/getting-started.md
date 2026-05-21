@@ -6,8 +6,8 @@ Use this path for the first working session in a new research repository.
 
 ```bash
 npm install
-npx academic-research doctor
-npx academic-research setup
+npm run doctor
+npm run setup
 ```
 
 `doctor` checks required files and structural contracts. `setup` prints the
@@ -19,15 +19,15 @@ commands without changing files.
 Install the default academic research skill package:
 
 ```bash
-npx academic-research skills install --preset default
-npx academic-research skills status
+npm run skills:install
+npm run skills:status
 ```
 
 Use `enhanced` only when the project also needs complementary development,
 document, frontend, testing, and conversion skills:
 
 ```bash
-npx academic-research skills install --preset enhanced
+npm run skills:install -- --preset enhanced
 ```
 
 ## 3. Prepare MCP Environment
@@ -36,18 +36,18 @@ Keep `.env.example` committed and empty of real secrets. Put filled values in
 `.env.local`, your shell, or your MCP client secret store.
 
 ```bash
-npx academic-research mcp env --write .env.example --all
+npm run mcp:dotenv
 cp .env.example .env.local
-npx academic-research mcp env openalex semantic-scholar zotero
-npx academic-research mcp doctor --env-file .env.local
+npm run mcp:env -- openalex semantic-scholar zotero
+npm run mcp:doctor -- --env-file .env.local
 ```
 
 `mcp smoke` is a non-launching readiness check. `mcp probe` is opt-in and starts
 MCP processes for a real stdio handshake.
 
 ```bash
-npx academic-research mcp smoke --env-file .env.local
-npx academic-research mcp probe arxiv --timeout-ms 5000
+npm run mcp:smoke -- --env-file .env.local
+npm run mcp:probe -- arxiv --timeout-ms 5000
 ```
 
 ## 4. Start Source Work

@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import YAML from "yaml";
 
 import { createProject, doctorProject, renameProject } from "../dist/src/project.js";
+
+const packageRoot = new URL("..", import.meta.url).pathname;
+const packageVersion = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")).version;
 
 test("createProject generates a personalized research project without global side effects", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-create-"));
@@ -36,7 +40,7 @@ test("createProject generates a personalized research project without global sid
   assert.equal(capabilities.agent, "universal");
   assert.deepEqual(capabilities.mcp_servers, ["arxiv"]);
   assert.equal(packageJson.name, "paper-project");
-  assert.equal(packageJson.devDependencies["create-academic-research"], "0.1.12");
+  assert.equal(packageJson.devDependencies["create-academic-research"], packageVersion);
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));
@@ -72,6 +76,105 @@ test("createProject generates a personalized research project without global sid
   await assert.rejects(stat(join(target, ".agents")));
   await assert.rejects(stat(join(target, "skills-lock.json")));
 });
+
+test("generated package doctor script resolves the lifecycle binary before dependencies are installed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-script-doctor-"));
+  const fakePackage = join(root, "fake-create-academic-research");
+  const fakeBin = join(fakePackage, "academic-research.js");
+  await mkdir(fakePackage, { recursive: true });
+  await writeFile(
+    join(fakePackage, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "create-academic-research",
+        version: "9.9.9-test",
+        type: "module",
+        bin: {
+          "academic-research": "academic-research.js"
+        }
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    fakeBin,
+    [
+      "#!/usr/bin/env node",
+      "const args = process.argv.slice(2).join(' ');",
+      "if (args !== 'doctor') {",
+      "  console.error(`unexpected args: ${args}`);",
+      "  process.exit(2);",
+      "}",
+      "console.log('fake academic-research doctor');",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  await chmod(fakeBin, 0o755);
+
+  const previous = process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC;
+  process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC = `file:${fakePackage}`;
+  const target = join(root, "script-project");
+  try {
+    await createProject({
+      target,
+      title: "Script Project",
+      preset: "minimal",
+      installSkills: false
+    });
+  } finally {
+    if (previous === undefined) {
+      delete process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC;
+    } else {
+      process.env.CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC = previous;
+    }
+  }
+
+  const result = spawnSync("npm", ["run", "doctor", "--silent"], {
+    cwd: target,
+    encoding: "utf8",
+    env: { ...process.env, npm_config_cache: join(root, ".npm-cache") }
+  });
+
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+  assert.match(result.stdout, /^fake academic-research doctor$/m);
+});
+
+test("generated package scripts all resolve the lifecycle binary through the generator package", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-script-contract-"));
+  const target = join(root, "script-contract-project");
+
+  await createProject({
+    target,
+    title: "Script Contract Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const packageJson = JSON.parse(await readFile(join(target, "package.json"), "utf8"));
+  const templatePackageJson = JSON.parse(await readFile(join(packageRoot, "template/package.json"), "utf8"));
+  assert.deepEqual(Object.keys(packageJson.scripts).sort(), Object.keys(templatePackageJson.scripts).sort());
+
+  for (const [scriptName, generatedCommand] of Object.entries(packageJson.scripts)) {
+    assert.match(
+      generatedCommand,
+      new RegExp(
+        `^npm exec --yes --package=create-academic-research@${escapeRegExp(packageVersion)} -- academic-research `
+      )
+    );
+    assert.doesNotMatch(generatedCommand, /^academic-research /);
+    assert.equal(
+      generatedCommand.replace(`create-academic-research@${packageVersion}`, "create-academic-research@latest"),
+      templatePackageJson.scripts[scriptName]
+    );
+  }
+});
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 test("createProject writes agent-specific MCP snippets when requested", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-explicit-agent-"));

@@ -3,20 +3,32 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "doctor": "academic-research doctor",
-    "setup": "academic-research setup",
-    "skills:install": "academic-research skills install --preset default",
-    "skills:list": "academic-research skills list",
-    "skills:presets": "academic-research skills presets",
-    "mcp:list": "academic-research mcp list",
-    "mcp:commands": "academic-research mcp commands",
-    "mcp:env": "academic-research mcp env",
-    "mcp:dotenv": "academic-research mcp env --write .env.example --all",
-    "mcp:smoke": "academic-research mcp smoke",
-    "mcp:doctor": "academic-research mcp doctor",
-    "mcp:probe": "academic-research mcp probe"
+    "doctor": "npm exec --yes --package=create-academic-research@latest -- academic-research doctor",
+    "setup": "npm exec --yes --package=create-academic-research@latest -- academic-research setup",
+    "rename": "npm exec --yes --package=create-academic-research@latest -- academic-research rename",
+    "agents:list": "npm exec --yes --package=create-academic-research@latest -- academic-research agents list",
+    "skills:install": "npm exec --yes --package=create-academic-research@latest -- academic-research skills install",
+    "skills:list": "npm exec --yes --package=create-academic-research@latest -- academic-research skills list",
+    "skills:status": "npm exec --yes --package=create-academic-research@latest -- academic-research skills status",
+    "skills:presets": "npm exec --yes --package=create-academic-research@latest -- academic-research skills presets",
+    "skills:remove": "npm exec --yes --package=create-academic-research@latest -- academic-research skills remove",
+    "skills:uninstall": "npm exec --yes --package=create-academic-research@latest -- academic-research skills uninstall",
+    "skills:update": "npm exec --yes --package=create-academic-research@latest -- academic-research skills update",
+    "mcp:list": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp list",
+    "mcp:enabled": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp enabled",
+    "mcp:available": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp available",
+    "mcp:commands": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp commands",
+    "mcp:env": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp env",
+    "mcp:dotenv": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp env --write .env.example --all",
+    "mcp:enable": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp enable",
+    "mcp:disable": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp disable",
+    "mcp:install": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp install",
+    "mcp:uninstall": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp uninstall",
+    "mcp:smoke": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp smoke",
+    "mcp:doctor": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp doctor",
+    "mcp:probe": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp probe"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.12"
+    "create-academic-research": "0.1.13"
   }
 }

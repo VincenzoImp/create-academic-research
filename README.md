@@ -55,7 +55,7 @@ The generated repository is agent-neutral. By default the wizard records
 `agent: universal`, installs one shared project-local `.agents/skills` copy,
 and writes generic MCP snippets. Use `--agent <id>` only when you want to force
 a specific target recognized by the `skills` CLI. Run
-`npx academic-research agents list` inside a generated project to see every
+`npm run agents:list` inside a generated project to see every
 supported target and alias.
 
 ## When To Use It
@@ -113,34 +113,37 @@ npx create-academic-research@latest my-project --yes --no-install-skills
 Inside a generated project:
 
 ```bash
-npx academic-research doctor
-npx academic-research setup
-npx academic-research rename --title "New Title" --slug new-title --package new_title
-npx academic-research agents list
-npx academic-research skills presets
-npx academic-research skills install --preset default
-npx academic-research skills install --preset enhanced
-npx academic-research skills install source-ingestion sota-literature-review
-npx academic-research skills list
-npx academic-research skills status
-npx academic-research skills remove source-ingestion
-npx academic-research skills uninstall source-ingestion
-npx academic-research skills update
-npx academic-research mcp list
-npx academic-research mcp enabled
-npx academic-research mcp available
-npx academic-research mcp commands arxiv
-npx academic-research mcp env openalex semantic-scholar zotero
-npx academic-research mcp env --dotenv --all > .env.example
-npx academic-research mcp env --write .env.example --all
-npx academic-research mcp enable arxiv dblp
-npx academic-research mcp disable arxiv
-npx academic-research mcp install arxiv
-npx academic-research mcp uninstall arxiv
-npx academic-research mcp smoke --env-file .env.local
-npx academic-research mcp doctor --env-file .env.local
-npx academic-research mcp probe arxiv --timeout-ms 5000
+npm run doctor
+npm run setup
+npm run rename -- --title "New Title" --slug new-title --package new_title
+npm run agents:list
+npm run skills:presets
+npm run skills:install
+npm run skills:install -- --preset enhanced
+npm run skills:install -- source-ingestion sota-literature-review
+npm run skills:list
+npm run skills:status
+npm run skills:remove -- source-ingestion
+npm run skills:uninstall -- source-ingestion
+npm run skills:update
+npm run mcp:list
+npm run mcp:enabled
+npm run mcp:available
+npm run mcp:commands -- arxiv
+npm run mcp:env -- openalex semantic-scholar zotero
+npm run mcp:env -- --dotenv --all > .env.example
+npm run mcp:dotenv
+npm run mcp:enable -- arxiv dblp
+npm run mcp:disable -- arxiv
+npm run mcp:install -- arxiv
+npm run mcp:uninstall -- arxiv
+npm run mcp:smoke -- --env-file .env.local
+npm run mcp:doctor -- --env-file .env.local
+npm run mcp:probe -- arxiv --timeout-ms 5000
 ```
+
+For direct one-off invocation without the generated package scripts, use
+`npx --yes --package create-academic-research@latest academic-research <command>`.
 
 ## Command Model
 
@@ -189,7 +192,7 @@ Those skills are portable `SKILL.md` instructions, but they require an
 agent/runtime that can load skills or include the relevant instructions in
 context. They are not automatic capabilities of every raw model API.
 Use `--agent <id>` for explicit setup with any id from
-`academic-research agents list`. The shorthand `--agent claude` is normalized
+`npm run agents:list`. The shorthand `--agent claude` is normalized
 to the supported `claude-code` target.
 Avoid `--agent auto` for unattended setup: the upstream `skills` CLI may expand
 it to every agent it detects on the machine.
@@ -208,9 +211,9 @@ Preset intent:
 MCP defaults are intentionally conservative. Semantic Scholar, OpenAlex,
 Zotero, Overleaf, Crossref, and fallback aggregators are useful, but they need
 API keys, local apps, manual setup, or source-policy review. Enable them with
-`npx academic-research mcp enable <server>` after reading
-`docs/agent/mcp-setup.md`, use `npx academic-research mcp env <server>` to see
-runtime prerequisites, then run `npx academic-research mcp doctor`.
+`npm run mcp:enable -- <server>` after reading
+`docs/agent/mcp-setup.md`, use `npm run mcp:env -- <server>` to see runtime
+prerequisites, then run `npm run mcp:doctor`.
 
 The MCP catalog distinguishes local runtime adapters from hosted endpoints and
 manual integrations. arXiv and DBLP are low-friction local `uvx` runtimes.
@@ -225,8 +228,8 @@ until a project explicitly needs them.
 
 Generated projects include a committed `.env.example` with empty MCP variables
 and ignore filled `.env` or `.env.local` files. Regenerate the example with
-`mcp env --write .env.example --all`. `mcp doctor`, `mcp smoke`, and
-`mcp probe` check the current process environment unless you explicitly pass
+`npm run mcp:dotenv`. `mcp doctor`, `mcp smoke`, and `mcp probe` check the
+current process environment unless you explicitly pass
 `--env-file .env.local`.
 
 Generated MCP snippets are project documentation and client-ready config, not
@@ -256,8 +259,8 @@ Releases are tag-driven. Update `package.json` and `package-lock.json`, commit
 the change, create `vX.Y.Z`, and push the tag:
 
 ```bash
-git tag -a v0.1.12 -m "v0.1.12"
-git push origin main v0.1.12
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin main vX.Y.Z
 ```
 
 Once the GitHub repository is public, the release workflow validates the tag

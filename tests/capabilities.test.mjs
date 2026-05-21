@@ -330,7 +330,7 @@ test("MCP setup documents execution mode, hosted endpoints, setup commands, and 
   assert.match(setup, /Setup command: `uvx --refresh zoty doctor`/);
   assert.match(setup, /Requires env: `OPENALEX_API_KEY`/);
   assert.match(setup, /\.env\.example/);
-  assert.match(setup, /mcp env --dotenv --all/);
+  assert.match(setup, /npm run mcp:env -- --dotenv --all/);
   assert.doesNotMatch(setup, /your-key|your-email|api_key=YOUR_KEY|\$\{[^}]+}/i);
 });
 

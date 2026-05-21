@@ -84,7 +84,7 @@ export function assertKnownAgentTarget(agent: string | undefined): string {
       [
         `unknown agent target: ${value}`,
         `Use ${DEFAULT_AGENT}, ${AUTO_AGENT}, or one supported skills.sh agent id.`,
-        "List targets with: npx -p create-academic-research academic-research agents list",
+        "List targets with: npx --yes --package create-academic-research@latest academic-research agents list",
         `Supported ids: ${specificAgentTargets().join(", ")}`,
         `Aliases: ${formatAgentAliasesInline()}`
       ].join("\n")

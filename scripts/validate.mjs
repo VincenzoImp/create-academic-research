@@ -47,6 +47,7 @@ const forbidden = [
   "/Users/vincenzo",
   "still private",
   "repository is still private",
+  "npx academic-research",
   "--global"
 ];
 
@@ -136,9 +137,41 @@ for (const relative of requiredTemplateFiles) {
 }
 
 const templatePackageJson = JSON.parse(await readFile(join(root, "template/package.json"), "utf8"));
-for (const scriptName of ["setup", "mcp:smoke", "mcp:dotenv", "mcp:probe"]) {
+const requiredTemplateScripts = [
+  "doctor",
+  "setup",
+  "rename",
+  "agents:list",
+  "skills:install",
+  "skills:list",
+  "skills:status",
+  "skills:presets",
+  "skills:remove",
+  "skills:uninstall",
+  "skills:update",
+  "mcp:list",
+  "mcp:enabled",
+  "mcp:available",
+  "mcp:commands",
+  "mcp:env",
+  "mcp:dotenv",
+  "mcp:enable",
+  "mcp:disable",
+  "mcp:install",
+  "mcp:uninstall",
+  "mcp:smoke",
+  "mcp:doctor",
+  "mcp:probe"
+];
+for (const scriptName of requiredTemplateScripts) {
   if (!templatePackageJson.scripts?.[scriptName]) {
     errors.push(`template/package.json missing script: ${scriptName}`);
+  } else if (
+    !templatePackageJson.scripts[scriptName].startsWith(
+      "npm exec --yes --package=create-academic-research@latest -- academic-research "
+    )
+  ) {
+    errors.push(`template/package.json script must resolve package explicitly: ${scriptName}`);
   }
 }
 

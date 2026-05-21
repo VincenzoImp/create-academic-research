@@ -140,7 +140,7 @@ async function createMain(argv: string[]): Promise<number> {
     await installMcpTools(result.root, presetMcpServers(answers.preset));
   }
   console.log(`Created ${result.slug} at ${result.root}`);
-  console.log("Next: cd into the project and run `npx academic-research doctor`.");
+  console.log("Next: cd into the project and run `npm run doctor`.");
   return 0;
 }
 
@@ -212,14 +212,14 @@ async function setupCommand(argv: string[]): Promise<number> {
   }
   console.log("");
   console.log("Next Commands");
-  console.log(`academic-research skills install --preset ${state.preset}`);
-  console.log("academic-research skills status");
-  console.log("academic-research mcp list");
-  console.log("academic-research mcp env");
-  console.log("academic-research mcp env --write .env.example --all");
-  console.log("academic-research mcp smoke");
-  console.log("academic-research mcp probe arxiv");
-  console.log("academic-research doctor");
+  console.log(`npm run skills:install -- --preset ${state.preset}`);
+  console.log("npm run skills:status");
+  console.log("npm run mcp:list");
+  console.log("npm run mcp:env");
+  console.log("npm run mcp:dotenv");
+  console.log("npm run mcp:smoke");
+  console.log("npm run mcp:probe -- arxiv");
+  console.log("npm run doctor");
   return project.ok ? 0 : 1;
 }
 
@@ -629,10 +629,10 @@ export function formatInteractiveCreateGuide(): string {
     "  default enables only low-friction arXiv; credentialed/local services are opt-in.",
     "  MCP installers are optional and run only finite installer commands.",
     "  MCP execution modes are explicit: uvx-runtime, npx-runtime, local-service, manual, or fallback.",
-    "  Use `academic-research mcp env <server>` to inspect env vars and local prerequisites.",
-    "  Use `academic-research mcp env --dotenv --all` to print a committed env example.",
-    "  Use `academic-research mcp env --write .env.example --all` to regenerate a committed env example.",
-    "  Use `academic-research mcp doctor --env-file .env.local` to check explicit local secrets.",
+    "  Use `npm run mcp:env -- <server>` to inspect env vars and local prerequisites.",
+    "  Use `npm run mcp:env -- --dotenv --all` to print a committed env example.",
+    "  Use `npm run mcp:dotenv` to regenerate a committed env example.",
+    "  Use `npm run mcp:doctor -- --env-file .env.local` to check explicit local secrets.",
     ""
   ].join("\n");
 }

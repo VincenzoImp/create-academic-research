@@ -19,7 +19,7 @@ store.
 Regenerate the committed reference from the current MCP catalog with:
 
 ```bash
-npx academic-research mcp env --write .env.example --all
+npm run mcp:dotenv
 ```
 
 Create a private local file when needed:
@@ -33,9 +33,9 @@ Do not commit filled `.env`, `.env.local`, tokens, cookies, or browser sessions.
 environment unless you explicitly pass `--env-file .env.local`.
 
 ```bash
-npx academic-research mcp doctor --env-file .env.local
-npx academic-research mcp smoke --env-file .env.local
-npx academic-research mcp probe arxiv --timeout-ms 5000
+npm run mcp:doctor -- --env-file .env.local
+npm run mcp:smoke -- --env-file .env.local
+npm run mcp:probe -- arxiv --timeout-ms 5000
 ```
 
 ## Client Notes
@@ -57,10 +57,10 @@ required variables are already exported.
 ## Workflow
 
 1. Enable only the MCP servers needed for the current research task.
-2. Inspect prerequisites with `npx academic-research mcp env <server>`.
+2. Inspect prerequisites with `npm run mcp:env -- <server>`.
 3. Put required secrets in the MCP client secret store, shell, or `.env.local`.
-4. Run `npx academic-research mcp smoke --env-file .env.local`.
-5. Run `npx academic-research mcp probe <server>` only when you want to start
+4. Run `npm run mcp:smoke -- --env-file .env.local`.
+5. Run `npm run mcp:probe -- <server>` only when you want to start
    the server and verify a real stdio handshake.
 6. Load the generated snippet in the MCP client.
 7. Treat MCP output as retrieval metadata until it is ingested into repository

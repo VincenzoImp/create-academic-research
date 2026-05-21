@@ -53,6 +53,7 @@ interface ProjectConfig {
 
 interface GeneratedPackageJson {
   name?: string;
+  scripts?: Record<string, string>;
   devDependencies?: Record<string, string>;
   [key: string]: unknown;
 }
@@ -298,11 +299,55 @@ async function writeGeneratedPackageJson(
     (preserveExistingSpec ? existingSpec : undefined) ??
     await currentPackageVersion();
   data.name = slug;
+  data.scripts = {
+    ...(data.scripts ?? {}),
+    ...generatedLifecycleScripts(packageSpec)
+  };
   data.devDependencies = {
     ...(data.devDependencies ?? {}),
     "create-academic-research": packageSpec
   };
   await writeJson(path, data);
+}
+
+function generatedLifecycleScripts(packageSpec: string): Record<string, string> {
+  const command = `npm exec --yes --package=${lifecyclePackageSpec(packageSpec)} -- academic-research`;
+  return {
+    doctor: `${command} doctor`,
+    setup: `${command} setup`,
+    rename: `${command} rename`,
+    "agents:list": `${command} agents list`,
+    "skills:install": `${command} skills install`,
+    "skills:list": `${command} skills list`,
+    "skills:status": `${command} skills status`,
+    "skills:presets": `${command} skills presets`,
+    "skills:remove": `${command} skills remove`,
+    "skills:uninstall": `${command} skills uninstall`,
+    "skills:update": `${command} skills update`,
+    "mcp:list": `${command} mcp list`,
+    "mcp:enabled": `${command} mcp enabled`,
+    "mcp:available": `${command} mcp available`,
+    "mcp:commands": `${command} mcp commands`,
+    "mcp:env": `${command} mcp env`,
+    "mcp:dotenv": `${command} mcp env --write .env.example --all`,
+    "mcp:enable": `${command} mcp enable`,
+    "mcp:disable": `${command} mcp disable`,
+    "mcp:install": `${command} mcp install`,
+    "mcp:uninstall": `${command} mcp uninstall`,
+    "mcp:smoke": `${command} mcp smoke`,
+    "mcp:doctor": `${command} mcp doctor`,
+    "mcp:probe": `${command} mcp probe`
+  };
+}
+
+function lifecyclePackageSpec(packageSpec: string): string {
+  if (packageSpec === "create-academic-research" || packageSpec.startsWith("create-academic-research@")) {
+    return packageSpec;
+  }
+  if (/^(file:|github:|git[+:]|https?:)/.test(packageSpec) || packageSpec.includes("/")) {
+    return packageSpec;
+  }
+  return `create-academic-research@${packageSpec}`;
 }
 
 async function writeGeneratedGitignore(root: string): Promise<void> {

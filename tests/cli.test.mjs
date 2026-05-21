@@ -7,6 +7,7 @@ import test from "node:test";
 import YAML from "yaml";
 
 const root = new URL("..", import.meta.url).pathname;
+const packageVersion = JSON.parse(await readFile(join(root, "package.json"), "utf8")).version;
 
 test("interactive create guide explains presets, agent targets, and MCP installer behavior", async () => {
   const { formatInteractiveCreateGuide } = await import("../dist/src/cli.js");
@@ -31,8 +32,8 @@ test("interactive create guide explains presets, agent targets, and MCP installe
   assert.match(guide, /default enables only low-friction arXiv/);
   assert.match(guide, /installer/);
   assert.match(guide, /execution modes are explicit/);
-  assert.match(guide, /mcp env <server>/);
-  assert.match(guide, /mcp env --dotenv --all/);
+  assert.match(guide, /npm run mcp:env -- <server>/);
+  assert.match(guide, /npm run mcp:env -- --dotenv --all/);
 });
 
 test("create-academic-research help exits successfully and explains framing", () => {
@@ -80,7 +81,7 @@ test("create-academic-research version flags report package version", () => {
 
   assert.equal(createVersion.status, 0, createVersion.stderr + createVersion.stdout);
   assert.equal(lifecycleVersion.status, 0, lifecycleVersion.stderr + lifecycleVersion.stdout);
-  assert.match(createVersion.stdout, /^0\.1\.12\s*$/);
+  assert.equal(createVersion.stdout.trim(), packageVersion);
   assert.equal(lifecycleVersion.stdout, createVersion.stdout);
 });
 
@@ -120,6 +121,7 @@ test("create-academic-research binary creates and validates a project", async ()
     { cwd: root, encoding: "utf8" }
   );
   assert.equal(create.status, 0, create.stderr + create.stdout);
+  assert.match(create.stdout, /npm run doctor/);
 
   const doctor = spawnSync(process.execPath, ["dist/bin/academic-research.js", "doctor", "--root", target], {
     cwd: root,
@@ -128,8 +130,17 @@ test("create-academic-research binary creates and validates a project", async ()
   assert.equal(doctor.status, 0, doctor.stderr + doctor.stdout);
 
   const config = YAML.parse(await readFile(join(target, "configs/default.yaml"), "utf8"));
+  const packageJson = JSON.parse(await readFile(join(target, "package.json"), "utf8"));
   assert.equal(config.project.slug, "cli-project");
+  assert.match(
+    packageJson.scripts.doctor,
+    new RegExp(`--package=create-academic-research@${escapeRegExp(packageVersion)}`)
+  );
 });
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 test("academic-research setup prints project onboarding status without changing files", async () => {
   const temp = await mkdtemp(join(tmpdir(), "academic-cli-setup-"));
@@ -151,8 +162,8 @@ test("academic-research setup prints project onboarding status without changing 
   assert.match(setup.stdout, /preset\tdefault/);
   assert.match(setup.stdout, /installed_skill_ids\t0/);
   assert.match(setup.stdout, /mcp_enabled\tarxiv/);
-  assert.match(setup.stdout, /academic-research mcp smoke/);
-  assert.match(setup.stdout, /academic-research mcp env --write \.env\.example --all/);
+  assert.match(setup.stdout, /npm run mcp:smoke/);
+  assert.match(setup.stdout, /npm run mcp:dotenv/);
 });
 
 test("create-academic-research accepts equals-style string flags", async () => {

@@ -30,7 +30,7 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
-npx academic-research doctor
+npm run doctor
 ```
 
 ## Core Folders
@@ -53,23 +53,23 @@ npx academic-research doctor
 Project-local skills and MCP records are managed with:
 
 ```bash
-npx academic-research skills presets
-npx academic-research agents list
-npx academic-research skills install --preset default
-npx academic-research skills install --preset enhanced
-npx academic-research skills install source-ingestion sota-literature-review
-npx academic-research skills list
-npx academic-research skills status
-npx academic-research setup
-npx academic-research mcp env --write .env.example --all
-npx academic-research mcp list
-npx academic-research mcp env openalex semantic-scholar zotero
-npx academic-research mcp enable arxiv dblp
-npx academic-research mcp commands arxiv
-npx academic-research mcp install arxiv
-npx academic-research mcp smoke --env-file .env.local
-npx academic-research mcp doctor --env-file .env.local
-npx academic-research mcp probe arxiv --timeout-ms 5000
+npm run skills:presets
+npm run agents:list
+npm run skills:install
+npm run skills:install -- --preset enhanced
+npm run skills:install -- source-ingestion sota-literature-review
+npm run skills:list
+npm run skills:status
+npm run setup
+npm run mcp:dotenv
+npm run mcp:list
+npm run mcp:env -- openalex semantic-scholar zotero
+npm run mcp:enable -- arxiv dblp
+npm run mcp:commands -- arxiv
+npm run mcp:install -- arxiv
+npm run mcp:smoke -- --env-file .env.local
+npm run mcp:doctor -- --env-file .env.local
+npm run mcp:probe -- arxiv --timeout-ms 5000
 ```
 
 `skills list` reports installed project-local skills. `skills presets` reports
@@ -81,10 +81,10 @@ commands; runtime-only `uvx`/`npx` MCP servers may have no install step and are
 started later by the MCP client.
 
 `.env.example` is the committed MCP environment reference. Regenerate it with
-`mcp env --write .env.example --all`. Copy it to `.env.local`, your shell
-profile, or your MCP client secret store when secrets are needed. Filled `.env`
-files are ignored by git. `mcp doctor` checks the current process environment
-unless you explicitly pass `--env-file .env.local`.
+`npm run mcp:dotenv`. Copy it to `.env.local`, your shell profile, or your MCP
+client secret store when secrets are needed. Filled `.env` files are ignored by
+git. `mcp doctor` checks the current process environment unless you explicitly
+pass `--env-file .env.local`.
 
 `setup` prints the current project capability state, installed skill counts,
 enabled MCP records, and the next onboarding commands without changing files.
