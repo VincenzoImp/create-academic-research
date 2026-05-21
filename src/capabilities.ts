@@ -70,6 +70,11 @@ export interface McpProbeOptions {
   clientVersion?: string;
 }
 
+export interface RenderedMcpSnippet {
+  fileName: string;
+  content: string;
+}
+
 interface SkillInstallOptions {
   agent?: string;
 }
@@ -437,6 +442,14 @@ export async function probeMcpServers(
 }
 
 async function writeMcpSnippet(root: string, state: CapabilityState): Promise<void> {
+  const snippet = renderMcpSnippet(state);
+  const outputDir = join(root, "docs/agent/generated");
+  await mkdir(outputDir, { recursive: true });
+  await removeInactiveMcpSnippets(outputDir, snippet.fileName);
+  await writeFile(join(outputDir, snippet.fileName), snippet.content, "utf8");
+}
+
+export function renderMcpSnippet(state: CapabilityState): RenderedMcpSnippet {
   const servers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> = {};
   for (const name of state.mcp_servers ?? []) {
     const server = AGENT_STACK.mcp_servers[name];
@@ -447,18 +460,17 @@ async function writeMcpSnippet(root: string, state: CapabilityState): Promise<vo
     };
     if (Object.keys(server.env).length > 0) servers[name].env = server.env;
   }
-  const outputDir = join(root, "docs/agent/generated");
-  const outputFile = mcpSnippetFileName(state.agent);
-  await mkdir(outputDir, { recursive: true });
-  await removeInactiveMcpSnippets(outputDir, outputFile);
-  await writeFile(
-    join(outputDir, outputFile),
-    `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`,
-    "utf8"
-  );
+  return {
+    fileName: mcpSnippetFileName(state.agent),
+    content: `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`
+  };
 }
 
 async function writeCapabilityProfile(root: string, state: CapabilityState): Promise<void> {
+  await writeFile(join(root, "docs/agent/capability-profile.md"), renderCapabilityProfile(state), "utf8");
+}
+
+export function renderCapabilityProfile(state: CapabilityState): string {
   const lines = [
     "# Agent Capability Profile",
     "",
@@ -498,10 +510,15 @@ async function writeCapabilityProfile(root: string, state: CapabilityState): Pro
     "- Cite repository source records, not raw MCP output alone.",
     ""
   );
-  await writeFile(join(root, "docs/agent/capability-profile.md"), lines.join("\n"), "utf8");
+  return lines.join("\n");
 }
 
 async function writeMcpSetup(root: string, state: CapabilityState): Promise<void> {
+  await mkdir(join(root, "docs/agent"), { recursive: true });
+  await writeFile(join(root, "docs/agent/mcp-setup.md"), renderMcpSetup(state), "utf8");
+}
+
+export function renderMcpSetup(state: CapabilityState): string {
   const enabled = new Set(state.mcp_servers ?? []);
   const lines = [
     "# MCP Setup",
@@ -561,8 +578,7 @@ async function writeMcpSetup(root: string, state: CapabilityState): Promise<void
     "- Run `npm run mcp:probe -- <server>` only when you intentionally want to start selected MCP server processes.",
     ""
   );
-  await mkdir(join(root, "docs/agent"), { recursive: true });
-  await writeFile(join(root, "docs/agent/mcp-setup.md"), lines.join("\n"), "utf8");
+  return lines.join("\n");
 }
 
 async function appendCapabilityLog(root: string, state: CapabilityState): Promise<void> {

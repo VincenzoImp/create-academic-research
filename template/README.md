@@ -31,6 +31,7 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 npm run doctor
+npm run update
 ```
 
 ## Core Folders
@@ -60,6 +61,7 @@ npm run skills:install -- --preset enhanced
 npm run skills:install -- source-ingestion sota-literature-review
 npm run skills:list
 npm run skills:status
+npm run update
 npm run setup
 npm run mcp:dotenv
 npm run mcp:list

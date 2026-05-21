@@ -139,6 +139,7 @@ for (const relative of requiredTemplateFiles) {
 const templatePackageJson = JSON.parse(await readFile(join(root, "template/package.json"), "utf8"));
 const requiredTemplateScripts = [
   "doctor",
+  "update",
   "setup",
   "rename",
   "agents:list",

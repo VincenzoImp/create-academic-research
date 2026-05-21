@@ -7,12 +7,14 @@ Use this path for the first working session in a new research repository.
 ```bash
 npm install
 npm run doctor
+npm run update
 npm run setup
 ```
 
-`doctor` checks required files and structural contracts. `setup` prints the
-active skill preset, installed skill count, enabled MCP records, and next
-commands without changing files.
+`doctor` checks required files and structural contracts. `update` is a dry-run
+unless you pass `-- --apply`. `setup` prints the active skill preset,
+installed skill count, enabled MCP records, and next commands without changing
+files.
 
 ## 2. Install Project-Local Skills
 

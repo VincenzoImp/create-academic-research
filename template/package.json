@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "doctor": "npm exec --yes --package=create-academic-research@latest -- academic-research doctor",
+    "update": "npm exec --yes --package=create-academic-research@latest -- academic-research update",
     "setup": "npm exec --yes --package=create-academic-research@latest -- academic-research setup",
     "rename": "npm exec --yes --package=create-academic-research@latest -- academic-research rename",
     "agents:list": "npm exec --yes --package=create-academic-research@latest -- academic-research agents list",
@@ -29,6 +30,6 @@
     "mcp:probe": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp probe"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.13"
+    "create-academic-research": "0.1.14"
   }
 }

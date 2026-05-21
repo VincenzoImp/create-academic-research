@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import YAML from "yaml";
 
-import { createProject, doctorProject, renameProject } from "../dist/src/project.js";
+import { createProject, doctorProject, initProject, renameProject, updateProject } from "../dist/src/project.js";
 
 const packageRoot = new URL("..", import.meta.url).pathname;
 const packageVersion = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")).version;
@@ -370,6 +370,118 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("sources/source-ledger.csv missing column type")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
+});
+
+test("doctorProject reports stale lifecycle commands and managed-file drift", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-doctor-stale-"));
+  const target = join(root, "doctor-stale-project");
+  await createProject({
+    target,
+    title: "Doctor Stale Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const packagePath = join(target, "package.json");
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+  packageJson.scripts.doctor = "academic-research doctor";
+  packageJson.scripts["mcp:env"] = "npx academic-research mcp env";
+  packageJson.devDependencies["create-academic-research"] = "0.1.12";
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  await writeFile(join(target, ".env.example"), "STALE=1\n", "utf8");
+  await writeFile(join(target, "README.md"), "# Doctor Stale Project\n\nRun `npx academic-research doctor`.\n", "utf8");
+
+  const result = await doctorProject(target);
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("package.json script doctor uses stale")));
+  assert.ok(result.errors.some((error) => error.includes("package.json script mcp:env uses stale")));
+  assert.ok(result.warnings.some((warning) => warning.includes("create-academic-research 0.1.12 is older")));
+  assert.ok(result.warnings.some((warning) => warning.includes(".env.example is not current")));
+  assert.ok(result.warnings.some((warning) => warning.includes("stale command reference in README.md")));
+});
+
+test("updateProject previews and applies only managed project files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-"));
+  const target = join(root, "update-project");
+  await createProject({
+    target,
+    title: "Update Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const packagePath = join(target, "package.json");
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+  packageJson.scripts.doctor = "academic-research doctor";
+  packageJson.devDependencies["create-academic-research"] = "0.1.12";
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  await writeFile(join(target, ".env.example"), "STALE=1\n", "utf8");
+  await writeFile(join(target, "configs/agent-stack.yaml"), "presets: {}\n", "utf8");
+
+  const dryRun = await updateProject(target, { apply: false });
+
+  assert.equal(dryRun.applied, false);
+  assert.deepEqual(
+    dryRun.changes.map((change) => change.path).sort(),
+    [".env.example", "configs/agent-stack.yaml", "package.json"].sort()
+  );
+  assert.equal(JSON.parse(await readFile(packagePath, "utf8")).scripts.doctor, "academic-research doctor");
+
+  const applied = await updateProject(target, { apply: true });
+  const updatedPackage = JSON.parse(await readFile(packagePath, "utf8"));
+  const envExample = await readFile(join(target, ".env.example"), "utf8");
+  const result = await doctorProject(target);
+
+  assert.equal(applied.applied, true);
+  assert.equal(updatedPackage.devDependencies["create-academic-research"], packageVersion);
+  assert.match(
+    updatedPackage.scripts.doctor,
+    new RegExp(`^npm exec --yes --package=create-academic-research@${escapeRegExp(packageVersion)} -- academic-research doctor$`)
+  );
+  assert.match(envExample, /^OPENALEX_API_KEY=/m);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.warnings, []);
+});
+
+test("initProject bootstraps an existing repository without overwriting local files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-init-"));
+  const target = join(root, "existing-repo");
+  await mkdir(target, { recursive: true });
+  await writeFile(join(target, "README.md"), "# Existing README\n", "utf8");
+  await writeFile(join(target, ".gitignore"), "custom-ignore\n", "utf8");
+  await writeFile(
+    join(target, "package.json"),
+    `${JSON.stringify({ name: "existing-repo", scripts: { test: "node --test" } }, null, 2)}\n`,
+    "utf8"
+  );
+
+  const result = await initProject({
+    target,
+    title: "Existing Study",
+    slug: "existing-study",
+    packageName: "existing_study",
+    preset: "minimal",
+    installSkills: false
+  });
+  const readme = await readFile(join(target, "README.md"), "utf8");
+  const gitignore = await readFile(join(target, ".gitignore"), "utf8");
+  const packageJson = JSON.parse(await readFile(join(target, "package.json"), "utf8"));
+  const config = YAML.parse(await readFile(join(target, "configs/default.yaml"), "utf8"));
+  const doctor = await doctorProject(target);
+
+  assert.equal(result.slug, "existing-study");
+  assert.equal(readme, "# Existing README\n");
+  assert.equal(gitignore, "custom-ignore\n");
+  assert.equal(packageJson.scripts.test, "node --test");
+  assert.match(packageJson.scripts.doctor, /academic-research doctor$/);
+  assert.equal(config.project.slug, "existing-study");
+  assert.equal(config.project.package, "existing_study");
+  await stat(join(target, "src/existing_study/__init__.py"));
+  await assert.rejects(stat(join(target, "_gitignore")));
+  assert.equal(doctor.ok, true);
+  assert.deepEqual(doctor.errors, []);
 });
 
 test("createProject creates missing parent directories", async () => {

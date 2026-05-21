@@ -23,7 +23,7 @@ import {
   uninstallMcpTools,
   updateSkills
 } from "./capabilities.js";
-import { createProject, doctorProject, renameProject } from "./project.js";
+import { createProject, doctorProject, initProject, renameProject, updateProject } from "./project.js";
 import { askCreateOptions } from "./prompts.js";
 import type { CreatePromptAnswers, CreatePromptDefaults } from "./prompts.js";
 import { AGENT_STACK, presetMcpServers } from "./stack.js";
@@ -60,6 +60,11 @@ const CREATE_FLAGS = flagSchema(
 );
 
 const ROOT_FLAGS = flagSchema(["help"], ["root"]);
+const UPDATE_FLAGS = flagSchema(["help", "dry-run", "apply"], ["root"]);
+const INIT_FLAGS = flagSchema(
+  ["help", "install-skills"],
+  ["root", "title", "slug", "package", "preset", "profile", "agent"]
+);
 const RENAME_FLAGS = flagSchema(["help"], ["root", "title", "slug", "package"]);
 const SKILLS_FLAGS = flagSchema(["help"], ["root", "preset", "agent"]);
 const MCP_FLAGS = flagSchema(
@@ -163,6 +168,8 @@ async function lifecycleMain(argv: string[]): Promise<number> {
     return 0;
   }
   if (command === "doctor") return doctorCommand(argv.slice(1));
+  if (command === "update") return updateCommand(argv.slice(1));
+  if (command === "init") return initCommand(argv.slice(1));
   if (command === "setup") return setupCommand(argv.slice(1));
   if (command === "rename") return renameCommand(argv.slice(1));
   if (command === "agents") return agentsCommand(argv.slice(1));
@@ -181,8 +188,57 @@ async function doctorCommand(argv: string[]): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   const result = await doctorProject(root);
   for (const error of result.errors) console.error(`ERROR: ${error}`);
+  for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
   if (result.ok) console.log(`OK: ${root}`);
   return result.ok ? 0 : 1;
+}
+
+async function updateCommand(argv: string[]): Promise<number> {
+  const parsed = parseFlags(argv, UPDATE_FLAGS);
+  if (flagBool(parsed.flags, "help")) {
+    printUpdateHelp();
+    return 0;
+  }
+  assertNoArguments(parsed.positionals, "update");
+  if (flagBool(parsed.flags, "dry-run") && flagBool(parsed.flags, "apply")) {
+    throw new Error("update cannot use --dry-run and --apply together");
+  }
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  const apply = flagBool(parsed.flags, "apply");
+  const result = await updateProject(root, { apply });
+  console.log(`${apply ? "UPDATED" : "DRY-RUN"}: ${root}`);
+  if (result.changes.length === 0) {
+    console.log("No managed file changes.");
+  } else {
+    for (const change of result.changes) console.log(`${change.action}\t${change.path}`);
+  }
+  if (!apply && result.changes.length > 0) {
+    console.log("Run `npm run update -- --apply` from a generated project to write these managed changes.");
+  }
+  return 0;
+}
+
+async function initCommand(argv: string[]): Promise<number> {
+  const parsed = parseFlags(argv, INIT_FLAGS);
+  if (flagBool(parsed.flags, "help")) {
+    printInitHelp();
+    return 0;
+  }
+  assertNoArguments(parsed.positionals, "init");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  const result = await initProject({
+    target: root,
+    title: flagString(parsed.flags, "title"),
+    slug: flagString(parsed.flags, "slug"),
+    packageName: flagString(parsed.flags, "package"),
+    profile: flagString(parsed.flags, "profile") ?? "academic-general",
+    preset: flagString(parsed.flags, "preset") ?? "default",
+    agent: flagString(parsed.flags, "agent") ?? DEFAULT_AGENT,
+    installSkills: flagBool(parsed.flags, "install-skills")
+  });
+  console.log(`Initialized ${result.slug} at ${result.root}`);
+  console.log("Next: run `npm run doctor`.");
+  return 0;
 }
 
 async function setupCommand(argv: string[]): Promise<number> {
@@ -210,6 +266,7 @@ async function setupCommand(argv: string[]): Promise<number> {
   if (!project.ok) {
     for (const error of project.errors) console.error(`ERROR: ${error}`);
   }
+  for (const warning of project.warnings) console.warn(`WARN: ${warning}`);
   console.log("");
   console.log("Next Commands");
   console.log(`npm run skills:install -- --preset ${state.preset}`);
@@ -677,13 +734,50 @@ function printMissingTargetHelp(): void {
 function printLifecycleHelp(): void {
   console.log(
     [
-      "Usage: academic-research <doctor|setup|rename|agents|skills|mcp>",
+      "Usage: academic-research <doctor|update|init|setup|rename|agents|skills|mcp>",
       "",
       "Manage a generated academic research repository after creation.",
       "",
       "Options:",
       "  -h, --help               Show this help.",
       "  -v, --version            Show package version."
+    ].join("\n")
+  );
+}
+
+function printUpdateHelp(): void {
+  console.log(
+    [
+      "Usage: academic-research update [options]",
+      "",
+      "Preview or apply non-destructive updates to managed project files.",
+      "",
+      "Options:",
+      "  --root <path>            Project root. Default: current directory.",
+      "  --dry-run                Preview managed changes without writing. Default.",
+      "  --apply                  Write managed changes.",
+      "  -h, --help               Show this help."
+    ].join("\n")
+  );
+}
+
+function printInitHelp(): void {
+  console.log(
+    [
+      "Usage: academic-research init [options]",
+      "",
+      "Initialize an existing repository without overwriting existing files.",
+      "",
+      "Options:",
+      "  --root <path>            Project root. Default: current directory.",
+      "  --title <name>           Project title. Default: title-cased directory name.",
+      "  --slug <name>            Repository/package slug. Default: normalized directory name.",
+      "  --package <name>         Python package name. Default: normalized directory name.",
+      "  --preset <name>          Capability preset: minimal, default, enhanced, literature, writing, full.",
+      "  --profile <name>         Project profile metadata. Default: academic-general.",
+      "  --agent <id>             Agent target: universal, auto, or a supported skills.sh id.",
+      "  --install-skills         Install project-local skills after initialization.",
+      "  -h, --help               Show this help."
     ].join("\n")
   );
 }

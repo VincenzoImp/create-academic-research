@@ -54,6 +54,8 @@ test("create-academic-research help exits successfully and explains framing", ()
   });
   assert.equal(lifecycleHelp.status, 0, lifecycleHelp.stderr + lifecycleHelp.stdout);
   assert.match(lifecycleHelp.stdout, /Manage a generated academic research repository/);
+  assert.match(lifecycleHelp.stdout, /init/);
+  assert.match(lifecycleHelp.stdout, /update/);
   assert.match(lifecycleHelp.stdout, /setup/);
   assert.match(lifecycleHelp.stdout, /agents/);
 
@@ -164,6 +166,79 @@ test("academic-research setup prints project onboarding status without changing 
   assert.match(setup.stdout, /mcp_enabled\tarxiv/);
   assert.match(setup.stdout, /npm run mcp:smoke/);
   assert.match(setup.stdout, /npm run mcp:dotenv/);
+});
+
+test("academic-research update is a dry-run by default and applies with --apply", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-update-"));
+  const target = join(temp, "cli-update-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const packagePath = join(target, "package.json");
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+  packageJson.scripts.doctor = "academic-research doctor";
+  packageJson.devDependencies["create-academic-research"] = "0.1.12";
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+
+  const dryRun = spawnSync(process.execPath, ["dist/bin/academic-research.js", "update", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const stillStale = JSON.parse(await readFile(packagePath, "utf8"));
+  const apply = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "update", "--apply", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const updated = JSON.parse(await readFile(packagePath, "utf8"));
+
+  assert.equal(dryRun.status, 0, dryRun.stderr + dryRun.stdout);
+  assert.match(dryRun.stdout, /DRY-RUN/);
+  assert.match(dryRun.stdout, /package\.json/);
+  assert.equal(stillStale.scripts.doctor, "academic-research doctor");
+  assert.equal(apply.status, 0, apply.stderr + apply.stdout);
+  assert.match(apply.stdout, /UPDATED/);
+  assert.match(
+    updated.scripts.doctor,
+    new RegExp(`--package=create-academic-research@${escapeRegExp(packageVersion)} -- academic-research doctor`)
+  );
+});
+
+test("academic-research init preserves existing files while adding the research contract", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-init-"));
+  const target = join(temp, "cli-existing-project");
+  await mkdir(target, { recursive: true });
+  await writeFile(join(target, "README.md"), "# Keep Me\n", "utf8");
+
+  const init = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "init",
+      "--root",
+      target,
+      "--title",
+      "CLI Existing Project",
+      "--slug",
+      "cli-existing-project",
+      "--package",
+      "cli_existing_project",
+      "--preset",
+      "minimal"
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+  const readme = await readFile(join(target, "README.md"), "utf8");
+  const doctor = spawnSync(process.execPath, ["dist/bin/academic-research.js", "doctor", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(init.status, 0, init.stderr + init.stdout);
+  assert.match(init.stdout, /Initialized cli-existing-project/);
+  assert.equal(readme, "# Keep Me\n");
+  assert.equal(doctor.status, 0, doctor.stderr + doctor.stdout);
 });
 
 test("create-academic-research accepts equals-style string flags", async () => {

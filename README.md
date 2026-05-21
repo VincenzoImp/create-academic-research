@@ -114,6 +114,7 @@ Inside a generated project:
 
 ```bash
 npm run doctor
+npm run update
 npm run setup
 npm run rename -- --title "New Title" --slug new-title --package new_title
 npm run agents:list
@@ -146,6 +147,13 @@ For direct one-off invocation without the generated package scripts, use
 `npx --yes --package create-academic-research@latest academic-research <command>`.
 
 ## Command Model
+
+`academic-research update` is a dry-run by default. It reports managed project
+files that would change and writes them only with `--apply`.
+
+`academic-research init` initializes an existing repository without overwriting
+existing files. It adds the research contract, merges lifecycle package scripts,
+and preserves existing README, `.gitignore`, and custom package scripts.
 
 `academic-research setup` is a non-destructive onboarding status command. It
 prints the active preset, agent, skill counts, enabled MCP records, and next
