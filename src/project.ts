@@ -12,6 +12,7 @@ import {
   renderCapabilityProfile,
   renderMcpSetup,
   renderMcpSnippet,
+  resolveMcpServerForState,
   writeMcpEnvironmentExample
 } from "./capabilities.js";
 import { assertKnownAgentTarget } from "./agents.js";
@@ -323,13 +324,48 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
       const state = await readCapabilities(target);
       const unknown = state.mcp_servers.filter((server) => !AGENT_STACK.mcp_servers[server]);
       if (unknown.length > 0) errors.push(`unknown MCP server in configs/capabilities.yaml: ${unknown.join(", ")}`);
+      const needsMcpEnvDoctor = state.mcp_servers.some((serverName) => {
+        const server = AGENT_STACK.mcp_servers[serverName]
+          ? resolveMcpServerForState(state, serverName, state.mcp_server_modes[serverName])
+          : undefined;
+        return Boolean(
+          server &&
+            (server.required_env.length > 0 ||
+              server.recommended_env.length > 0 ||
+              server.local_service ||
+              server.execution_mode === "manual-local" ||
+              server.execution_mode === "local-service")
+        );
+      });
+      if (needsMcpEnvDoctor) {
+        warnings.push("MCP readiness may require local secrets; run npm run mcp:doctor -- --env-file .env.local");
+      }
+      for (const serverName of state.mcp_servers) {
+        if (!AGENT_STACK.mcp_servers[serverName]) continue;
+        const server = resolveMcpServerForState(state, serverName, state.mcp_server_modes[serverName]);
+        if (
+          server.connection_mode === "remote-custom" &&
+          server.remote_url_env &&
+          !envHasValue(process.env, server.remote_url_env)
+        ) {
+          errors.push(`${serverName}: missing required environment variable: ${server.remote_url_env}`);
+        }
+      }
       const snippet = renderMcpSnippet(state);
-      const commandServers = state.mcp_servers.filter((server) => AGENT_STACK.mcp_servers[server]?.command);
-      if (commandServers.length > 0) {
+      const snippetServers = state.mcp_servers.filter((serverName) => {
+        if (!AGENT_STACK.mcp_servers[serverName]) return false;
+        const server = resolveMcpServerForState(state, serverName, state.mcp_server_modes[serverName]);
+        return Boolean(
+          server.command ||
+            (server.connection_mode === "remote-curated" && server.hosted_url) ||
+            (server.connection_mode === "remote-custom" && server.remote_configured)
+        );
+      });
+      if (snippetServers.length > 0) {
         try {
           const raw = await readFile(join(target, "docs/agent/generated", snippet.fileName), "utf8");
           const generated = JSON.parse(raw) as { mcpServers?: Record<string, unknown> };
-          for (const server of commandServers) {
+          for (const server of snippetServers) {
             if (!Object.hasOwn(generated.mcpServers ?? {}, server)) {
               errors.push(`${server}: enabled but missing from generated MCP snippet`);
             }
@@ -505,6 +541,8 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "skills:uninstall": `${command} skills uninstall`,
     "skills:update": `${command} skills update`,
     "mcp:list": `${command} mcp list`,
+    "mcp:modes": `${command} mcp modes`,
+    "mcp:status": `${command} mcp status`,
     "mcp:enabled": `${command} mcp enabled`,
     "mcp:available": `${command} mcp available`,
     "mcp:commands": `${command} mcp commands`,
@@ -512,6 +550,9 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "mcp:dotenv": `${command} mcp env --write .env.example --all`,
     "mcp:enable": `${command} mcp enable`,
     "mcp:disable": `${command} mcp disable`,
+    "mcp:setup": `${command} mcp setup`,
+    "mcp:client:add": `${command} mcp client add`,
+    "mcp:client:remove": `${command} mcp client remove`,
     "mcp:install": `${command} mcp install`,
     "mcp:uninstall": `${command} mcp uninstall`,
     "mcp:smoke": `${command} mcp smoke`,
@@ -768,6 +809,10 @@ function isMissingFileError(error: unknown): boolean {
     "code" in error &&
     (error as { code?: unknown }).code === "ENOENT"
   );
+}
+
+function envHasValue(env: NodeJS.ProcessEnv, name: string): boolean {
+  return typeof env[name] === "string" && env[name] !== "";
 }
 
 function toPosix(value: string): string {

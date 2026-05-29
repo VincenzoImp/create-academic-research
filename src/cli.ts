@@ -4,10 +4,13 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertKnownMcpServers,
+  clientAddMcpServer,
+  clientRemoveMcpServer,
   disableMcpServers,
   doctorMcpServers,
   enableMcpServers,
   DEFAULT_AGENT,
+  getMcpLifecycleStatus,
   installMcpTools,
   installSkillIds,
   installSkills,
@@ -20,13 +23,23 @@ import {
   readCapabilities,
   readMcpEnvironmentFile,
   removeSkills,
+  resolveMcpServerForState,
+  setupMcpServer,
   uninstallMcpTools,
   updateSkills
 } from "./capabilities.js";
 import { createProject, doctorProject, initProject, renameProject, updateProject } from "./project.js";
 import { askCreateOptions } from "./prompts.js";
 import type { CreatePromptAnswers, CreatePromptDefaults } from "./prompts.js";
-import { AGENT_STACK, presetMcpServers } from "./stack.js";
+import {
+  AGENT_STACK,
+  mcpModeLabel,
+  mcpRecommendedMode,
+  mcpServerModeKeys,
+  mcpSupportedModeLabels,
+  presetMcpServers,
+  resolveMcpServer
+} from "./stack.js";
 import { formatAgentAliasLines, formatAgentTargetList, formatSupportedAgentTargetLines } from "./agents.js";
 import { packageify, slugify, titleFromSlug } from "./names.js";
 
@@ -68,8 +81,8 @@ const INIT_FLAGS = flagSchema(
 const RENAME_FLAGS = flagSchema(["help"], ["root", "title", "slug", "package"]);
 const SKILLS_FLAGS = flagSchema(["help"], ["root", "preset", "agent"]);
 const MCP_FLAGS = flagSchema(
-  ["help", "all", "dotenv", "required", "recommended"],
-  ["root", "agent", "env-file", "write", "timeout-ms"]
+  ["help", "all", "dotenv", "required", "recommended", "dry-run", "verbose"],
+  ["root", "agent", "env-file", "write", "timeout-ms", "mode", "url", "url-env", "bearer-token-env-var"]
 );
 
 export async function main(argv: string[] = process.argv.slice(2), mode: CliMode = "create"): Promise<number> {
@@ -263,19 +276,26 @@ async function setupCommand(argv: string[]): Promise<number> {
   console.log(`installed_skill_ids\t${skillIds.size}`);
   console.log(`installed_skill_copies\t${skills.length}`);
   console.log(`mcp_enabled\t${state.mcp_servers.length > 0 ? state.mcp_servers.join(",") : "none"}`);
+  console.log(`mcp_selected\t${state.mcp_servers.length > 0 ? state.mcp_servers.join(",") : "none"}`);
   if (!project.ok) {
     for (const error of project.errors) console.error(`ERROR: ${error}`);
   }
   for (const warning of project.warnings) console.warn(`WARN: ${warning}`);
+  const lifecycle = await getMcpLifecycleStatus(root);
   console.log("");
   console.log("Next Commands");
   console.log(`npm run skills:install -- --preset ${state.preset}`);
   console.log("npm run skills:status");
   console.log("npm run mcp:list");
+  console.log("npm run mcp:status");
   console.log("npm run mcp:env");
   console.log("npm run mcp:dotenv");
   console.log("npm run mcp:smoke");
-  console.log("npm run mcp:probe -- arxiv");
+  for (const item of lifecycle.servers.filter((server) => server.selected)) {
+    for (const command of setupNextCommands(item)) {
+      console.log(command);
+    }
+  }
   console.log("npm run doctor");
   return project.ok ? 0 : 1;
 }
@@ -418,6 +438,42 @@ async function mcpCommand(argv: string[]): Promise<number> {
     }
     return 0;
   }
+  if (subcommand === "modes") {
+    assertOnlyOptions(parsed.flags, "mcp modes", ["root"]);
+    const root = resolve(flagString(parsed.flags, "root") ?? ".");
+    const state = await readCapabilities(root);
+    if (parsed.positionals.length > 1) {
+      throw new Error(`mcp modes accepts at most one server: ${parsed.positionals.join(" ")}`);
+    }
+    if (parsed.positionals.length === 1) {
+      assertKnownMcpServers(parsed.positionals);
+      printMcpModeDetail(parsed.positionals[0], state);
+      return 0;
+    }
+    printMcpModesTable(state);
+    return 0;
+  }
+  if (subcommand === "status") {
+    assertOnlyOptions(parsed.flags, "mcp status", ["root", "env-file", "verbose"]);
+    const root = resolve(flagString(parsed.flags, "root") ?? ".");
+    assertNoArguments(parsed.positionals, "mcp status");
+    const env = await mcpCommandEnvironment(root, parsed.flags);
+    const status = await getMcpLifecycleStatus(root, { env });
+    if (flagBool(parsed.flags, "verbose")) {
+      console.log("id\tselected\tmode\tconnection_mode\tenv\tinstall\tsnippet\tclient\tprobe\tnext");
+      for (const item of status.servers) {
+        console.log(
+          `${item.id}\t${item.selected ? "yes" : "no"}\t${item.mode}\t${item.connection_mode}\t${item.env}\t${item.install}\t${item.snippet}\t${item.client}\t${item.probe}\t${item.next}`
+        );
+      }
+    } else {
+      console.log("id\tselected\tmode\tstate\tnext");
+      for (const item of status.servers) {
+        console.log(`${item.id}\t${item.selected ? "yes" : "no"}\t${item.mode}\t${item.state}\t${friendlyNext(item.next)}`);
+      }
+    }
+    return 0;
+  }
   if (subcommand === "enabled") {
     assertOnlyOptions(parsed.flags, "mcp enabled", ["root"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
@@ -438,36 +494,44 @@ async function mcpCommand(argv: string[]): Promise<number> {
   if (subcommand === "commands") {
     assertOnlyOptions(parsed.flags, "mcp commands", ["root"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
-    const selected = parsed.positionals.length > 0 ? parsed.positionals : (await readCapabilities(root)).mcp_servers;
-    const commands = mcpToolCommandTexts(selected, "install_command");
+    const state = await readCapabilities(root);
+    const selected = parsed.positionals.length > 0 ? parsed.positionals : state.mcp_servers;
+    const modes = Object.fromEntries(selected.map((server) => [server, state.mcp_server_modes[server]]));
+    const commands = mcpToolCommandTexts(selected, "install_command", modes);
     for (const command of commands) console.log(command);
     return 0;
   }
   if (subcommand === "env") {
-    assertOnlyOptions(parsed.flags, "mcp env", ["root", "all", "dotenv", "required", "recommended", "write"]);
+    assertOnlyOptions(parsed.flags, "mcp env", ["root", "all", "dotenv", "required", "recommended", "write", "mode"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     if (flagBool(parsed.flags, "required") && flagBool(parsed.flags, "recommended")) {
       throw new Error("mcp env cannot use --required and --recommended together");
     }
+    const state = await readCapabilities(root);
     const selected = flagBool(parsed.flags, "all")
       ? Object.keys(AGENT_STACK.mcp_servers)
       : parsed.positionals.length > 0
         ? parsed.positionals
-        : (await readCapabilities(root)).mcp_servers;
+        : state.mcp_servers;
     assertKnownMcpServers(selected);
+    const mode = flagString(parsed.flags, "mode");
+    const modes = mode ? undefined : Object.fromEntries(selected.map((server) => [server, state.mcp_server_modes[server]]));
     const filters = {
       requiredOnly: flagBool(parsed.flags, "required"),
-      recommendedOnly: flagBool(parsed.flags, "recommended")
+      recommendedOnly: flagBool(parsed.flags, "recommended"),
+      mode,
+      modes,
+      remote: state.mcp_server_remote
     };
     const writePath = flagString(parsed.flags, "write");
     if (writePath) {
       const outputPath = resolve(root, writePath);
-      writeFileSync(outputPath, formatMcpDotenv(selected, filters), "utf8");
+      writeFileSync(outputPath, formatMcpDotenvWithRemote(selected, filters), "utf8");
       console.log(`Wrote MCP dotenv environment reference: ${outputPath}`);
       return 0;
     }
     if (flagBool(parsed.flags, "dotenv")) {
-      process.stdout.write(formatMcpDotenv(selected, filters));
+      process.stdout.write(formatMcpDotenvWithRemote(selected, filters));
       return 0;
     }
     console.log("id\ttype\tvalue");
@@ -475,11 +539,15 @@ async function mcpCommand(argv: string[]): Promise<number> {
     return 0;
   }
   if (subcommand === "enable") {
-    assertOnlyOptions(parsed.flags, "mcp enable", ["root", "agent"]);
+    assertOnlyOptions(parsed.flags, "mcp enable", ["root", "agent", "mode", "url", "url-env", "bearer-token-env-var"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     assertSomeArguments(parsed.positionals, "mcp enable");
     const agent = flagString(parsed.flags, "agent");
-    await enableMcpServers(root, parsed.positionals, agent ? { agent } : {});
+    await enableMcpServers(root, parsed.positionals, {
+      ...(agent ? { agent } : {}),
+      mode: flagString(parsed.flags, "mode"),
+      remote: mcpRemoteOptions(parsed.flags)
+    });
     return 0;
   }
   if (subcommand === "disable") {
@@ -495,6 +563,9 @@ async function mcpCommand(argv: string[]): Promise<number> {
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     const result = await installMcpTools(root, parsed.positionals);
     console.log(`Ran ${result.count ?? 0} MCP install command(s).`);
+    for (const skipped of result.skipped ?? []) {
+      console.log(`Skipped ${skipped.server}: ${skipped.reason}; ${skipped.next ?? "no install action needed"}.`);
+    }
     return 0;
   }
   if (subcommand === "uninstall") {
@@ -502,17 +573,40 @@ async function mcpCommand(argv: string[]): Promise<number> {
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     const result = await uninstallMcpTools(root, parsed.positionals);
     console.log(`Ran ${result.count ?? 0} MCP uninstall command(s).`);
+    for (const skipped of result.skipped ?? []) {
+      console.log(`Skipped ${skipped.server}: ${skipped.reason}; ${skipped.next ?? "no uninstall action needed"}.`);
+    }
     return 0;
   }
+  if (subcommand === "setup") {
+    assertOnlyOptions(parsed.flags, "mcp setup", ["root", "mode", "env-file", "dry-run"]);
+    const root = resolve(flagString(parsed.flags, "root") ?? ".");
+    assertSomeArguments(parsed.positionals, "mcp setup");
+    if (parsed.positionals.length > 1) throw new Error(`mcp setup accepts one server at a time: ${parsed.positionals.join(" ")}`);
+    const env = await mcpCommandEnvironment(root, parsed.flags);
+    const result = await setupMcpServer(root, parsed.positionals[0], {
+      mode: flagString(parsed.flags, "mode"),
+      envFile: flagString(parsed.flags, "env-file"),
+      env,
+      dryRun: flagBool(parsed.flags, "dry-run")
+    });
+    printMcpSetupResult(result);
+    return result.ok ? 0 : 1;
+  }
+  if (subcommand === "client") {
+    return mcpClientCommand(parsed);
+  }
   if (subcommand === "smoke") {
-    assertOnlyOptions(parsed.flags, "mcp smoke", ["root", "env-file"]);
+    assertOnlyOptions(parsed.flags, "mcp smoke", ["root", "env-file", "mode"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     const env = await mcpCommandEnvironment(root, parsed.flags);
     const state = await readCapabilities(root);
     const explicitSelection = parsed.positionals.length > 0;
     const selected = explicitSelection ? parsed.positionals : state.mcp_servers;
     assertKnownMcpServers(selected);
-    const failed = printMcpSmokeDiagnostics(selected, env);
+    const mode = flagString(parsed.flags, "mode");
+    const modes = Object.fromEntries(selected.map((server) => [server, mode ?? state.mcp_server_modes[server]]));
+    const failed = printMcpSmokeDiagnostics(root, selected, env, modes, state);
     if (!explicitSelection) {
       const result = await doctorMcpServers(root, { env });
       for (const error of result.errors) console.error(`ERROR: ${error}`);
@@ -533,7 +627,7 @@ async function mcpCommand(argv: string[]): Promise<number> {
     return result.ok ? 0 : 1;
   }
   if (subcommand === "probe") {
-    assertOnlyOptions(parsed.flags, "mcp probe", ["root", "all", "env-file", "timeout-ms"]);
+    assertOnlyOptions(parsed.flags, "mcp probe", ["root", "all", "env-file", "timeout-ms", "mode"]);
     const root = resolve(flagString(parsed.flags, "root") ?? ".");
     const selected = flagBool(parsed.flags, "all")
       ? Object.keys(AGENT_STACK.mcp_servers)
@@ -543,12 +637,153 @@ async function mcpCommand(argv: string[]): Promise<number> {
     assertKnownMcpServers(selected);
     const timeoutMs = parseTimeoutMs(flagString(parsed.flags, "timeout-ms"));
     const env = await mcpCommandEnvironment(root, parsed.flags);
-    const result = await probeMcpServers(root, selected, { env, timeoutMs, clientVersion: packageVersion });
+    const result = await probeMcpServers(root, selected, {
+      env,
+      timeoutMs,
+      clientVersion: packageVersion,
+      mode: flagString(parsed.flags, "mode")
+    });
     console.log("id\tstatus\tdetail");
     for (const item of result.results) console.log(`${item.server}\t${item.status}\t${item.detail}`);
     return result.ok ? 0 : 1;
   }
   throw new Error(`unknown mcp command: ${subcommand}`);
+}
+
+async function mcpClientCommand(parsed: ParsedArgs): Promise<number> {
+  const action = parsed.positionals[0];
+  const server = parsed.positionals[1];
+  if (!action || action === "help" || action === "--help" || action === "-h") {
+    printMcpHelp();
+    return 0;
+  }
+  if (action !== "add" && action !== "remove") throw new Error(`unknown mcp client command: ${action}`);
+  if (!server) throw new Error(`mcp client ${action} requires a server`);
+  if (parsed.positionals.length > 2) {
+    throw new Error(`mcp client ${action} accepts one server: ${parsed.positionals.slice(1).join(" ")}`);
+  }
+  assertOnlyOptions(parsed.flags, `mcp client ${action}`, ["root", "agent", "mode", "dry-run"]);
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  const options = {
+    agent: flagString(parsed.flags, "agent"),
+    mode: flagString(parsed.flags, "mode"),
+    dryRun: flagBool(parsed.flags, "dry-run")
+  };
+  const result = action === "add"
+    ? await clientAddMcpServer(root, server, options)
+    : await clientRemoveMcpServer(root, server, options);
+  if (result.command.length > 0) {
+    console.log(result.command.join(" "));
+  }
+  for (const instruction of result.instructions) console.log(instruction);
+  return result.ok || options.dryRun ? 0 : 1;
+}
+
+function setupNextCommands(item: {
+  id: string;
+  env: string;
+  install: string;
+  client: string;
+  probe: string;
+  next: string;
+  connection_mode: string;
+}): string[] {
+  const commands: string[] = [];
+  if (item.next === "ready") return commands;
+  if (item.connection_mode === "manual-local") {
+    if (item.env === "missing-required") commands.push("fill OVERLEAF_TOKEN, PROJECT_ID in .env.local");
+    if (item.install !== "ready") {
+      commands.push("npm run mcp:setup -- overleaf --mode local --env-file .env.local");
+      return dedupeStrings(commands);
+    }
+    if (item.client.endsWith(":not-added")) commands.push("npm run mcp:client:add -- overleaf --agent codex");
+    if (item.probe === "unknown") commands.push("npm run mcp:probe -- overleaf --env-file .env.local");
+    return dedupeStrings(commands);
+  }
+  commands.push(item.next.replace(/^run /, ""));
+  return dedupeStrings(commands);
+}
+
+function dedupeStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function printMcpModesTable(state: Awaited<ReturnType<typeof readCapabilities>>): void {
+  const selected = new Set(state.mcp_servers ?? []);
+  console.log("id\tselected\trecommended\tsupported\tenv\tnext");
+  for (const name of Object.keys(AGENT_STACK.mcp_servers)) {
+    const required = modeEnvSummary(name);
+    const recommended = modeKeyDisplay(mcpRecommendedMode(name));
+    const supported = orderedModeLabels(name).join(", ");
+    const next = selected.has(name) ? "ready" : `enable ${name}`;
+    console.log(`${name}\t${selected.has(name) ? "yes" : "no"}\t${recommended}\t${supported}\t${required}\t${next}`);
+  }
+}
+
+function printMcpModeDetail(serverName: string, state: Awaited<ReturnType<typeof readCapabilities>>): void {
+  const selected = new Set(state.mcp_servers ?? []);
+  const uniqueLabels = orderedModeLabels(serverName);
+  console.log(`${serverName} supports ${formatHumanList(uniqueLabels)}.`);
+  console.log(`Selected: ${selected.has(serverName) ? "yes" : "no"}`);
+  console.log(`Recommended: ${mcpModeLabel(serverName, mcpRecommendedMode(serverName))}`);
+  console.log(`Env: ${modeEnvSummary(serverName)}`);
+  console.log(`Next: ${selected.has(serverName) ? "npm run mcp:status" : `npm run mcp:enable -- ${serverName} --mode ${mcpRecommendedMode(serverName)}`}`);
+  for (const mode of mcpServerModeKeys(serverName)) {
+    const resolved = resolveMcpServer(serverName, mode);
+    const details = [
+      `mode ${mode}: ${mcpModeLabel(serverName, mode)}`,
+      resolved.hosted_url ? `endpoint ${resolved.hosted_url}` : "",
+      resolved.command ? `runtime ${[resolved.command, ...resolved.args].join(" ")}` : "",
+      resolved.local_service ? `requires ${resolved.local_service}` : ""
+    ].filter(Boolean);
+    console.log(details.join("; "));
+  }
+}
+
+function modeEnvSummary(serverName: string): string {
+  const names = new Set<string>();
+  for (const mode of mcpServerModeKeys(serverName)) {
+    const server = resolveMcpServer(serverName, mode);
+    for (const name of server.required_env) names.add(name);
+    for (const name of server.recommended_env) names.add(name);
+  }
+  return names.size > 0 ? [...names].join(", ") : "none";
+}
+
+function orderedModeLabels(serverName: string): string[] {
+  const recommended = mcpModeLabel(serverName, mcpRecommendedMode(serverName));
+  const labels = mcpSupportedModeLabels(serverName);
+  return [recommended, ...labels.filter((label) => label !== recommended)];
+}
+
+function modeKeyDisplay(mode: string): string {
+  if (mode === "remote-custom") return "custom remote";
+  if (mode === "remote") return "remote";
+  if (mode === "manual") return "manual setup";
+  return "local";
+}
+
+function formatHumanList(values: string[]): string {
+  if (values.length <= 1) return values[0] ?? "";
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  return `${values.slice(0, -1).join(", ")}, and ${values.at(-1)}`;
+}
+
+function friendlyNext(next: string): string {
+  return next.replace(/^run /, "");
+}
+
+function mcpRemoteOptions(flags: Record<string, FlagValue>) {
+  const url = flagString(flags, "url");
+  const urlEnv = flagString(flags, "url-env");
+  const bearerTokenEnvVar = flagString(flags, "bearer-token-env-var");
+  if (!url && !urlEnv && !bearerTokenEnvVar) return undefined;
+  return {
+    ...(url ? { url } : {}),
+    ...(urlEnv ? { url_env: urlEnv } : {}),
+    transport: "streamable-http" as const,
+    ...(bearerTokenEnvVar ? { bearer_token_env_var: bearerTokenEnvVar } : {})
+  };
 }
 
 function parseFlags(argv: string[], schema: FlagSchema): ParsedArgs {
@@ -687,6 +922,9 @@ export function formatInteractiveCreateGuide(): string {
     "  MCP installers are optional and run only finite installer commands.",
     "  MCP execution modes are explicit: uvx-runtime, npx-runtime, local-service, manual, or fallback.",
     "  Use `npm run mcp:env -- <server>` to inspect env vars and local prerequisites.",
+    "  Use `npm run mcp:status` to see selected mode, setup, client, probe, and next action.",
+    "  Use `npm run mcp:enable -- <server> --mode remote` for hosted endpoints where supported.",
+    "  Use `npm run mcp:setup -- overleaf --mode local --env-file .env.local` for manual-local setup.",
     "  Use `npm run mcp:env -- --dotenv --all` to print a committed env example.",
     "  Use `npm run mcp:dotenv` to regenerate a committed env example.",
     "  Use `npm run mcp:doctor -- --env-file .env.local` to check explicit local secrets.",
@@ -837,12 +1075,20 @@ function printSkillsHelp(): void {
 function printMcpHelp(): void {
   console.log(
     [
-      "Usage: academic-research mcp <list|enabled|available|commands|env|enable|disable|install|uninstall|smoke|doctor|probe> [servers...]",
+      "Usage: academic-research mcp <list|modes|status|enabled|available|commands|env|enable|disable|setup|client|install|uninstall|smoke|doctor|probe> [servers...]",
       "",
       "Manage MCP records, readiness checks, and finite external MCP tool installs.",
       "",
       "Examples:",
+      "  academic-research mcp modes",
+      "  academic-research mcp modes openalex",
       "  academic-research mcp env openalex semantic-scholar",
+      "  academic-research mcp enable openalex --mode remote",
+      "  academic-research mcp enable openalex --mode remote-custom --url https://example.com/mcp",
+      "  academic-research mcp status",
+      "  academic-research mcp status --verbose",
+      "  academic-research mcp setup overleaf --mode local --env-file .env.local",
+      "  academic-research mcp client add overleaf --agent codex",
       "  academic-research mcp env --dotenv --all > .env.example",
       "  academic-research mcp env --write .env.example --all",
       "  academic-research mcp doctor --env-file .env.local",
@@ -851,31 +1097,49 @@ function printMcpHelp(): void {
       "",
       "Options:",
       "  --root <path>            Project root for project-state commands.",
-      "  --agent <id>             Agent for enable/disable generated snippets.",
+      "  --agent <id>             Agent for enable/disable snippets or client registration.",
+      "  --mode <mode>            Connection mode: local, remote, remote-custom, or manual where supported.",
+      "  --url <url>              Custom remote MCP endpoint URL for --mode remote-custom.",
+      "  --url-env <name>         Env var that contains a custom remote MCP endpoint URL.",
+      "  --bearer-token-env-var <name>",
+      "                           Env var that contains a custom remote bearer token; value is not stored.",
       "  --all                    Select all catalog MCP servers for mcp env.",
+      "  --verbose                Show technical MCP lifecycle fields for mcp status.",
       "  --dotenv                Print mcp env as dotenv content.",
       "  --write <path>           Write mcp env dotenv content to a file.",
-      "  --env-file <path>        Read local env values for mcp smoke, doctor, and probe.",
+      "  --env-file <path>        Read local env values for mcp setup, smoke, doctor, and probe.",
       "  --timeout-ms <ms>        Per-server probe timeout. Default: 5000.",
       "  --required              Print only required env vars for mcp env.",
       "  --recommended           Print only recommended/default env vars for mcp env.",
+      "  --dry-run               Print setup or client registration actions without changing external state.",
       "  -h, --help               Show this help."
     ].join("\n")
   );
 }
 
-function printMcpSmokeDiagnostics(servers: string[], env: NodeJS.ProcessEnv = process.env): boolean {
+function printMcpSmokeDiagnostics(
+  root: string,
+  servers: string[],
+  env: NodeJS.ProcessEnv = process.env,
+  modes: Record<string, string | undefined> = {},
+  state?: Awaited<ReturnType<typeof readCapabilities>>
+): boolean {
   let failed = false;
   console.log("id\tstatus\truntime\tcheck");
   for (const name of servers) {
-    const server = AGENT_STACK.mcp_servers[name];
-    const missingRequired = server.required_env.filter((envName) => !env[envName]);
+    const server = state ? resolveMcpServerForState(state, name, modes[name]) : resolveMcpServer(name, modes[name]);
+    const missingRequired = server.required_env.filter((envName) => !envHasValue(env, envName));
     if (missingRequired.length > 0) failed = true;
-    const runtime = server.command ? [server.command, ...server.args].join(" ") : "manual setup";
+    const runtime = mcpSmokeRuntime(name, server, state);
     let status = "manual";
     if (missingRequired.length > 0) {
       status = `missing-required-env:${missingRequired.join(",")}`;
-    } else if (server.command && commandExists(server.command, env)) {
+    } else if (server.connection_mode === "remote-custom" && !server.remote_configured) {
+      failed = true;
+      status = "missing-remote-url";
+    } else if (server.connection_mode === "remote-curated" || server.connection_mode === "remote-custom") {
+      status = "remote-endpoint";
+    } else if (server.command && commandExists(commandForRuntime(root, server.command), env)) {
       status = "runtime-found";
     } else if (server.command) {
       status = "runtime-missing";
@@ -887,9 +1151,59 @@ function printMcpSmokeDiagnostics(servers: string[], env: NodeJS.ProcessEnv = pr
   return failed;
 }
 
+function mcpSmokeRuntime(
+  name: string,
+  server: ReturnType<typeof resolveMcpServer>,
+  state?: Awaited<ReturnType<typeof readCapabilities>>
+): string {
+  if (server.connection_mode === "remote-custom") {
+    const urlEnv = state?.mcp_server_remote?.[name]?.url_env;
+    if (!server.remote_configured) return "custom remote endpoint not configured";
+    return urlEnv ? `custom remote endpoint from ${urlEnv}` : "custom remote endpoint";
+  }
+  if (server.hosted_url && !server.command) return server.hosted_url;
+  if (server.command) return [server.command, ...server.args].join(" ");
+  return "manual setup";
+}
+
+function envHasValue(env: NodeJS.ProcessEnv, name: string): boolean {
+  return typeof env[name] === "string" && env[name] !== "";
+}
+
+function printMcpSetupResult(result: Awaited<ReturnType<typeof setupMcpServer>>): void {
+  const title = result.server === "overleaf" ? "Overleaf setup plan" : `MCP setup plan: ${result.server}`;
+  console.log(title);
+  console.log(`server\t${result.server}`);
+  console.log(`mode\t${result.mode}`);
+  console.log(`status\t${result.ok ? "ok" : "blocked"}`);
+  for (const error of result.errors) console.error(`ERROR: ${error}`);
+  for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
+  if (result.commands.length > 0) {
+    console.log("");
+    console.log("Commands");
+    for (const command of result.commands) console.log(command);
+  }
+  if (result.created.length > 0) {
+    console.log("");
+    console.log("Created");
+    for (const path of result.created) console.log(path);
+  }
+  if (result.next.length > 0) {
+    console.log("");
+    console.log("Next");
+    for (const command of result.next) console.log(command);
+  }
+}
+
 function printMcpEnvironment(
   servers: string[],
-  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
+  options: {
+    requiredOnly?: boolean;
+    recommendedOnly?: boolean;
+    mode?: string;
+    modes?: Record<string, string | undefined>;
+    remote?: Record<string, { url?: string; url_env?: string; bearer_token_env_var?: string }>;
+  } = {}
 ): void {
   const grouped = new Map<string, ReturnType<typeof listMcpEnvironmentEntries>>();
   for (const entry of listMcpEnvironmentEntries(servers, options)) {
@@ -898,29 +1212,64 @@ function printMcpEnvironment(
     grouped.set(entry.server, entries);
   }
   for (const name of servers) {
-    const server = AGENT_STACK.mcp_servers[name];
+    const modeServer = flagModeServer(name, options.mode ?? options.modes?.[name]);
     const entries = grouped.get(name) ?? [];
     let wroteLine = false;
     for (const entry of entries) {
       console.log(`${name}\t${entry.kind}\t${entry.name}${entry.value ? `=${entry.value}` : ""}`);
       wroteLine = true;
     }
-    if (!options.requiredOnly && !options.recommendedOnly && server.hosted_url) {
-      console.log(`${name}\thosted-endpoint\t${server.hosted_url}`);
+    if (!options.requiredOnly && !options.recommendedOnly && modeServer.hosted_url) {
+      console.log(`${name}\thosted-endpoint\t${modeServer.hosted_url}`);
       wroteLine = true;
     }
-    if (!options.requiredOnly && !options.recommendedOnly && server.local_service) {
-      console.log(`${name}\tlocal-service\t${server.local_service}`);
+    const remote = options.remote?.[name];
+    if (!options.requiredOnly && !options.recommendedOnly && remote?.url) {
+      console.log(`${name}\tcustom-remote-url\t${remote.url}`);
+      wroteLine = true;
+    }
+    if (!options.recommendedOnly && remote?.url_env) {
+      console.log(`${name}\trequired\t${remote.url_env}`);
+      wroteLine = true;
+    }
+    if (!options.requiredOnly && remote?.bearer_token_env_var) {
+      console.log(`${name}\trecommended\t${remote.bearer_token_env_var}`);
+      wroteLine = true;
+    }
+    if (!options.requiredOnly && !options.recommendedOnly && modeServer.local_service) {
+      console.log(`${name}\tlocal-service\t${modeServer.local_service}`);
       wroteLine = true;
     }
     if (!options.requiredOnly && !options.recommendedOnly) {
-      for (const command of server.setup_commands) {
+      for (const command of modeServer.setup_commands) {
         console.log(`${name}\tsetup-command\t${command}`);
         wroteLine = true;
       }
     }
     if (!wroteLine) console.log(`${name}\tnone\t-`);
   }
+}
+
+function formatMcpDotenvWithRemote(
+  servers: string[],
+  options: {
+    requiredOnly?: boolean;
+    recommendedOnly?: boolean;
+    mode?: string;
+    modes?: Record<string, string | undefined>;
+    remote?: Record<string, { url_env?: string; bearer_token_env_var?: string }>;
+  } = {}
+): string {
+  const base = formatMcpDotenv(servers, options);
+  const lines: string[] = [];
+  for (const name of servers) {
+    const remote = options.remote?.[name];
+    if (!remote) continue;
+    if (!options.recommendedOnly && remote.url_env) lines.push(`${remote.url_env}=`);
+    if (!options.requiredOnly && remote.bearer_token_env_var) lines.push(`${remote.bearer_token_env_var}=`);
+  }
+  if (lines.length === 0) return base;
+  return `${base.trimEnd()}\n\n# Custom remote MCP endpoint environment\n${lines.join("\n")}\n`;
 }
 
 function commandExists(command: string, env: NodeJS.ProcessEnv = process.env): boolean {
@@ -938,6 +1287,15 @@ function commandExists(command: string, env: NodeJS.ProcessEnv = process.env): b
     }
   }
   return false;
+}
+
+function commandForRuntime(root: string, command: string): string {
+  if (!command.includes("/") && !command.includes("\\")) return command;
+  return resolve(root, command);
+}
+
+function flagModeServer(name: string, mode: string | undefined) {
+  return resolveMcpServer(name, mode);
 }
 
 function readPackageVersion(): string {

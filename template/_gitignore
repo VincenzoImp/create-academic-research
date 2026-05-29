@@ -55,6 +55,7 @@ artifacts/cache/**
 !artifacts/cache/
 !artifacts/cache/.gitkeep
 docs/agent/generated/*.local.json
+.academic-research/mcp/
 .env
 .env.*
 !.env.example

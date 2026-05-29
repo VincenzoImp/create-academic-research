@@ -64,8 +64,15 @@ test("create-academic-research help exits successfully and explains framing", ()
     encoding: "utf8"
   });
   assert.equal(mcpHelp.status, 0, mcpHelp.stderr + mcpHelp.stdout);
-  assert.match(mcpHelp.stdout, /mcp <list\|enabled\|available/);
+  assert.match(mcpHelp.stdout, /mcp <list\|modes\|status\|enabled\|available/);
   assert.match(mcpHelp.stdout, /--env-file <path>/);
+  assert.match(mcpHelp.stdout, /--mode <mode>/);
+  assert.match(mcpHelp.stdout, /--url <url>/);
+  assert.match(mcpHelp.stdout, /--url-env <name>/);
+  assert.match(mcpHelp.stdout, /--bearer-token-env-var <name>/);
+  assert.match(mcpHelp.stdout, /--verbose/);
+  assert.match(mcpHelp.stdout, /mcp setup overleaf/);
+  assert.match(mcpHelp.stdout, /mcp client add overleaf --agent codex/);
   assert.match(mcpHelp.stdout, /--write <path>/);
   assert.match(mcpHelp.stdout, /--timeout-ms <ms>/);
   assert.equal((mcpHelp.stdout.match(/--root <path>/g) ?? []).length, 1);
@@ -164,8 +171,88 @@ test("academic-research setup prints project onboarding status without changing 
   assert.match(setup.stdout, /preset\tdefault/);
   assert.match(setup.stdout, /installed_skill_ids\t0/);
   assert.match(setup.stdout, /mcp_enabled\tarxiv/);
+  assert.match(setup.stdout, /npm run mcp:status/);
   assert.match(setup.stdout, /npm run mcp:smoke/);
   assert.match(setup.stdout, /npm run mcp:dotenv/);
+});
+
+test("academic-research setup derives MCP next commands from selected servers", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-setup-dynamic-"));
+  const target = join(temp, "cli-setup-dynamic-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "overleaf", "--mode", "local", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const setup = spawnSync(process.execPath, ["dist/bin/academic-research.js", "setup", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(setup.status, 0, setup.stderr + setup.stdout);
+  assert.match(setup.stdout, /mcp_selected\toverleaf/);
+  assert.match(setup.stdout, /fill OVERLEAF_TOKEN, PROJECT_ID in \.env\.local/);
+  assert.match(setup.stdout, /npm run mcp:setup -- overleaf --mode local --env-file \.env\.local/);
+  assert.doesNotMatch(setup.stdout, /npm run mcp:client:add -- overleaf --agent codex/);
+  assert.doesNotMatch(setup.stdout, /npm run mcp:probe -- arxiv/);
+});
+
+test("academic-research setup prints Overleaf client registration only after setup is ready", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-setup-ready-"));
+  const target = join(temp, "cli-setup-ready-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "overleaf", "--mode", "local", "--agent", "codex", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  await mkdir(join(target, ".academic-research/mcp/overleaf"), { recursive: true });
+  await writeFile(join(target, ".academic-research/mcp/overleaf/run-overleaf-mcp.sh"), "#!/bin/sh\n", "utf8");
+  await writeFile(
+    join(target, "docs/agent/capability-lock.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        mcp: {
+          overleaf: {
+            selected_mode: "local",
+            connection_mode: "manual-local",
+            setup: {
+              status: "ready",
+              server_path: ".academic-research/mcp/overleaf/server",
+              wrapper_path: ".academic-research/mcp/overleaf/run-overleaf-mcp.sh"
+            }
+          }
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const setup = spawnSync(process.execPath, ["dist/bin/academic-research.js", "setup", "--root", target], {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, OVERLEAF_TOKEN: "secret-token", PROJECT_ID: "project-123" }
+  });
+
+  assert.equal(setup.status, 0, setup.stderr + setup.stdout);
+  const clientIndex = setup.stdout.indexOf("npm run mcp:client:add -- overleaf --agent codex");
+  const probeIndex = setup.stdout.indexOf("npm run mcp:probe -- overleaf --env-file .env.local");
+  assert.ok(clientIndex >= 0, setup.stdout);
+  assert.ok(probeIndex > clientIndex, setup.stdout);
+  assert.doesNotMatch(setup.stdout, /secret-token|project-123/);
 });
 
 test("academic-research update is a dry-run by default and applies with --apply", async () => {
@@ -382,6 +469,113 @@ test("academic-research lifecycle binary manages MCP records", async () => {
   assert.equal(disable.status, 0, disable.stderr + disable.stdout);
 });
 
+test("academic-research mcp enable supports local, curated remote, and custom remote modes", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-enable-modes-"));
+  const target = join(temp, "cli-mcp-enable-modes-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const local = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "dblp", "--mode", "local", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const curatedRemote = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "openalex", "--mode", "remote", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const customRemote = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "enable",
+      "pubmed",
+      "--mode",
+      "remote-custom",
+      "--url",
+      "https://example.com/pubmed-mcp",
+      "--bearer-token-env-var",
+      "PUBMED_MCP_TOKEN",
+      "--root",
+      target
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, PUBMED_MCP_TOKEN: "secret-token" }
+    }
+  );
+  const customRemoteUrlEnv = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "enable",
+      "openalex",
+      "--mode",
+      "remote-custom",
+      "--url-env",
+      "OPENALEX_MCP_URL",
+      "--bearer-token-env-var",
+      "OPENALEX_MCP_TOKEN",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(local.status, 0, local.stderr + local.stdout);
+  assert.equal(curatedRemote.status, 0, curatedRemote.stderr + curatedRemote.stdout);
+  assert.equal(customRemote.status, 0, customRemote.stderr + customRemote.stdout);
+  assert.equal(customRemoteUrlEnv.status, 0, customRemoteUrlEnv.stderr + customRemoteUrlEnv.stdout);
+
+  const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  const snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/mcp.json"), "utf8"));
+  assert.equal(capabilities.mcp_server_modes.dblp, "local");
+  assert.equal(capabilities.mcp_server_modes.openalex, "remote-custom");
+  assert.equal(capabilities.mcp_server_modes.pubmed, "remote-custom");
+  assert.equal(capabilities.mcp_server_remote.openalex.url_env, "OPENALEX_MCP_URL");
+  assert.equal(capabilities.mcp_server_remote.openalex.bearer_token_env_var, "OPENALEX_MCP_TOKEN");
+  assert.equal(capabilities.mcp_server_remote.pubmed.url, "https://example.com/pubmed-mcp");
+  assert.equal(capabilities.mcp_server_remote.pubmed.bearer_token_env_var, "PUBMED_MCP_TOKEN");
+  assert.equal(snippet.mcpServers.pubmed.url, "https://example.com/pubmed-mcp");
+  assert.equal(snippet.mcpServers.openalex.urlEnv, "OPENALEX_MCP_URL");
+  assert.doesNotMatch(JSON.stringify(capabilities), /secret-token/);
+  assert.doesNotMatch(JSON.stringify(snippet), /secret-token/);
+});
+
+test("academic-research mcp enable rejects unsupported curated remote and incomplete custom remote", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-enable-invalid-"));
+  const target = join(temp, "cli-mcp-enable-invalid-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const unsupportedRemote = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "arxiv", "--mode", "remote", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const missingEndpoint = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "openalex", "--mode", "remote-custom", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.notEqual(unsupportedRemote.status, 0);
+  assert.match(unsupportedRemote.stderr, /arxiv does not support MCP mode remote/);
+  assert.match(unsupportedRemote.stderr, /remote-custom/);
+  assert.notEqual(missingEndpoint.status, 0);
+  assert.match(missingEndpoint.stderr, /remote-custom requires --url or --url-env/);
+});
+
 test("academic-research skills list and presets have distinct meanings", async () => {
   const temp = await mkdtemp(join(tmpdir(), "academic-cli-skills-list-"));
   const target = join(temp, "cli-skills-list-project");
@@ -559,6 +753,86 @@ test("academic-research mcp list reports enabled and available servers", async (
   assert.match(available.stdout, /zotero/);
 });
 
+test("academic-research mcp modes explains available modes without source-code knowledge", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-modes-"));
+  const target = join(temp, "cli-mcp-modes-project");
+  spawnSync(process.execPath, ["dist/bin/create-academic-research.js", target, "--yes", "--no-install-skills"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const modes = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "modes", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const openalex = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "modes", "openalex", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(modes.status, 0, modes.stderr + modes.stdout);
+  assert.match(modes.stdout, /^id\tselected\trecommended\tsupported\tenv\tnext/m);
+  assert.match(modes.stdout, /^openalex\tno\tremote\tremote, local, custom remote\tOPENALEX_API_KEY\tenable openalex/m);
+  assert.match(modes.stdout, /^arxiv\tyes\tlocal\tlocal, custom remote\tnone\tready/m);
+  assert.match(modes.stdout, /^overleaf\tno\tlocal\tmanual setup\tOVERLEAF_TOKEN, PROJECT_ID\tenable overleaf/m);
+  assert.equal(openalex.status, 0, openalex.stderr + openalex.stdout);
+  assert.match(openalex.stdout, /openalex supports remote, local, and custom remote/);
+  assert.match(openalex.stdout, /Recommended: remote/);
+  assert.match(openalex.stdout, /OPENALEX_API_KEY/);
+});
+
+test("academic-research mcp status reports friendly lifecycle state by default and technical detail when verbose", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-status-"));
+  const target = join(temp, "cli-mcp-status-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "enable",
+      "openalex",
+      "--mode",
+      "remote",
+      "--agent",
+      "codex",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const status = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "status", "--root", target], {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, OPENALEX_API_KEY: "" }
+  });
+  const verbose = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "status", "--verbose", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_API_KEY: "" }
+    }
+  );
+
+  assert.equal(status.status, 0, status.stderr + status.stdout);
+  assert.match(status.stdout, /^id\tselected\tmode\tstate\tnext/m);
+  assert.match(status.stdout, /^openalex\tyes\tremote\tsetup needed\tnpm run mcp:client:add -- openalex --agent codex/m);
+  assert.match(status.stdout, /^arxiv\tno\tlocal\tnot selected\tenable arxiv/m);
+  assert.doesNotMatch(status.stdout, /manual-local-blocked|missing-required|missing env/i);
+  assert.equal(verbose.status, 0, verbose.stderr + verbose.stdout);
+  assert.match(verbose.stdout, /^id\tselected\tmode\tconnection_mode\tenv\tinstall\tsnippet\tclient\tprobe\tnext/m);
+  assert.match(verbose.stdout, /^openalex\tyes\tremote\tremote-curated\tok\tremote\tavailable\tcodex:not-added\tunknown\t/m);
+  assert.match(verbose.stdout, /^arxiv\tno\tlocal\tstdio-local\tn\/a\tn\/a\tnone\tnone\tn\/a\t/m);
+});
+
 test("academic-research mcp env prints env vars and local setup prerequisites", async () => {
   const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-env-"));
   const target = join(temp, "cli-mcp-env-project");
@@ -637,6 +911,20 @@ test("academic-research mcp env prints env vars and local setup prerequisites", 
   assert.match(written, /^OPENALEX_API_KEY=/m);
   assert.match(written, /^MCP_TRANSPORT_TYPE=stdio/m);
   assert.doesNotMatch(written, /your-key|your-token|\$\{[^}]+}/i);
+
+  spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "openalex", "--mode", "remote", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const remoteEnv = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "env", "openalex", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  assert.equal(remoteEnv.status, 0, remoteEnv.stderr + remoteEnv.stdout);
+  assert.match(remoteEnv.stdout, /^openalex\thosted-endpoint\thttps:\/\/openalex\.caseyjhand\.com\/mcp/m);
+  assert.doesNotMatch(remoteEnv.stdout, /OPENALEX_API_KEY/);
 });
 
 test("academic-research mcp commands are separate from mcp list", async () => {
@@ -668,6 +956,174 @@ test("academic-research mcp commands are separate from mcp list", async () => {
   assert.match(commands.stdout, /uv tool install 'arxiv-mcp-server\[pdf\]'/);
   assert.equal(doctor.status, 0, doctor.stderr + doctor.stdout);
   assert.match(doctor.stdout, /OK: 1 MCP server\(s\) enabled/);
+});
+
+test("academic-research mcp install explains skipped runtime-only and manual-local servers", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-install-skip-"));
+  const target = join(temp, "cli-mcp-install-skip-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "dblp", "overleaf", "--mode", "local", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const install = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "install", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(install.status, 0, install.stderr + install.stdout);
+  assert.match(install.stdout, /Ran 0 MCP install command\(s\)\./);
+  assert.match(install.stdout, /Skipped dblp: runtime-only; the MCP client launches it on demand/);
+  assert.match(install.stdout, /Skipped overleaf: manual setup; run npm run mcp:setup -- overleaf --mode local --env-file \.env\.local/);
+});
+
+test("academic-research mcp setup overleaf dry-run prints a finite non-secret plan", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-setup-overleaf-"));
+  const target = join(temp, "cli-mcp-setup-overleaf-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "overleaf", "--mode", "local", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const envFile = join(target, ".env.local");
+  await writeFile(envFile, "OVERLEAF_TOKEN=secret-token\nPROJECT_ID=project-123\n", "utf8");
+
+  const setup = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "setup",
+      "overleaf",
+      "--mode",
+      "local",
+      "--env-file",
+      envFile,
+      "--dry-run",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(setup.status, 0, setup.stderr + setup.stdout);
+  assert.match(setup.stdout, /Overleaf setup plan/);
+  assert.match(setup.stdout, /git clone .*overleaf-mcp-server/);
+  assert.match(setup.stdout, /uv sync/);
+  assert.match(setup.stdout, /\.academic-research\/mcp\/overleaf\/run-overleaf-mcp\.sh/);
+  assert.doesNotMatch(setup.stdout, /secret-token|project-123/);
+});
+
+test("academic-research mcp client add supports Codex dry-run registration", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-client-add-"));
+  const target = join(temp, "cli-mcp-client-add-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "enable", "overleaf", "--mode", "local", "--agent", "codex", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const client = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "client",
+      "add",
+      "overleaf",
+      "--agent",
+      "codex",
+      "--dry-run",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(client.status, 0, client.stderr + client.stdout);
+  assert.match(client.stdout, /codex mcp add overleaf -- /);
+  assert.match(client.stdout, /\.academic-research\/mcp\/overleaf\/run-overleaf-mcp\.sh/);
+  assert.match(client.stdout, /Overleaf setup is not ready/);
+  assert.match(client.stdout, /npm run mcp:setup -- overleaf --mode local --env-file \.env\.local/);
+  assert.doesNotMatch(client.stdout, /OVERLEAF_TOKEN|secret-token|PROJECT_ID=project/);
+  await assert.rejects(readFile(join(target, "docs/agent/capability-lock.json"), "utf8"));
+});
+
+test("academic-research mcp client add rejects Codex automation for custom remote URL env vars", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-client-url-env-"));
+  const target = join(temp, "cli-mcp-client-url-env-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "enable",
+      "openalex",
+      "--mode",
+      "remote-custom",
+      "--url-env",
+      "OPENALEX_MCP_URL",
+      "--bearer-token-env-var",
+      "OPENALEX_MCP_TOKEN",
+      "--agent",
+      "codex",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const dryRun = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "client",
+      "add",
+      "openalex",
+      "--agent",
+      "codex",
+      "--dry-run",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+  const nonDryRun = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "client", "add", "openalex", "--agent", "codex", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(dryRun.status, 0, dryRun.stderr + dryRun.stdout);
+  assert.match(dryRun.stdout, /Codex CLI does not support URL env vars/);
+  assert.match(dryRun.stdout, /codex mcp add openalex --url "\$OPENALEX_MCP_URL"/);
+  assert.doesNotMatch(dryRun.stdout, /--url-env/);
+  assert.notEqual(nonDryRun.status, 0);
+  assert.match(nonDryRun.stdout, /Codex CLI does not support URL env vars/);
+  assert.doesNotMatch(nonDryRun.stdout, /--url-env/);
+  await assert.rejects(readFile(join(target, "docs/agent/capability-lock.json"), "utf8"));
 });
 
 test("academic-research mcp smoke reports readiness without launching servers", async () => {
@@ -719,6 +1175,120 @@ test("academic-research mcp smoke reports readiness without launching servers", 
   assert.doesNotMatch(openalexWithEnvFile.stdout, /missing-required-env/);
   assert.equal(runtimeWithEnvFilePath.status, 0, runtimeWithEnvFilePath.stderr + runtimeWithEnvFilePath.stdout);
   assert.match(runtimeWithEnvFilePath.stdout, /^pubmed\truntime-missing\tnpx -y @cyanheads\/pubmed-mcp-server/m);
+});
+
+test("academic-research mcp smoke is state-aware for custom remote URL env vars", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-smoke-url-env-"));
+  const target = join(temp, "cli-mcp-smoke-url-env-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "enable",
+      "openalex",
+      "--mode",
+      "remote-custom",
+      "--url-env",
+      "OPENALEX_MCP_URL",
+      "--bearer-token-env-var",
+      "OPENALEX_MCP_TOKEN",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const missing = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "smoke", "openalex", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_MCP_URL: "", OPENALEX_MCP_TOKEN: "secret-token" }
+    }
+  );
+  const present = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "smoke", "openalex", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        OPENALEX_MCP_URL: "https://private.example/mcp",
+        OPENALEX_MCP_TOKEN: "secret-token"
+      }
+    }
+  );
+
+  assert.equal(missing.status, 1, missing.stderr + missing.stdout);
+  assert.match(missing.stdout, /^openalex\tmissing-required-env:OPENALEX_MCP_URL/m);
+  assert.equal(present.status, 0, present.stderr + present.stdout);
+  assert.match(present.stdout, /^openalex\tremote-endpoint\tcustom remote endpoint from OPENALEX_MCP_URL/m);
+  assert.doesNotMatch(present.stdout, /npx -y @cyanheads\/openalex-mcp-server|private\.example|secret-token/);
+});
+
+test("academic-research mcp smoke rejects explicit custom remote mode without endpoint config", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-smoke-no-remote-"));
+  const target = join(temp, "cli-mcp-smoke-no-remote-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const smoke = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "smoke", "openalex", "--mode", "remote-custom", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  assert.equal(smoke.status, 1, smoke.stderr + smoke.stdout);
+  assert.match(smoke.stdout, /^openalex\tmissing-remote-url\tcustom remote endpoint not configured/m);
+  assert.doesNotMatch(smoke.stdout, /^openalex\tremote-endpoint/m);
+});
+
+test("academic-research doctor reports missing custom remote URL env vars", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-doctor-url-env-"));
+  const target = join(temp, "cli-doctor-url-env-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "enable",
+      "openalex",
+      "--mode",
+      "remote-custom",
+      "--url-env",
+      "OPENALEX_MCP_URL",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const doctor = spawnSync(process.execPath, ["dist/bin/academic-research.js", "doctor", "--root", target], {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, OPENALEX_MCP_URL: "" }
+  });
+
+  assert.equal(doctor.status, 1, doctor.stderr + doctor.stdout);
+  assert.match(doctor.stderr, /openalex: missing required environment variable: OPENALEX_MCP_URL/);
+  assert.match(doctor.stderr, /npm run mcp:doctor -- --env-file \.env\.local/);
+  assert.doesNotMatch(doctor.stdout, /^OK:/m);
 });
 
 test("academic-research mcp doctor can read an explicit env file", async () => {
@@ -781,6 +1351,100 @@ test("academic-research mcp probe reports missing env without launching credenti
   assert.equal(probe.status, 1, probe.stderr + probe.stdout);
   assert.match(probe.stdout, /^id\tstatus\tdetail/m);
   assert.match(probe.stdout, /^openalex\tmissing-env\tOPENALEX_API_KEY/m);
+});
+
+test("academic-research mcp probe is state-aware for custom remote URL env vars", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-probe-url-env-"));
+  const target = join(temp, "cli-mcp-probe-url-env-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "enable",
+      "openalex",
+      "--mode",
+      "remote-custom",
+      "--url-env",
+      "OPENALEX_MCP_URL",
+      "--bearer-token-env-var",
+      "OPENALEX_MCP_TOKEN",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const missing = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "probe", "openalex", "--timeout-ms", "100", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OPENALEX_MCP_URL: "", OPENALEX_MCP_TOKEN: "secret-token" }
+    }
+  );
+  const present = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "mcp", "probe", "openalex", "--timeout-ms", "100", "--root", target],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        OPENALEX_MCP_URL: "https://private.example/mcp",
+        OPENALEX_MCP_TOKEN: "secret-token"
+      }
+    }
+  );
+  const lock = JSON.parse(await readFile(join(target, "docs/agent/capability-lock.json"), "utf8"));
+
+  assert.equal(missing.status, 1, missing.stderr + missing.stdout);
+  assert.match(missing.stdout, /^openalex\tmissing-env\tOPENALEX_MCP_URL/m);
+  assert.doesNotMatch(missing.stdout, /\tmanual\t/);
+  assert.equal(present.status, 0, present.stderr + present.stdout);
+  assert.match(present.stdout, /^openalex\tremote-configured\tcustom remote endpoint from OPENALEX_MCP_URL; remote probe does not perform a stdio handshake/m);
+  assert.doesNotMatch(present.stdout, /private\.example|secret-token|\tmanual\t/);
+  assert.equal(lock.mcp.openalex.probe.status, "remote-configured");
+  assert.doesNotMatch(JSON.stringify(lock), /private\.example|secret-token/);
+});
+
+test("academic-research mcp probe rejects explicit custom remote mode without endpoint config", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-mcp-probe-no-remote-"));
+  const target = join(temp, "cli-mcp-probe-no-remote-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const probe = spawnSync(
+    process.execPath,
+    [
+      "dist/bin/academic-research.js",
+      "mcp",
+      "probe",
+      "openalex",
+      "--mode",
+      "remote-custom",
+      "--timeout-ms",
+      "100",
+      "--root",
+      target
+    ],
+    { cwd: root, encoding: "utf8" }
+  );
+  const lock = JSON.parse(await readFile(join(target, "docs/agent/capability-lock.json"), "utf8"));
+
+  assert.equal(probe.status, 1, probe.stderr + probe.stdout);
+  assert.match(probe.stdout, /^openalex\tmissing-remote-url\tcustom remote endpoint not configured/m);
+  assert.doesNotMatch(probe.stdout, /^openalex\tremote-configured/m);
+  assert.equal(lock.mcp.openalex.probe.status, "missing-remote-url");
 });
 
 test("academic-research rejects options that do not affect the selected MCP command", () => {

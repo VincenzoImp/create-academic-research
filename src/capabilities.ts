@@ -1,5 +1,6 @@
-import { appendFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { existsSync } from "node:fs";
+import { appendFile, chmod, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import YAML from "yaml";
 
 import {
@@ -10,7 +11,18 @@ import {
   SUPPORTED_SKILL_AGENT_TARGETS
 } from "./agents.js";
 import { defaultRunner, type Runner } from "./runner.js";
-import { AGENT_STACK, presetMcpServers, type McpToolCommandKey } from "./stack.js";
+import {
+  AGENT_STACK,
+  mcpModeLabel,
+  mcpRecommendedMode,
+  mcpServerModeKeys,
+  mcpSupportedModeLabels,
+  normalizeMcpMode,
+  presetMcpServers,
+  resolveMcpServer,
+  type McpToolCommandKey,
+  type ResolvedMcpServer
+} from "./stack.js";
 import { formatMcpDotenv, listMcpEnvironmentEntries } from "./mcp-env.js";
 import { probeMcpServerList, type McpProbeResult as ProbeResult } from "./mcp-probe.js";
 export { formatMcpDotenv, listMcpEnvironmentEntries };
@@ -32,6 +44,15 @@ export interface CapabilityState {
   preset: string;
   scope: "project-local";
   mcp_servers: string[];
+  mcp_server_modes: Record<string, string>;
+  mcp_server_remote: Record<string, McpRemoteConfig>;
+}
+
+export interface McpRemoteConfig {
+  url?: string;
+  url_env?: string;
+  transport: "streamable-http";
+  bearer_token_env_var?: string;
 }
 
 export interface InitializeCapabilitiesOptions {
@@ -45,6 +66,13 @@ export interface CapabilityCommandResult {
   count?: number;
   skills?: string[];
   servers?: string[];
+  skipped?: McpSkippedTool[];
+}
+
+export interface McpSkippedTool {
+  server: string;
+  reason: string;
+  next?: string;
 }
 
 export interface InstalledSkill {
@@ -68,11 +96,86 @@ export interface McpProbeOptions {
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
   clientVersion?: string;
+  mode?: string;
 }
 
 export interface RenderedMcpSnippet {
   fileName: string;
   content: string;
+}
+
+export interface CapabilityLock {
+  version: number;
+  mcp: Record<string, CapabilityLockMcpServer>;
+}
+
+export interface CapabilityLockMcpServer {
+  selected_mode?: string;
+  connection_mode?: string;
+  setup?: {
+    status: "ready" | "planned" | "missing" | "skipped";
+    server_path?: string;
+    wrapper_path?: string;
+    env_file?: string;
+    updated_at?: string;
+  };
+  clients?: Record<string, { status: "registered" | "removed" | "manual" | "unsupported"; updated_at?: string }>;
+  probe?: { status: string; detail: string; updated_at?: string };
+}
+
+export interface McpLifecycleStatus {
+  servers: McpLifecycleServerStatus[];
+}
+
+export interface McpLifecycleServerStatus {
+  id: string;
+  selected: boolean;
+  mode: string;
+  mode_key: string;
+  connection_mode: string;
+  state: string;
+  env: "ok" | "missing-required" | "missing-recommended" | "n/a";
+  install: string;
+  snippet: "available" | "missing" | "none";
+  client: string;
+  probe: string;
+  next: string;
+}
+
+export interface McpLifecycleOptions {
+  env?: NodeJS.ProcessEnv;
+}
+
+export interface McpSetupOptions {
+  mode?: string;
+  envFile?: string;
+  env?: NodeJS.ProcessEnv;
+  dryRun?: boolean;
+}
+
+export interface McpSetupResult {
+  ok: boolean;
+  server: string;
+  mode: string;
+  commands: string[];
+  created: string[];
+  warnings: string[];
+  errors: string[];
+  next: string[];
+}
+
+export interface McpClientOptions {
+  agent?: string;
+  mode?: string;
+  dryRun?: boolean;
+}
+
+export interface McpClientResult {
+  ok: boolean;
+  server: string;
+  agent: string;
+  command: string[];
+  instructions: string[];
 }
 
 interface SkillInstallOptions {
@@ -91,13 +194,16 @@ export async function readCapabilities(root: string): Promise<CapabilityState> {
 }
 
 export async function writeCapabilities(root: string, state: Partial<CapabilityState>): Promise<void> {
+  const mcpServers = [...(state.mcp_servers ?? [])];
   const next: CapabilityState = {
     agent: assertKnownAgentTarget(state.agent),
     preset: state.preset ?? "default",
     scope: "project-local",
-    mcp_servers: [...(state.mcp_servers ?? [])]
+    mcp_servers: mcpServers,
+    mcp_server_modes: normalizeMcpServerModeMap(state.mcp_server_modes ?? {}, mcpServers),
+    mcp_server_remote: normalizeMcpServerRemoteMap(state.mcp_server_remote ?? {}, mcpServers, state.mcp_server_modes ?? {})
   };
-  await writeFile(join(root, "configs/capabilities.yaml"), YAML.stringify(next), "utf8");
+  await writeFile(join(root, "configs/capabilities.yaml"), YAML.stringify(serializeCapabilityState(next)), "utf8");
   await writeCapabilityProfile(root, next);
   await writeMcpSetup(root, next);
   await writeMcpSnippet(root, next);
@@ -117,7 +223,9 @@ export async function initializeCapabilities(
   await writeCapabilities(root, {
     agent: options.agent,
     preset,
-    mcp_servers: mcpServers
+    mcp_servers: mcpServers,
+    mcp_server_modes: {},
+    mcp_server_remote: {}
   });
 }
 
@@ -283,15 +391,28 @@ export async function updateSkills(
 export async function enableMcpServers(
   root: string,
   servers: string[],
-  options: { agent?: string } = {}
+  options: { agent?: string; mode?: string; remote?: Partial<McpRemoteConfig> } = {}
 ): Promise<CapabilityCommandResult> {
   assertKnownMcpServers(servers);
   const state = await readCapabilities(root);
   const selected = dedupe([...(state.mcp_servers ?? []), ...servers]);
+  const mcpServerModes = { ...(state.mcp_server_modes ?? {}) };
+  const mcpServerRemote = { ...(state.mcp_server_remote ?? {}) };
+  for (const server of servers) {
+    const mode = normalizeMcpMode(server, options.mode ?? state.mcp_server_modes?.[server]);
+    if (options.mode) mcpServerModes[server] = mode;
+    if (mode === "remote-custom") {
+      mcpServerRemote[server] = normalizeRemoteConfig(server, options.remote ?? state.mcp_server_remote?.[server]);
+    } else {
+      delete mcpServerRemote[server];
+    }
+  }
   await writeCapabilities(root, {
     ...state,
     agent: assertKnownAgentTarget(options.agent ?? state.agent),
-    mcp_servers: selected
+    mcp_servers: selected,
+    mcp_server_modes: mcpServerModes,
+    mcp_server_remote: mcpServerRemote
   });
   return { ok: true, servers: selected };
 }
@@ -305,29 +426,43 @@ export async function disableMcpServers(
   const state = await readCapabilities(root);
   const blocked = new Set(servers);
   const selected = (state.mcp_servers ?? []).filter((server: string) => !blocked.has(server));
+  const mcpServerModes = { ...(state.mcp_server_modes ?? {}) };
+  const mcpServerRemote = { ...(state.mcp_server_remote ?? {}) };
+  for (const server of servers) delete mcpServerModes[server];
+  for (const server of servers) delete mcpServerRemote[server];
   await writeCapabilities(root, {
     ...state,
     agent: assertKnownAgentTarget(options.agent ?? state.agent),
-    mcp_servers: selected
+    mcp_servers: selected,
+    mcp_server_modes: mcpServerModes,
+    mcp_server_remote: mcpServerRemote
   });
   return { ok: true, servers: selected };
 }
 
-export function mcpToolCommands(servers: string[], key: McpToolCommandKey = "install_command"): string[][] {
+export function mcpToolCommands(
+  servers: string[],
+  key: McpToolCommandKey = "install_command",
+  modes: Record<string, string | undefined> = {}
+): string[][] {
   assertKnownMcpServers(servers);
   const commands: string[][] = [];
   for (const server of servers) {
-    const rawCommand = AGENT_STACK.mcp_servers[server]?.[key];
+    const rawCommand = resolveMcpServer(server, modes[server])?.[key];
     if (rawCommand) commands.push(splitCommand(rawCommand));
   }
   return commands;
 }
 
-export function mcpToolCommandTexts(servers: string[], key: McpToolCommandKey = "install_command"): string[] {
+export function mcpToolCommandTexts(
+  servers: string[],
+  key: McpToolCommandKey = "install_command",
+  modes: Record<string, string | undefined> = {}
+): string[] {
   assertKnownMcpServers(servers);
   const commands: string[] = [];
   for (const server of servers) {
-    const rawCommand = AGENT_STACK.mcp_servers[server]?.[key];
+    const rawCommand = resolveMcpServer(server, modes[server])?.[key];
     if (rawCommand) commands.push(rawCommand);
   }
   return commands;
@@ -338,13 +473,20 @@ export async function installMcpTools(
   servers: string[],
   runner: Runner = defaultRunner
 ): Promise<CapabilityCommandResult> {
-  const selected = servers.length > 0 ? servers : (await readCapabilities(root)).mcp_servers ?? [];
+  const state = await readCapabilities(root);
+  const selected = servers.length > 0 ? servers : state.mcp_servers ?? [];
   assertKnownMcpServers(selected);
-  const commands = mcpToolCommands(selected, "install_command");
+  const modes = selectedMcpServerModes(state, selected);
+  const skipped: McpSkippedTool[] = [];
+  const commands = mcpToolCommands(selected, "install_command", modes);
   for (const command of commands) {
     await runner.run(command, { cwd: root });
   }
-  return { ok: true, count: commands.length };
+  for (const serverName of selected) {
+    const server = resolveMcpServer(serverName, modes[serverName]);
+    if (!server.install_command) skipped.push(mcpInstallSkip(serverName, server));
+  }
+  return { ok: true, count: commands.length, skipped };
 }
 
 export async function uninstallMcpTools(
@@ -352,13 +494,20 @@ export async function uninstallMcpTools(
   servers: string[],
   runner: Runner = defaultRunner
 ): Promise<CapabilityCommandResult> {
-  const selected = servers.length > 0 ? servers : (await readCapabilities(root)).mcp_servers ?? [];
+  const state = await readCapabilities(root);
+  const selected = servers.length > 0 ? servers : state.mcp_servers ?? [];
   assertKnownMcpServers(selected);
-  const commands = mcpToolCommands(selected, "uninstall_command");
+  const modes = selectedMcpServerModes(state, selected);
+  const skipped: McpSkippedTool[] = [];
+  const commands = mcpToolCommands(selected, "uninstall_command", modes);
   for (const command of commands) {
     await runner.run(command, { cwd: root });
   }
-  return { ok: true, count: commands.length };
+  for (const serverName of selected) {
+    const server = resolveMcpServer(serverName, modes[serverName]);
+    if (!server.uninstall_command) skipped.push(mcpUninstallSkip(serverName, server));
+  }
+  return { ok: true, count: commands.length, skipped };
 }
 
 export async function doctorMcpServers(root: string, options: McpDoctorOptions = {}): Promise<McpDoctorResult> {
@@ -377,6 +526,7 @@ export async function doctorMcpServers(root: string, options: McpDoctorOptions =
     };
   }
   const enabled = state.mcp_servers ?? [];
+  const modes = selectedMcpServerModes(state, enabled);
   const unknown = enabled.filter((server) => !AGENT_STACK.mcp_servers[server]);
   if (unknown.length > 0) {
     errors.push(`unknown MCP server in capabilities: ${unknown.join(", ")}`);
@@ -393,7 +543,7 @@ export async function doctorMcpServers(root: string, options: McpDoctorOptions =
       generatedServers.add(name);
     }
   } catch (error) {
-    const hasGeneratedServer = enabled.some((server) => AGENT_STACK.mcp_servers[server]?.command);
+    const hasGeneratedServer = enabled.some((server) => isSnippetCapable(resolveMcpServerForState(state, server, modes[server])));
     if (hasGeneratedServer && isMissingFileError(error)) {
       errors.push(`missing generated MCP snippet: ${snippetPath}`);
     } else if (hasGeneratedServer) {
@@ -403,7 +553,7 @@ export async function doctorMcpServers(root: string, options: McpDoctorOptions =
   }
 
   for (const name of enabled) {
-    const server = AGENT_STACK.mcp_servers[name];
+    const server = resolveMcpServerForState(state, name, modes[name]);
     if (!server) continue;
     for (const envName of server.required_env) {
       if (!envHasValue(env, envName)) {
@@ -418,7 +568,13 @@ export async function doctorMcpServers(root: string, options: McpDoctorOptions =
     if (server.local_service) {
       warnings.push(`${name}: requires local service: ${server.local_service}`);
     }
-    if (!server.command) {
+    if (server.connection_mode === "manual-local") {
+      const lock = await readCapabilityLock(root);
+      if (lock.mcp[name]?.setup?.status !== "ready") {
+        warnings.push(`${name}: local setup not complete; run npm run mcp:setup -- ${name} --mode local --env-file .env.local`);
+      }
+    }
+    if (!isSnippetCapable(server)) {
       warnings.push(`${name}: manual setup only; no generated client command`);
       continue;
     }
@@ -438,7 +594,33 @@ export async function probeMcpServers(
   const selected = servers.length > 0 ? servers : (await readCapabilities(root)).mcp_servers ?? [];
   const env = options.env ?? process.env;
   const timeoutMs = options.timeoutMs ?? 5000;
-  return probeMcpServerList(root, selected, env, timeoutMs, options.clientVersion);
+  const state = await readCapabilities(root);
+  const modes = Object.fromEntries(
+    selected.map((serverName) => [
+      serverName,
+      normalizeMcpMode(serverName, options.mode ?? state.mcp_server_modes?.[serverName])
+    ])
+  );
+  const resolvedServers = Object.fromEntries(
+    selected.map((serverName) => [serverName, resolveMcpServerForState(state, serverName, modes[serverName])])
+  );
+  const result = await probeMcpServerList(
+    root,
+    selected,
+    env,
+    timeoutMs,
+    options.clientVersion,
+    modes,
+    resolvedServers
+  );
+  await updateCapabilityLock(root, (lock) => {
+    for (const item of result.results) {
+      const server = resolveMcpServerForState(state, item.server, modes[item.server]);
+      const entry = ensureLockMcpEntry(lock, item.server, server);
+      entry.probe = { status: item.status, detail: item.detail, updated_at: nowIso() };
+    }
+  });
+  return result;
 }
 
 async function writeMcpSnippet(root: string, state: CapabilityState): Promise<void> {
@@ -450,14 +632,33 @@ async function writeMcpSnippet(root: string, state: CapabilityState): Promise<vo
 }
 
 export function renderMcpSnippet(state: CapabilityState): RenderedMcpSnippet {
-  const servers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> = {};
+  const servers: Record<string, {
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+    url?: string;
+    urlEnv?: string;
+    type?: string;
+    bearerTokenEnvVar?: string;
+  }> = {};
+  const modes = selectedMcpServerModes(state, state.mcp_servers ?? []);
   for (const name of state.mcp_servers ?? []) {
-    const server = AGENT_STACK.mcp_servers[name];
-    if (!server?.command) continue;
-    servers[name] = {
-      command: server.command,
-      args: server.args
-    };
+    const server = resolveMcpServerForState(state, name, modes[name]);
+    if (server.connection_mode === "remote-curated" && server.hosted_url) {
+      servers[name] = { url: server.hosted_url, type: "streamable-http" };
+      continue;
+    }
+    if (server.connection_mode === "remote-custom") {
+      const remote = state.mcp_server_remote?.[name];
+      if (remote?.url) servers[name] = { url: remote.url, type: remote.transport };
+      if (remote?.url_env) servers[name] = { urlEnv: remote.url_env, type: remote.transport };
+      if (remote?.bearer_token_env_var && servers[name]) {
+        servers[name].bearerTokenEnvVar = remote.bearer_token_env_var;
+      }
+      continue;
+    }
+    if (!server.command) continue;
+    servers[name] = { command: server.command, args: server.args };
     if (Object.keys(server.env).length > 0) servers[name].env = server.env;
   }
   return {
@@ -493,9 +694,10 @@ export function renderCapabilityProfile(state: CapabilityState): string {
   if ((state.mcp_servers ?? []).length === 0) {
     lines.push("- No MCP servers enabled.");
   } else {
+    const modes = selectedMcpServerModes(state, state.mcp_servers);
     for (const name of state.mcp_servers) {
-      const server = AGENT_STACK.mcp_servers[name];
-      const status = server?.command ? server.execution_mode : "manual setup";
+      const server = resolveMcpServerForState(state, name, modes[name]);
+      const status = mcpModeLabel(name, modes[name]);
       lines.push(`- \`${name}\` (${status}): ${server?.smoke_test ?? "Smoke-test before use."}`);
     }
   }
@@ -505,7 +707,7 @@ export function renderCapabilityProfile(state: CapabilityState): string {
     "",
     "- Skill installation is project-local by default.",
     "- Agent target `universal` installs one shared project-local `.agents/skills` copy.",
-    "- MCP enable/disable changes project records; install/uninstall changes external tools.",
+    "- MCP enable/disable changes selected project records; setup/install/client/probe commands change operational state.",
     "- Keep API keys, tokens, cookies, and browser sessions out of git.",
     "- Cite repository source records, not raw MCP output alone.",
     ""
@@ -520,11 +722,13 @@ async function writeMcpSetup(root: string, state: CapabilityState): Promise<void
 
 export function renderMcpSetup(state: CapabilityState): string {
   const enabled = new Set(state.mcp_servers ?? []);
+  const modes = selectedMcpServerModes(state, state.mcp_servers ?? []);
   const lines = [
     "# MCP Setup",
     "",
     "This file is generated from the project-local academic research capability stack.",
     "MCP records are configuration snippets and setup guidance; the active MCP client must load the generated snippet before these servers become live tools.",
+    "Default CLI output uses plain mode labels: local, remote, custom remote, requires local app, and manual setup. Use `npm run mcp:status -- --verbose` for technical transport details.",
     "",
     "## Enabled MCP Servers",
     ""
@@ -533,11 +737,13 @@ export function renderMcpSetup(state: CapabilityState): string {
     lines.push("- None.");
   } else {
     for (const name of state.mcp_servers) {
-      const server = AGENT_STACK.mcp_servers[name];
+      const server = resolveMcpServerForState(state, name, modes[name]);
       if (!server) continue;
       lines.push(
         `- \`${name}\` (${server.readiness}, ${server.priority}): ${server.source_need}`,
         `  - Source: \`${server.source}\``,
+        `  - Selected mode: \`${mcpModeLabel(name, modes[name])}\``,
+        `  - Technical mode: \`${server.connection_mode}\``,
         `  - Execution mode: \`${server.execution_mode}\``,
         ...(server.hosted_url ? [`  - Hosted endpoint: <${server.hosted_url}>`] : []),
         `  - Runtime: ${formatRuntime(server.command, server.args)}`,
@@ -553,14 +759,19 @@ export function renderMcpSetup(state: CapabilityState): string {
   lines.push("", "## Available MCP Catalog", "");
   for (const [name, server] of Object.entries(AGENT_STACK.mcp_servers)) {
     const status = enabled.has(name) ? "enabled" : "available";
+    const resolved = enabled.has(name) ? resolveMcpServerForState(state, name, modes[name]) : resolveMcpServer(name, mcpRecommendedMode(name));
     lines.push(
-      `- \`${name}\` (${status}, ${server.readiness}, ${server.priority}): ${server.source_need}`,
-      `  - Source: \`${server.source}\``,
-      `  - Execution mode: \`${server.execution_mode}\``,
-      ...(server.hosted_url ? [`  - Hosted endpoint: <${server.hosted_url}>`] : []),
-      ...server.setup_commands.map((command) => `  - Setup command: \`${command}\``)
+      `- \`${name}\` (${status}, ${resolved.readiness}, ${resolved.priority}): ${resolved.source_need}`,
+      `  - Source: \`${resolved.source}\``,
+      `  - Recommended mode: \`${mcpModeLabel(name, mcpRecommendedMode(name))}\``,
+      `  - Default mode: \`${mcpModeLabel(name)}\``,
+      ...(server.modes ? [`  - Supported modes: ${mcpSupportedModeLabels(name).join(", ")}`] : []),
+      `  - Execution mode: \`${resolved.execution_mode}\``,
+      ...(resolved.hosted_url ? [`  - Hosted endpoint: <${resolved.hosted_url}>`] : []),
+      ...mcpModeEndpointLines(name),
+      ...resolved.setup_commands.map((command) => `  - Setup command: \`${command}\``)
     );
-    appendMcpPrerequisiteLines(lines, server.required_env, server.recommended_env, server.local_service);
+    appendMcpPrerequisiteLines(lines, resolved.required_env, resolved.recommended_env, resolved.local_service);
   }
 
   lines.push(
@@ -570,12 +781,21 @@ export function renderMcpSetup(state: CapabilityState): string {
     "- Use `.env.example` as a committed reference and put filled secrets in `.env.local`, your shell, or your MCP client secret store.",
     "- Print a dotenv-style reference with `npm run mcp:env -- --dotenv --all`.",
     "- Regenerate a dotenv-style reference with `npm run mcp:dotenv`.",
+    "- Discover supported modes with `npm run mcp:modes` or `npm run mcp:modes -- openalex`.",
+    "- Inspect selected-vs-ready lifecycle state with `npm run mcp:status`.",
+    "- Select explicit modes with `npm run mcp:enable -- <server> --mode local` or `--mode remote` where supported.",
+    "- Select a custom remote endpoint with `npm run mcp:enable -- <server> --mode remote-custom --url https://example.com/mcp`; use `--url-env <NAME>` for private URLs.",
+    "- Codex automatic registration supports custom remote `--url`; if you use `--url-env`, register manually because Codex CLI has no `--url-env` option.",
+    "- Explicit `--mode remote-custom` still needs `--url` or `--url-env`; otherwise smoke/probe report `missing-remote-url`.",
+    "- Run manual setup with `npm run mcp:setup -- <server> --mode local --env-file .env.local`.",
+    "- Register supported clients with `npm run mcp:client:add -- <server> --agent codex`; use `--dry-run` to print the command first.",
     "- Pass `--env-file .env.local` to `mcp doctor`, `mcp smoke`, or `mcp probe` when you want the CLI to read explicit local secrets.",
     "- Keep secrets in your shell, MCP client secret store, or local untracked files; do not commit tokens or API keys.",
+    "- Non-secret observed setup facts are recorded in `docs/agent/capability-lock.json` when setup, client registration, or probes run.",
     "- Prefer the smallest enabled MCP set that covers the current research question.",
     "- Treat MCP output as retrieval metadata. Promote claims into repository source records only after source ingestion and citation audit.",
     "- Run `npm run mcp:doctor` after changing MCP records or environment variables.",
-    "- Run `npm run mcp:probe -- <server>` only when you intentionally want to start selected MCP server processes.",
+    "- Run `npm run mcp:probe -- <server>` only when you intentionally want to start selected local stdio MCP server processes; remote endpoints report configured status without a network probe.",
     ""
   );
   return lines.join("\n");
@@ -598,6 +818,42 @@ function dedupe(values: string[]): string[] {
 
 function envHasValue(env: NodeJS.ProcessEnv, name: string): boolean {
   return typeof env[name] === "string" && env[name] !== "";
+}
+
+function normalizeRemoteConfig(server: string, config: Partial<McpRemoteConfig> | undefined): McpRemoteConfig {
+  if (!config || (!config.url && !config.url_env)) {
+    throw new Error(`${server}: remote-custom requires --url or --url-env`);
+  }
+  if (config.url && config.url_env) {
+    throw new Error(`${server}: remote-custom accepts either --url or --url-env, not both`);
+  }
+  const result: McpRemoteConfig = { transport: "streamable-http" };
+  if (config.url) {
+    try {
+      const parsed = new URL(config.url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error("expected http or https URL");
+      }
+    } catch (error) {
+      throw new Error(`${server}: invalid remote MCP URL: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    result.url = config.url;
+  }
+  if (config.url_env) {
+    assertEnvVarName(config.url_env, `${server}: invalid URL env var name`);
+    result.url_env = config.url_env;
+  }
+  if (config.bearer_token_env_var) {
+    assertEnvVarName(config.bearer_token_env_var, `${server}: invalid bearer token env var name`);
+    result.bearer_token_env_var = config.bearer_token_env_var;
+  }
+  return result;
+}
+
+function assertEnvVarName(name: string, message: string): void {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error(`${message}: ${name}`);
+  }
 }
 
 function renderSkillCommand(command: string, agent: string): string {
@@ -662,9 +918,672 @@ function appendMcpPrerequisiteLines(
   if (localService) lines.push(`  - Local prerequisite: ${localService}`);
 }
 
+function mcpModeEndpointLines(serverName: string): string[] {
+  const lines: string[] = [];
+  for (const mode of mcpServerModeKeys(serverName)) {
+    const server = resolveMcpServer(serverName, mode);
+    if (server.hosted_url) lines.push(`  - Hosted endpoint: <${server.hosted_url}>`);
+  }
+  return lines;
+}
+
 function formatRuntime(command: string, args: string[]): string {
   if (!command) return "manual setup";
   return `\`${[command, ...args].join(" ")}\``;
+}
+
+export async function getMcpLifecycleStatus(
+  root: string,
+  options: McpLifecycleOptions = {}
+): Promise<McpLifecycleStatus> {
+  const state = await readCapabilities(root);
+  const lock = await readCapabilityLock(root);
+  const env = options.env ?? process.env;
+  const generatedServers = await readGeneratedMcpServers(root, state);
+  const selected = new Set(state.mcp_servers ?? []);
+  const rows: McpLifecycleServerStatus[] = [];
+
+  for (const id of Object.keys(AGENT_STACK.mcp_servers)) {
+    const modeKey = selected.has(id) ? selectedMcpServerModes(state, [id])[id] : mcpRecommendedMode(id);
+    const server = selected.has(id) ? resolveMcpServerForState(state, id, modeKey) : resolveMcpServer(id, modeKey);
+    const envStatus = selected.has(id) ? lifecycleEnvStatus(server, env) : "n/a";
+    const install = selected.has(id) ? lifecycleInstallStatus(root, id, server, lock) : "n/a";
+    const snippet = selected.has(id)
+      ? generatedServers.has(id)
+        ? "available"
+        : isSnippetCapable(server)
+          ? "missing"
+          : "none"
+      : "none";
+    const client = lifecycleClientStatus(id, server, selected.has(id), state.agent, lock);
+    const probe = selected.has(id) ? lock.mcp[id]?.probe?.status ?? "unknown" : "n/a";
+    rows.push({
+      id,
+      selected: selected.has(id),
+      mode: mcpModeLabel(id, modeKey),
+      mode_key: modeKey,
+      connection_mode: server.connection_mode,
+      state: lifecycleState(selected.has(id), envStatus, install, snippet, client, probe),
+      env: envStatus,
+      install,
+      snippet,
+      client,
+      probe,
+      next: lifecycleNextAction(id, server, selected.has(id), envStatus, install, snippet, client, probe)
+    });
+  }
+
+  return { servers: rows };
+}
+
+export async function readCapabilityLock(root: string): Promise<CapabilityLock> {
+  try {
+    const parsed = JSON.parse(await readFile(capabilityLockPath(root), "utf8")) as unknown;
+    const record = typeof parsed === "object" && parsed !== null ? parsed as Partial<CapabilityLock> : {};
+    return {
+      version: typeof record.version === "number" ? record.version : 1,
+      mcp: typeof record.mcp === "object" && record.mcp !== null ? record.mcp as Record<string, CapabilityLockMcpServer> : {}
+    };
+  } catch (error) {
+    if (isMissingFileError(error)) return { version: 1, mcp: {} };
+    throw error;
+  }
+}
+
+export async function setupMcpServer(
+  root: string,
+  serverName: string,
+  options: McpSetupOptions = {},
+  runner: Runner = defaultRunner
+): Promise<McpSetupResult> {
+  assertKnownMcpServers([serverName]);
+  const mode = normalizeMcpMode(serverName, options.mode);
+  const server = resolveMcpServer(serverName, mode);
+  if (serverName !== "overleaf") {
+    const commands = server.setup_commands.length > 0 ? server.setup_commands : [];
+    return {
+      ok: true,
+      server: serverName,
+      mode,
+      commands,
+      created: [],
+      warnings: commands.length === 0 ? [`${serverName}: no finite setup command is defined`] : [],
+      errors: [],
+      next: commands.length > 0 ? commands : [`run npm run mcp:status`]
+    };
+  }
+
+  const env = options.env ?? process.env;
+  const required = ["OVERLEAF_TOKEN", "PROJECT_ID"];
+  const missing = required.filter((name) => !envHasValue(env, name));
+  const paths = overleafPaths(root);
+  const commands = [
+    `git clone --depth 1 https://github.com/YounesBensafia/overleaf-mcp-server.git ${paths.relativeServer}`,
+    `cd ${paths.relativeServer} && uv sync`,
+    `write wrapper ${paths.relativeWrapper}`
+  ];
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      server: serverName,
+      mode,
+      commands,
+      created: [],
+      warnings: [],
+      errors: [`overleaf: missing required environment variable(s): ${missing.join(", ")}`],
+      next: [`fill ${missing.join(", ")} in ${options.envFile ?? ".env.local"}`]
+    };
+  }
+  if (options.dryRun) {
+    return {
+      ok: true,
+      server: serverName,
+      mode,
+      commands,
+      created: [],
+      warnings: [],
+      errors: [],
+      next: [`run npm run mcp:setup -- overleaf --mode local --env-file ${options.envFile ?? ".env.local"}`]
+    };
+  }
+
+  await mkdir(paths.wrapperDir, { recursive: true });
+  if (!existsSync(paths.serverDir)) {
+    await runner.run(["git", "clone", "--depth", "1", "https://github.com/YounesBensafia/overleaf-mcp-server.git", paths.serverDir], {
+      cwd: root
+    });
+  }
+  await runner.run(["uv", "sync"], { cwd: paths.serverDir });
+  await writeFile(paths.wrapper, renderOverleafWrapper(), "utf8");
+  await writeFile(paths.launcher, renderOverleafLauncher(), "utf8");
+  await chmod(paths.wrapper, 0o755);
+  await chmod(paths.launcher, 0o755);
+  await updateCapabilityLock(root, (lock) => {
+    const entry = ensureLockMcpEntry(lock, "overleaf", server);
+    entry.setup = {
+      status: "ready",
+      server_path: paths.relativeServer,
+      wrapper_path: paths.relativeWrapper,
+      env_file: options.envFile ? toPosix(relative(root, resolve(root, options.envFile))) : ".env.local",
+      updated_at: nowIso()
+    };
+  });
+
+  return {
+    ok: true,
+    server: serverName,
+    mode,
+    commands,
+    created: [paths.relativeWrapper, paths.relativeLauncher],
+    warnings: [],
+    errors: [],
+    next: [
+      "npm run mcp:client:add -- overleaf --agent codex",
+      "npm run mcp:probe -- overleaf --env-file .env.local"
+    ]
+  };
+}
+
+export async function clientAddMcpServer(
+  root: string,
+  serverName: string,
+  options: McpClientOptions = {},
+  runner: Runner = defaultRunner
+): Promise<McpClientResult> {
+  return clientMcpServer(root, serverName, "add", options, runner);
+}
+
+export async function clientRemoveMcpServer(
+  root: string,
+  serverName: string,
+  options: McpClientOptions = {},
+  runner: Runner = defaultRunner
+): Promise<McpClientResult> {
+  return clientMcpServer(root, serverName, "remove", options, runner);
+}
+
+async function clientMcpServer(
+  root: string,
+  serverName: string,
+  action: "add" | "remove",
+  options: McpClientOptions,
+  runner: Runner
+): Promise<McpClientResult> {
+  assertKnownMcpServers([serverName]);
+  const state = await readCapabilities(root);
+  const agent = assertKnownAgentTarget(options.agent ?? state.agent);
+  const mode = normalizeMcpMode(serverName, options.mode ?? state.mcp_server_modes[serverName]);
+  const server = resolveMcpServerForState(state, serverName, mode);
+  if (agent !== "codex") {
+    return {
+      ok: false,
+      server: serverName,
+      agent,
+      command: [],
+      instructions: [`${agent} client registration is manual; load docs/agent/generated/${mcpSnippetFileName(agent)} in the client.`]
+    };
+  }
+  const command = action === "remove"
+    ? ["codex", "mcp", "remove", serverName]
+    : codexAddCommand(root, serverName, server, state);
+  if (action === "add") {
+    const readiness = await clientRegistrationReadiness(root, serverName, server, mode, state);
+    if (!readiness.ready) {
+      return {
+        ok: false,
+        server: serverName,
+        agent,
+        command,
+        instructions: readiness.instructions
+      };
+    }
+  }
+  if (!options.dryRun) {
+    try {
+      await runner.run(command, { cwd: root });
+      await updateCapabilityLock(root, (lock) => {
+        const entry = ensureLockMcpEntry(lock, serverName, server);
+        entry.clients = entry.clients ?? {};
+        entry.clients.codex = { status: action === "add" ? "registered" : "removed", updated_at: nowIso() };
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        server: serverName,
+        agent,
+        command,
+        instructions: [
+          `Codex CLI registration failed: ${error instanceof Error ? error.message : String(error)}`,
+          `Run manually: ${command.join(" ")}`
+        ]
+      };
+    }
+  }
+  return {
+    ok: true,
+    server: serverName,
+    agent,
+    command,
+    instructions: options.dryRun ? [`Dry run only; no client config was changed.`] : []
+  };
+}
+
+function serializeCapabilityState(state: CapabilityState): Record<string, unknown> {
+  const serialized: Record<string, unknown> = {
+    agent: state.agent,
+    preset: state.preset,
+    scope: state.scope,
+    mcp_servers: state.mcp_servers
+  };
+  if (Object.keys(state.mcp_server_modes).length > 0) serialized.mcp_server_modes = state.mcp_server_modes;
+  if (Object.keys(state.mcp_server_remote).length > 0) serialized.mcp_server_remote = state.mcp_server_remote;
+  return serialized;
+}
+
+function normalizeMcpServerModeMap(modes: Record<string, string>, servers: string[]): Record<string, string> {
+  const selected = new Set(servers);
+  const result: Record<string, string> = {};
+  for (const [server, mode] of Object.entries(modes)) {
+    if (selected.has(server)) result[server] = normalizeMcpMode(server, mode);
+  }
+  return result;
+}
+
+function normalizeMcpServerRemoteMap(
+  remote: Record<string, McpRemoteConfig>,
+  servers: string[],
+  modes: Record<string, string>
+): Record<string, McpRemoteConfig> {
+  const selected = new Set(servers);
+  const result: Record<string, McpRemoteConfig> = {};
+  for (const [server, config] of Object.entries(remote)) {
+    if (!selected.has(server)) continue;
+    const mode = normalizeMcpMode(server, modes[server]);
+    if (mode === "remote-custom") result[server] = normalizeRemoteConfig(server, config);
+  }
+  return result;
+}
+
+function selectedMcpServerModes(state: CapabilityState, servers: string[]): Record<string, string> {
+  const modes: Record<string, string> = {};
+  for (const server of servers) {
+    modes[server] = normalizeMcpMode(server, state.mcp_server_modes?.[server]);
+  }
+  return modes;
+}
+
+export function resolveMcpServerForState(
+  state: CapabilityState,
+  serverName: string,
+  mode?: string
+): ResolvedMcpServer {
+  const server = resolveMcpServer(serverName, mode ?? state.mcp_server_modes?.[serverName]);
+  if (server.selected_mode !== "remote-custom") return server;
+  const remote = state.mcp_server_remote?.[serverName];
+  const remoteConfigured = Boolean(remote?.url || remote?.url_env);
+  return {
+    ...server,
+    hosted_url: remote?.url ?? "",
+    remote_url_env: remote?.url_env,
+    remote_configured: remoteConfigured,
+    required_env: remote?.url_env ? [...server.required_env, remote.url_env] : server.required_env,
+    recommended_env: remote?.bearer_token_env_var
+      ? [...server.recommended_env, remote.bearer_token_env_var]
+      : server.recommended_env
+  };
+}
+
+async function readGeneratedMcpServers(root: string, state: CapabilityState): Promise<Set<string>> {
+  const generated = new Set<string>();
+  try {
+    const rawSnippet = await readFile(join(root, "docs", "agent", "generated", mcpSnippetFileName(state.agent)), "utf8");
+    const snippet = JSON.parse(rawSnippet) as { mcpServers?: Record<string, unknown> };
+    for (const name of Object.keys(snippet.mcpServers ?? {})) generated.add(name);
+  } catch {
+    return generated;
+  }
+  return generated;
+}
+
+function lifecycleEnvStatus(
+  server: ResolvedMcpServer,
+  env: NodeJS.ProcessEnv
+): Exclude<McpLifecycleServerStatus["env"], "n/a"> {
+  if (server.required_env.some((name) => !envHasValue(env, name))) return "missing-required";
+  if (server.recommended_env.some((name) => !envHasValue(env, name))) return "missing-recommended";
+  return "ok";
+}
+
+function lifecycleState(
+  selected: boolean,
+  envStatus: McpLifecycleServerStatus["env"],
+  install: string,
+  snippet: string,
+  client: string,
+  probe: string
+): string {
+  if (!selected) return "not selected";
+  if (envStatus === "missing-required") return "missing env";
+  if (install === "setup needed" || install === "requires local app" || install === "manual setup") return install;
+  if (snippet === "missing") return "setup needed";
+  if (client.endsWith(":not-added")) return "setup needed";
+  if (probe === "unknown") return "probe needed";
+  if (!isSuccessfulProbeStatus(probe)) return "probe failed";
+  return "ready";
+}
+
+function lifecycleInstallStatus(
+  root: string,
+  serverName: string,
+  server: ResolvedMcpServer,
+  lock: CapabilityLock
+): string {
+  if (server.connection_mode === "remote-curated" || server.connection_mode === "remote-custom") return "remote";
+  if (server.connection_mode === "manual-local") {
+    const entry = lock.mcp[serverName];
+    const setup = entry?.setup;
+    if (
+      setup?.status === "ready" &&
+      entry?.selected_mode === server.selected_mode &&
+      entry?.connection_mode === server.connection_mode &&
+      setup.wrapper_path &&
+      existsSync(join(root, setup.wrapper_path))
+    ) {
+      return "ready";
+    }
+    return "setup needed";
+  }
+  if (server.connection_mode === "local-service") return "requires local app";
+  if (server.install_command) return "finite-installer";
+  if (server.command) return "runtime-only";
+  return "manual setup";
+}
+
+function lifecycleClientStatus(
+  serverName: string,
+  server: ResolvedMcpServer,
+  selected: boolean,
+  agent: string,
+  lock: CapabilityLock
+): string {
+  if (!selected) return "none";
+  if (!isSnippetCapable(server)) return "unsupported";
+  const normalizedAgent = assertKnownAgentTarget(agent);
+  if (normalizedAgent === "universal") return "snippet";
+  if (normalizedAgent === "codex") {
+    const status = lock.mcp[serverName]?.clients?.codex?.status;
+    return status === "registered" ? "codex:registered" : "codex:not-added";
+  }
+  if (normalizedAgent === "claude-code" || normalizedAgent === "cursor") return `${normalizedAgent}:manual`;
+  return "unknown";
+}
+
+function lifecycleNextAction(
+  serverName: string,
+  server: ResolvedMcpServer,
+  selected: boolean,
+  envStatus: string,
+  install: string,
+  snippet: string,
+  client: string,
+  probe: string
+): string {
+  if (!selected) {
+    const recommended = mcpRecommendedMode(serverName);
+    const alternatives = mcpServerModeKeys(serverName).filter((mode) => mode !== recommended);
+    const altText = alternatives.length > 0
+      ? `, alternative: ${alternatives.map((mode) => mcpModeKeyLabelForAction(mode)).join(", ")}`
+      : "";
+    return `enable ${serverName}, recommended: ${mcpModeKeyLabelForAction(recommended)}${altText}`;
+  }
+  if (envStatus === "missing-required") {
+    if (server.connection_mode === "manual-local") {
+      return `fill ${server.required_env.join(", ")} in .env.local; then run npm run mcp:setup -- ${serverName} --mode local --env-file .env.local`;
+    }
+    return `fill ${server.required_env.join(", ")} in .env.local`;
+  }
+  if (install === "setup needed" && server.connection_mode === "manual-local") {
+    return `run npm run mcp:setup -- ${serverName} --mode local --env-file .env.local`;
+  }
+  if (install === "requires local app") {
+    return server.setup_commands[0] ?? `start local service for ${serverName}`;
+  }
+  if (snippet === "missing") return "run npm run update -- --apply";
+  if (client.endsWith(":not-added")) return `run npm run mcp:client:add -- ${serverName} --agent codex`;
+  if (!isSuccessfulProbeStatus(probe)) return `run npm run mcp:probe -- ${serverName} --env-file .env.local`;
+  return "ready";
+}
+
+function isSuccessfulProbeStatus(probe: string): boolean {
+  return probe === "ok" || probe === "remote-configured";
+}
+
+function mcpModeKeyLabelForAction(mode: string): string {
+  if (mode === "remote-custom") return "custom remote";
+  if (mode === "remote") return "remote";
+  if (mode === "manual") return "manual setup";
+  return "local";
+}
+
+function mcpInstallSkip(serverName: string, server: ResolvedMcpServer): McpSkippedTool {
+  if (server.connection_mode === "manual-local") {
+    return {
+      server: serverName,
+      reason: "manual setup",
+      next: `run npm run mcp:setup -- ${serverName} --mode local --env-file .env.local`
+    };
+  }
+  if (server.connection_mode === "remote-curated" || server.connection_mode === "remote-custom") {
+    return { server: serverName, reason: "remote", next: "no local installer; register the hosted endpoint with the MCP client" };
+  }
+  if (server.connection_mode === "local-service") {
+    return {
+      server: serverName,
+      reason: "requires local app",
+      next: server.setup_commands[0] ? `run ${server.setup_commands[0]}` : "satisfy the local service prerequisite"
+    };
+  }
+  if (server.command) {
+    return { server: serverName, reason: "runtime-only", next: "the MCP client launches it on demand" };
+  }
+  return { server: serverName, reason: "manual", next: "follow docs/agent/mcp-setup.md" };
+}
+
+function mcpUninstallSkip(serverName: string, server: ResolvedMcpServer): McpSkippedTool {
+  const skipped = mcpInstallSkip(serverName, server);
+  return { ...skipped, next: skipped.reason === "runtime-only" ? "no persistent tool was installed" : skipped.next };
+}
+
+function isSnippetCapable(server: ResolvedMcpServer): boolean {
+  return Boolean(
+    server.command ||
+    (server.connection_mode === "remote-curated" && server.hosted_url) ||
+    server.connection_mode === "remote-custom"
+  );
+}
+
+function capabilityLockPath(root: string): string {
+  return join(root, "docs", "agent", "capability-lock.json");
+}
+
+async function updateCapabilityLock(root: string, update: (lock: CapabilityLock) => void): Promise<void> {
+  const lock = await readCapabilityLock(root);
+  update(lock);
+  await mkdir(dirname(capabilityLockPath(root)), { recursive: true });
+  await writeFile(capabilityLockPath(root), `${JSON.stringify(lock, null, 2)}\n`, "utf8");
+}
+
+function ensureLockMcpEntry(lock: CapabilityLock, serverName: string, server: ResolvedMcpServer): CapabilityLockMcpServer {
+  const entry = lock.mcp[serverName] ?? {};
+  entry.selected_mode = server.selected_mode;
+  entry.connection_mode = server.connection_mode;
+  lock.mcp[serverName] = entry;
+  return entry;
+}
+
+function overleafPaths(root: string): {
+  wrapperDir: string;
+  serverDir: string;
+  wrapper: string;
+  launcher: string;
+  relativeServer: string;
+  relativeWrapper: string;
+  relativeLauncher: string;
+} {
+  const relativeBase = ".academic-research/mcp/overleaf";
+  const wrapperDir = join(root, relativeBase);
+  return {
+    wrapperDir,
+    serverDir: join(wrapperDir, "server"),
+    wrapper: join(wrapperDir, "run-overleaf-mcp.sh"),
+    launcher: join(wrapperDir, "run-overleaf-mcp.mjs"),
+    relativeServer: `${relativeBase}/server`,
+    relativeWrapper: `${relativeBase}/run-overleaf-mcp.sh`,
+    relativeLauncher: `${relativeBase}/run-overleaf-mcp.mjs`
+  };
+}
+
+function renderOverleafWrapper(): string {
+  return [
+    "#!/bin/sh",
+    "set -eu",
+    "WRAPPER_DIR=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)",
+    "# .env.local is parsed by the Node launcher; this shell wrapper never evaluates it.",
+    "exec node \"$WRAPPER_DIR/run-overleaf-mcp.mjs\"",
+    ""
+  ].join("\n");
+}
+
+function renderOverleafLauncher(): string {
+  return [
+    "#!/usr/bin/env node",
+    "import { existsSync, readFileSync } from 'node:fs';",
+    "import { dirname, join, resolve } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
+    "import { spawn } from 'node:child_process';",
+    "",
+    "const wrapperDir = dirname(fileURLToPath(import.meta.url));",
+    "const projectRoot = resolve(wrapperDir, '../../..');",
+    "const serverDir = process.env.OVERLEAF_MCP_SERVER_PATH || join(projectRoot, '.academic-research/mcp/overleaf/server');",
+    "const envFile = process.env.ACADEMIC_RESEARCH_MCP_ENV_FILE || join(projectRoot, '.env.local');",
+    "const env = { ...process.env };",
+    "if (existsSync(envFile)) {",
+    "  for (const [name, value] of Object.entries(parseDotenv(readFileSync(envFile, 'utf8'), envFile))) {",
+    "    if (value || !(name in env)) env[name] = value;",
+    "  }",
+    "}",
+    "env.PYTHONPATH = env.PYTHONPATH || '.';",
+    "const child = spawn('uv', ['run', 'src/main.py'], { cwd: serverDir, env, stdio: 'inherit' });",
+    "child.on('error', (error) => {",
+    "  console.error(`Failed to launch Overleaf MCP server: ${error.message}`);",
+    "  process.exitCode = 1;",
+    "});",
+    "child.on('exit', (code, signal) => {",
+    "  if (signal) process.kill(process.pid, signal);",
+    "  process.exit(code ?? 1);",
+    "});",
+    "",
+    "function parseDotenv(raw, path) {",
+    "  const env = {};",
+    "  const lines = raw.split(/\\r?\\n/);",
+    "  for (const [index, line] of lines.entries()) {",
+    "    let text = line.trim();",
+    "    if (!text || text.startsWith('#')) continue;",
+    "    if (text.startsWith('export ')) text = text.slice('export '.length).trimStart();",
+    "    const equals = text.indexOf('=');",
+    "    if (equals === -1) throw new Error(`${path}:${index + 1}: expected KEY=value`);",
+    "    const key = text.slice(0, equals).trim();",
+    "    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {",
+    "      throw new Error(`${path}:${index + 1}: invalid environment variable name: ${key}`);",
+    "    }",
+    "    env[key] = parseDotenvValue(text.slice(equals + 1).trim(), path, index + 1);",
+    "  }",
+    "  return env;",
+    "}",
+    "",
+    "function parseDotenvValue(value, path, line) {",
+    "  if (!value) return '';",
+    "  const quote = value[0];",
+    "  if (quote === \"'\" || quote === '\"') {",
+    "    if (!value.endsWith(quote) || value.length === 1) throw new Error(`${path}:${line}: unterminated quoted value`);",
+    "    const unquoted = value.slice(1, -1);",
+    "    if (quote === \"'\") return unquoted;",
+    "    return unquoted",
+    "      .replaceAll('\\\\n', '\\n')",
+    "      .replaceAll('\\\\r', '\\r')",
+    "      .replaceAll('\\\\t', '\\t')",
+    "      .replaceAll('\\\\\"', '\"')",
+    "      .replaceAll('\\\\\\\\', '\\\\');",
+    "  }",
+    "  return value.replace(/\\s+#.*$/, '').trimEnd();",
+    "}",
+    ""
+  ].join("\n");
+}
+
+async function clientRegistrationReadiness(
+  root: string,
+  serverName: string,
+  server: ResolvedMcpServer,
+  mode: string,
+  state: CapabilityState
+): Promise<{ ready: boolean; instructions: string[] }> {
+  const remote = state.mcp_server_remote?.[serverName];
+  if (server.connection_mode === "remote-custom" && remote?.url_env) {
+    return {
+      ready: false,
+      instructions: [
+        "Codex CLI does not support URL env vars for remote MCP endpoints.",
+        `Either re-enable this server with \`npm run mcp:enable -- ${serverName} --mode remote-custom --url <url>\` if the endpoint URL may be stored in Codex config, or register it manually with \`codex mcp add ${serverName} --url "$${remote.url_env}"\` from a shell where the env var is set.`
+      ]
+    };
+  }
+  if (serverName !== "overleaf") return { ready: true, instructions: [] };
+  const lock = await readCapabilityLock(root);
+  const setup = lock.mcp.overleaf?.setup;
+  const wrapperPath = setup?.wrapper_path ? join(root, setup.wrapper_path) : "";
+  const ready =
+    setup?.status === "ready" &&
+    lock.mcp.overleaf?.selected_mode === mode &&
+    lock.mcp.overleaf?.connection_mode === server.connection_mode &&
+    Boolean(wrapperPath) &&
+    existsSync(wrapperPath);
+  if (ready) return { ready: true, instructions: [] };
+  return {
+    ready: false,
+    instructions: [
+      "Overleaf setup is not ready. Next: npm run mcp:setup -- overleaf --mode local --env-file .env.local"
+    ]
+  };
+}
+
+function codexAddCommand(
+  root: string,
+  serverName: string,
+  server: ResolvedMcpServer,
+  state: CapabilityState
+): string[] {
+  if ((server.connection_mode === "remote-curated" || server.connection_mode === "remote-custom") && server.hosted_url) {
+    const command = ["codex", "mcp", "add", serverName, "--url", server.hosted_url];
+    const tokenEnv = state.mcp_server_remote?.[serverName]?.bearer_token_env_var;
+    if (tokenEnv) command.push("--bearer-token-env-var", tokenEnv);
+    return command;
+  }
+  if (server.connection_mode === "remote-custom" && state.mcp_server_remote?.[serverName]?.url_env) {
+    return [];
+  }
+  if (!server.command) throw new Error(`${serverName} does not have a command or hosted URL for client registration`);
+  const command = commandForClient(root, server.command);
+  return ["codex", "mcp", "add", serverName, "--", command, ...server.args];
+}
+
+function commandForClient(root: string, command: string): string {
+  if (!command.includes("/") && !command.includes("\\")) return command;
+  return isAbsolute(command) ? command : join(root, command);
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
 }
 
 async function readCapabilitiesFile(root: string): Promise<CapabilityState> {
@@ -708,18 +1627,50 @@ function splitCommand(command: string): string[] {
 
 function normalizeCapabilityState(value: unknown): CapabilityState {
   const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const servers = Array.isArray(record.mcp_servers)
+    ? record.mcp_servers.filter((item): item is string => typeof item === "string")
+    : [];
+  const modeRecord =
+    typeof record.mcp_server_modes === "object" && record.mcp_server_modes !== null
+      ? record.mcp_server_modes as Record<string, unknown>
+      : {};
+  const mcpServerModes: Record<string, string> = {};
+  for (const [server, mode] of Object.entries(modeRecord)) {
+    if (typeof mode === "string" && servers.includes(server)) {
+      mcpServerModes[server] = normalizeMcpMode(server, mode);
+    }
+  }
+  const remoteRecord =
+    typeof record.mcp_server_remote === "object" && record.mcp_server_remote !== null
+      ? record.mcp_server_remote as Record<string, unknown>
+      : {};
+  const mcpServerRemote: Record<string, McpRemoteConfig> = {};
+  for (const [server, config] of Object.entries(remoteRecord)) {
+    if (!servers.includes(server)) continue;
+    if (normalizeMcpMode(server, mcpServerModes[server]) !== "remote-custom") continue;
+    if (typeof config === "object" && config !== null) {
+      mcpServerRemote[server] = normalizeRemoteConfig(server, config as Partial<McpRemoteConfig>);
+    }
+  }
   return {
     agent: assertKnownAgentTarget(typeof record.agent === "string" ? record.agent : undefined),
     preset: typeof record.preset === "string" ? record.preset : "default",
     scope: "project-local",
-    mcp_servers: Array.isArray(record.mcp_servers)
-      ? record.mcp_servers.filter((item): item is string => typeof item === "string")
-      : []
+    mcp_servers: servers,
+    mcp_server_modes: mcpServerModes,
+    mcp_server_remote: mcpServerRemote
   };
 }
 
 function defaultCapabilities(): CapabilityState {
-  return { agent: DEFAULT_AGENT, preset: "default", scope: "project-local", mcp_servers: [] };
+  return {
+    agent: DEFAULT_AGENT,
+    preset: "default",
+    scope: "project-local",
+    mcp_servers: [],
+    mcp_server_modes: {},
+    mcp_server_remote: {}
+  };
 }
 
 function isMissingFileError(error: unknown): boolean {

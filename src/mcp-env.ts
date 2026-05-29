@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { AGENT_STACK } from "./stack.js";
+import { AGENT_STACK, resolveMcpServer } from "./stack.js";
 
 export interface McpEnvironmentEntry {
   server: string;
@@ -11,12 +11,12 @@ export interface McpEnvironmentEntry {
 
 export function listMcpEnvironmentEntries(
   servers: string[],
-  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
+  options: { requiredOnly?: boolean; recommendedOnly?: boolean; mode?: string; modes?: Record<string, string | undefined> } = {}
 ): McpEnvironmentEntry[] {
   assertKnownMcpServers(servers);
   const entries: McpEnvironmentEntry[] = [];
   for (const serverName of servers) {
-    const server = AGENT_STACK.mcp_servers[serverName];
+    const server = resolveMcpServer(serverName, options.mode ?? options.modes?.[serverName]);
     if (!options.recommendedOnly) {
       for (const envName of server.required_env) {
         entries.push({ server: serverName, kind: "required", name: envName, value: "" });
@@ -36,7 +36,7 @@ export function listMcpEnvironmentEntries(
 
 export function formatMcpDotenv(
   servers: string[],
-  options: { requiredOnly?: boolean; recommendedOnly?: boolean } = {}
+  options: { requiredOnly?: boolean; recommendedOnly?: boolean; mode?: string; modes?: Record<string, string | undefined> } = {}
 ): string {
   const entries = listMcpEnvironmentEntries(servers, options);
   const lines = [

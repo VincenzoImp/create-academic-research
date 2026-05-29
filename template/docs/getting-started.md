@@ -44,8 +44,9 @@ npm run mcp:env -- openalex semantic-scholar zotero
 npm run mcp:doctor -- --env-file .env.local
 ```
 
-`mcp smoke` is a non-launching readiness check. `mcp probe` is opt-in and starts
-MCP processes for a real stdio handshake.
+`mcp smoke` is a non-launching readiness check. `mcp probe` is opt-in: local
+stdio servers get a real handshake, while remote endpoints are reported as
+configured without a network probe.
 
 ```bash
 npm run mcp:smoke -- --env-file .env.local

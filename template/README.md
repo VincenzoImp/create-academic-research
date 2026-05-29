@@ -65,8 +65,13 @@ npm run update
 npm run setup
 npm run mcp:dotenv
 npm run mcp:list
+npm run mcp:modes
+npm run mcp:status
 npm run mcp:env -- openalex semantic-scholar zotero
+npm run mcp:enable -- openalex --mode remote
 npm run mcp:enable -- arxiv dblp
+npm run mcp:setup -- overleaf --mode local --env-file .env.local
+npm run mcp:client:add -- overleaf --agent codex --dry-run
 npm run mcp:commands -- arxiv
 npm run mcp:install -- arxiv
 npm run mcp:smoke -- --env-file .env.local
@@ -75,7 +80,12 @@ npm run mcp:probe -- arxiv --timeout-ms 5000
 ```
 
 `skills list` reports installed project-local skills. `skills presets` reports
-available install presets. `mcp enable` changes project records. `mcp commands`
+available install presets. `mcp enable` changes selected project records and
+can record explicit modes such as `--mode remote`. Use `mcp modes` to see
+which integrations support local, remote, custom remote, local-app, or manual
+setup paths. `mcp status` separates selected records from setup, snippet,
+client registration, and probe readiness; add `--verbose` for technical fields.
+`mcp commands`
 prints finite external install commands without running them. `mcp env` prints
 env vars, hosted endpoints, local prerequisites, and setup commands before you
 enable optional servers. `mcp install` runs only finite tool installation
@@ -89,11 +99,17 @@ git. `mcp doctor` checks the current process environment unless you explicitly
 pass `--env-file .env.local`.
 
 `setup` prints the current project capability state, installed skill counts,
-enabled MCP records, and the next onboarding commands without changing files.
+selected MCP records, and the next onboarding commands without changing files.
 `mcp smoke` performs a non-launching MCP readiness check: it reports required
 env vars, local/manual setup, and whether client runtime commands such as `uvx`
-or `npx` are available. `mcp probe` is opt-in and starts selected MCP servers
-for a real stdio JSON-RPC handshake.
+or `npx` are available. `mcp probe` is opt-in: local stdio servers get a real
+JSON-RPC handshake, while remote endpoints are reported as configured without a
+network probe.
+
+Overleaf setup creates a local wrapper under `.academic-research/mcp/` that
+parses `.env.local` safely at runtime. The wrapper path and client/probe
+observations are recorded in `docs/agent/capability-lock.json`; token values
+are not stored there or in generated snippets.
 
 `default` installs the companion academic research skill package and keeps the
 MCP records focused on low-friction arXiv discovery. `literature` and `full`

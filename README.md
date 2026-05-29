@@ -128,6 +128,7 @@ npm run skills:remove -- source-ingestion
 npm run skills:uninstall -- source-ingestion
 npm run skills:update
 npm run mcp:list
+npm run mcp:modes
 npm run mcp:enabled
 npm run mcp:available
 npm run mcp:commands -- arxiv
@@ -156,7 +157,7 @@ existing files. It adds the research contract, merges lifecycle package scripts,
 and preserves existing README, `.gitignore`, and custom package scripts.
 
 `academic-research setup` is a non-destructive onboarding status command. It
-prints the active preset, agent, skill counts, enabled MCP records, and next
+prints the active preset, agent, skill counts, selected MCP records, and next
 commands without changing files.
 
 Skills are project-local by default.
@@ -175,17 +176,21 @@ MCP commands are split by side-effect:
 | Command | Meaning |
 |---|---|
 | `mcp list` | List known MCP servers with enabled/available status. |
+| `mcp modes` | Show which servers can run locally, use a hosted endpoint, use a custom endpoint, require a local app, or need manual setup. |
+| `mcp status` | Show friendly selected/setup/client/probe readiness and next action for each MCP server. Add `--verbose` for technical lifecycle fields. |
 | `mcp enabled` | List only enabled MCP server ids. |
 | `mcp available` | List the local MCP catalog. |
 | `mcp commands` | Print finite external install commands without running them. Runtime-only `uvx`/`npx` servers may have no install command. |
 | `mcp env` | Print required/recommended env vars, hosted endpoints, local prerequisites, and setup commands for selected servers. Use `--dotenv --all` to print dotenv content or `--write .env.example --all` to regenerate `.env.example`. |
-| `mcp enable` | Enable an MCP server in project records and generated snippets. |
+| `mcp enable` | Select an MCP server in project records and generated snippets. Use `--mode local`, `--mode remote`, or `--mode remote-custom --url <url>` where supported. |
 | `mcp disable` | Remove an MCP server from project records and generated snippets. |
+| `mcp setup` | Run or dry-run finite setup for manual-local integrations such as Overleaf. |
+| `mcp client add` / `mcp client remove` | Register or remove supported MCP client entries, currently Codex, without writing secrets into client config. |
 | `mcp install` | Run finite external tool install commands for selected MCP servers. It must not launch stdio MCP servers. |
 | `mcp uninstall` | Run the external uninstall command when one exists. |
 | `mcp smoke` | Print non-launching readiness diagnostics for enabled or selected MCP servers. |
 | `mcp doctor` | Validate enabled MCP records, generated snippets, required env vars, and documented manual prerequisites. Pass `--env-file .env.local` to read explicit local secrets. |
-| `mcp probe` | Opt-in runtime check that starts selected MCP servers and performs a stdio JSON-RPC handshake. |
+| `mcp probe` | Opt-in runtime check. Local stdio servers get a JSON-RPC handshake; remote endpoints are reported as configured without a network probe. |
 
 ## Companion Skills
 
@@ -221,18 +226,35 @@ Zotero, Overleaf, Crossref, and fallback aggregators are useful, but they need
 API keys, local apps, manual setup, or source-policy review. Enable them with
 `npm run mcp:enable -- <server>` after reading
 `docs/agent/mcp-setup.md`, use `npm run mcp:env -- <server>` to see runtime
-prerequisites, then run `npm run mcp:doctor`.
+prerequisites, then run `npm run mcp:modes`, `npm run mcp:status`, and
+`npm run mcp:doctor`.
 
-The MCP catalog distinguishes local runtime adapters from hosted endpoints and
-manual integrations. arXiv and DBLP are low-friction local `uvx` runtimes.
+The MCP catalog uses plain modes by default:
+local means your machine runs the MCP server, remote means your client connects
+to an existing hosted endpoint, custom remote means you provide the endpoint,
+requires local app means another desktop/service app must be running, and
+manual setup means guided setup is required before client registration.
+arXiv and DBLP are low-friction local `uvx` runtimes.
 Semantic Scholar is useful for citation graphs but works best with
 `SEMANTIC_SCHOLAR_API_KEY`. OpenAlex requires `OPENALEX_API_KEY` for the
-selected local adapter; OpenAlex keys are free and include a free daily quota,
-but high-volume work should check current credit limits. PubMed is a
+selected local adapter, while OpenAlex and PubMed can also be selected in
+remote hosted mode or a custom remote endpoint. PubMed local mode is a
 biomedical-specific `npx` runtime and remains opt-in. Zotero needs the local
-Zotero desktop app and Zoty setup. Overleaf is manual and credentialed.
+Zotero desktop app and Zoty setup. Overleaf is a manual setup integration with
+a generated safe dotenv-loading wrapper after `mcp setup`.
 Crossref and broad paper-search aggregators are kept as fallback/manual entries
 until a project explicitly needs them.
+
+Codex automatic registration supports custom remote endpoints when the URL is
+stored in project config with `--url`. If the endpoint URL is kept private via
+`--url-env`, Codex automatic registration is not available because the Codex CLI
+currently has no `--url-env` option. Either re-enable with
+`--url <url>` if the endpoint URL may be stored in Codex config, or manually run
+`codex mcp add <server> --url "$MCP_URL_ENV_VAR"` from a shell where the env var
+is set.
+An explicit `--mode remote-custom` override is not enough by itself; smoke and
+probe report `missing-remote-url` until the project has either a stored URL or a
+URL env var configured.
 
 Generated projects include a committed `.env.example` with empty MCP variables
 and ignore filled `.env` or `.env.local` files. Regenerate the example with
@@ -245,11 +267,16 @@ live tools by themselves. Your MCP client must load the generated snippet, and
 the referenced commands must be available on your machine or runnable through
 `uvx`/`npx`. `mcp install` only runs finite setup commands such as the arXiv
 tool install; it deliberately does not launch stdio MCP servers.
+`mcp setup overleaf --mode local --env-file .env.local` creates a local wrapper
+that loads secrets at runtime and records non-secret facts in
+`docs/agent/capability-lock.json`.
 Use `mcp smoke` for a non-launching readiness pass before wiring a client: it
 checks required env vars, manual/local-service status, and whether runtime
 commands are visible on `PATH`.
 Use `mcp probe` only when you intentionally want to start selected MCP server
-processes and verify a real stdio JSON-RPC handshake.
+processes and verify a real stdio JSON-RPC handshake. Remote MCP endpoints are
+not started locally; probe reports that the remote endpoint is configured and
+does not perform network-dependent checks.
 
 ## Validate This Package
 

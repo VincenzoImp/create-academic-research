@@ -172,6 +172,16 @@ test("generated package scripts all resolve the lifecycle binary through the gen
   }
 });
 
+test("built package bin files are executable for local file package installs", async () => {
+  for (const binPath of [
+    "dist/bin/academic-research.js",
+    "dist/bin/create-academic-research.js"
+  ]) {
+    const info = await stat(join(packageRoot, binPath));
+    assert.notEqual(info.mode & 0o111, 0, `${binPath} should be executable`);
+  }
+});
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

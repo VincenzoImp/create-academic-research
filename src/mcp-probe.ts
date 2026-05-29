@@ -1,12 +1,14 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { delimiter, isAbsolute, join } from "node:path";
 
-import { AGENT_STACK } from "./stack.js";
+import { AGENT_STACK, resolveMcpServer, type ResolvedMcpServer } from "./stack.js";
 
 export type McpProbeStatus =
   | "ok"
   | "manual"
+  | "remote-configured"
+  | "missing-remote-url"
   | "missing-env"
   | "runtime-missing"
   | "startup-failed"
@@ -29,23 +31,34 @@ export async function probeMcpServerList(
   servers: string[],
   env: NodeJS.ProcessEnv,
   timeoutMs: number,
-  clientVersion = "unknown"
+  clientVersion = "unknown",
+  modes: Record<string, string> = {},
+  resolvedServers: Record<string, ResolvedMcpServer> = {}
 ): Promise<McpProbeResult> {
   assertKnownMcpServers(servers);
   const results: McpProbeServerResult[] = [];
 
   for (const name of servers) {
-    const server = AGENT_STACK.mcp_servers[name];
+    const server = resolvedServers[name] ?? resolveMcpServer(name, modes[name]);
     const missingRequired = server.required_env.filter((envName) => !envHasValue(env, envName));
     if (missingRequired.length > 0) {
       results.push({ server: name, status: "missing-env", detail: missingRequired.join(",") });
       continue;
     }
-    if (!server.command) {
-      results.push({ server: name, status: "manual", detail: server.local_service || "manual setup only" });
+    if (server.connection_mode === "remote-custom" && !server.remote_configured) {
+      results.push({ server: name, status: "missing-remote-url", detail: "custom remote endpoint not configured" });
       continue;
     }
-    if (!commandExists(server.command, env)) {
+    if (server.connection_mode === "remote-curated" || server.connection_mode === "remote-custom") {
+      results.push({ server: name, status: "remote-configured", detail: remoteProbeDetail(server) });
+      continue;
+    }
+    if (!server.command) {
+      results.push({ server: name, status: "manual", detail: server.hosted_url || server.local_service || "manual setup only" });
+      continue;
+    }
+    const command = resolveCommand(root, server.command);
+    if (!commandExists(command, env)) {
       results.push({ server: name, status: "runtime-missing", detail: server.command });
       continue;
     }
@@ -53,7 +66,7 @@ export async function probeMcpServerList(
       await probeMcpServerProcess(
         root,
         name,
-        server.command,
+        command,
         server.args,
         { ...server.env, ...env },
         timeoutMs,
@@ -62,7 +75,17 @@ export async function probeMcpServerList(
     );
   }
 
-  return { ok: results.every((result) => result.status === "ok"), results };
+  return { ok: results.every((result) => result.status === "ok" || result.status === "remote-configured"), results };
+}
+
+function remoteProbeDetail(server: ResolvedMcpServer): string {
+  const urlEnv = server.connection_mode === "remote-custom" ? server.remote_url_env : undefined;
+  const source = urlEnv
+    ? `custom remote endpoint from ${urlEnv}`
+    : server.connection_mode === "remote-custom"
+      ? "custom remote endpoint configured"
+      : "remote endpoint configured";
+  return `${source}; remote probe does not perform a stdio handshake`;
 }
 
 function assertKnownMcpServers(servers: string[]): void {
@@ -93,6 +116,11 @@ function commandExists(command: string, env: NodeJS.ProcessEnv = process.env): b
   return false;
 }
 
+function resolveCommand(root: string, command: string): string {
+  if (!command.includes("/") && !command.includes("\\")) return command;
+  return isAbsolute(command) ? command : join(root, command);
+}
+
 async function probeMcpServerProcess(
   root: string,
   server: string,
@@ -105,7 +133,7 @@ async function probeMcpServerProcess(
   return new Promise((resolve) => {
     let settled = false;
     let stderr = "";
-    let stdout = Buffer.alloc(0);
+    let stdout: Buffer = Buffer.alloc(0);
     const child = spawn(command, args, {
       cwd: root,
       env,
@@ -145,7 +173,7 @@ async function probeMcpServerProcess(
     });
 
     try {
-      child.stdin.write(encodeMcpMessage({
+      child.stdin.write(encodeMcpLineMessage({
         jsonrpc: "2.0",
         id: 1,
         method: "initialize",
@@ -165,12 +193,12 @@ async function probeMcpServerProcess(
           finish("protocol-error", formatJsonRpcError(message.error));
           return;
         }
-        child.stdin.write(encodeMcpMessage({
+        child.stdin.write(encodeMcpLineMessage({
           jsonrpc: "2.0",
           method: "notifications/initialized",
           params: {}
         }));
-        child.stdin.write(encodeMcpMessage({
+        child.stdin.write(encodeMcpLineMessage({
           jsonrpc: "2.0",
           id: 2,
           method: "tools/list",
@@ -192,28 +220,63 @@ async function probeMcpServerProcess(
     function drainMcpMessages(): Record<string, unknown>[] {
       const messages: Record<string, unknown>[] = [];
       while (true) {
-        const separator = stdout.indexOf("\r\n\r\n");
-        if (separator === -1) return messages;
-        const header = stdout.slice(0, separator).toString("utf8");
-        const match = /Content-Length:\s*(\d+)/i.exec(header);
-        if (!match) throw new Error("missing Content-Length header");
-        const length = Number(match[1]);
-        const bodyStart = separator + 4;
-        const bodyEnd = bodyStart + length;
-        if (stdout.length < bodyEnd) return messages;
-        const body = stdout.slice(bodyStart, bodyEnd).toString("utf8");
-        stdout = stdout.slice(bodyEnd);
-        const parsed = JSON.parse(body) as unknown;
-        if (typeof parsed !== "object" || parsed === null) throw new Error("MCP response is not an object");
-        messages.push(parsed as Record<string, unknown>);
+        stdout = trimLeadingMcpWhitespace(stdout);
+        if (stdout.length === 0) return messages;
+        if (startsWithContentLength(stdout)) {
+          const framed = drainContentLengthMessage(stdout);
+          if (!framed) return messages;
+          stdout = framed.remaining;
+          messages.push(parseMcpMessage(framed.body));
+          continue;
+        }
+
+        const newline = stdout.indexOf("\n");
+        if (newline === -1) return messages;
+        const line = stdout.slice(0, newline).toString("utf8").trim();
+        stdout = stdout.slice(newline + 1);
+        if (!line) continue;
+        messages.push(parseMcpMessage(line));
       }
     }
   });
 }
 
-function encodeMcpMessage(message: unknown): string {
-  const body = JSON.stringify(message);
-  return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+function encodeMcpLineMessage(message: unknown): string {
+  return `${JSON.stringify(message)}\n`;
+}
+
+function trimLeadingMcpWhitespace(buffer: Buffer): Buffer {
+  let offset = 0;
+  while (offset < buffer.length && (buffer[offset] === 0x0a || buffer[offset] === 0x0d)) {
+    offset += 1;
+  }
+  return offset === 0 ? buffer : buffer.slice(offset);
+}
+
+function startsWithContentLength(buffer: Buffer): boolean {
+  return buffer.slice(0, "Content-Length:".length).toString("utf8").toLowerCase() === "content-length:";
+}
+
+function drainContentLengthMessage(buffer: Buffer): { body: string; remaining: Buffer } | undefined {
+  const separator = buffer.indexOf("\r\n\r\n");
+  if (separator === -1) return undefined;
+  const header = buffer.slice(0, separator).toString("utf8");
+  const match = /Content-Length:\s*(\d+)/i.exec(header);
+  if (!match) throw new Error("missing Content-Length header");
+  const length = Number(match[1]);
+  const bodyStart = separator + 4;
+  const bodyEnd = bodyStart + length;
+  if (buffer.length < bodyEnd) return undefined;
+  return {
+    body: buffer.slice(bodyStart, bodyEnd).toString("utf8"),
+    remaining: buffer.slice(bodyEnd)
+  };
+}
+
+function parseMcpMessage(raw: string): Record<string, unknown> {
+  const parsed = JSON.parse(raw) as unknown;
+  if (typeof parsed !== "object" || parsed === null) throw new Error("MCP response is not an object");
+  return parsed as Record<string, unknown>;
 }
 
 function formatJsonRpcError(error: unknown): string {
