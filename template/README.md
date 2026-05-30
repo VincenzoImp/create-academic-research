@@ -111,7 +111,10 @@ git. `mcp doctor` checks the current process environment unless you explicitly
 pass `--env-file .env.local`.
 
 `setup` prints the current project capability state, installed skill counts,
-selected MCP records, and the next onboarding commands without changing files.
+selected MCP records, and the next onboarding commands. With
+`-- --env-file .env.local`, it can complete safe project-local setup such as the
+Overleaf wrapper and generated MCP snippet. It does not register global MCP
+clients.
 `mcp smoke` performs a non-launching MCP readiness check: it reports required
 env vars, local/manual setup, and whether client runtime commands such as `uvx`
 or `npx` are available. `mcp probe` is opt-in: local stdio servers get a real

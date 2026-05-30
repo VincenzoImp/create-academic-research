@@ -9,7 +9,10 @@ import {
   formatMcpDotenv,
   initializeCapabilities,
   installSkills,
+  mcpLocalSetupGitignoreWarning,
+  mcpMissingGeneratedSnippetMessage,
   readCapabilities,
+  readCapabilityLock,
   renderCapabilityProfile,
   renderMcpSetup,
   renderMcpSnippet,
@@ -369,6 +372,16 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
       if (needsMcpEnvDoctor) {
         warnings.push("MCP readiness may require local secrets; run npm run mcp:doctor -- --env-file .env.local");
       }
+      const lock = await readCapabilityLock(target);
+      const hasManualLocalMcp = state.mcp_servers.some((serverName) => {
+        if (!AGENT_STACK.mcp_servers[serverName]) return false;
+        const server = resolveMcpServerForState(state, serverName, state.mcp_server_modes[serverName]);
+        return server.connection_mode === "manual-local";
+      });
+      if (hasManualLocalMcp) {
+        const gitignoreWarning = await mcpLocalSetupGitignoreWarning(target);
+        if (gitignoreWarning) warnings.push(gitignoreWarning);
+      }
       for (const serverName of state.mcp_servers) {
         if (!AGENT_STACK.mcp_servers[serverName]) continue;
         const server = resolveMcpServerForState(state, serverName, state.mcp_server_modes[serverName]);
@@ -396,7 +409,18 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
           const generated = JSON.parse(raw) as { mcpServers?: Record<string, unknown> };
           for (const server of snippetServers) {
             if (!Object.hasOwn(generated.mcpServers ?? {}, server)) {
-              errors.push(`${server}: enabled but missing from generated MCP snippet`);
+              const resolved = resolveMcpServerForState(state, server, state.mcp_server_modes[server]);
+              errors.push(mcpMissingGeneratedSnippetMessage(server, resolved, process.env));
+              continue;
+            }
+            const resolved = resolveMcpServerForState(state, server, state.mcp_server_modes[server]);
+            if (
+              state.agent === "codex" &&
+              resolved.connection_mode === "manual-local" &&
+              lock.mcp[server]?.setup?.status === "ready" &&
+              lock.mcp[server]?.clients?.codex?.status !== "registered"
+            ) {
+              warnings.push(`${server} is setup locally but not registered in Codex\nNEXT: npm run mcp:client:add -- ${server} --agent codex`);
             }
           }
         } catch (error) {

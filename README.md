@@ -115,7 +115,8 @@ Inside a generated project:
 ```bash
 npm run doctor
 npm run update
-npm run setup
+npm run update -- --apply
+npm run setup -- --env-file .env.local
 npm run rename -- --title "New Title" --slug new-title --package new_title
 npm run agents:list
 npm run skills:presets
@@ -177,9 +178,11 @@ edited locally, update reports `skip` instead of overwriting it.
 existing files. It adds the research contract, merges lifecycle package scripts,
 and preserves existing README, `.gitignore`, and custom package scripts.
 
-`academic-research setup` is a non-destructive onboarding status command. It
+`academic-research setup` is the friendly post-update recovery command. It
 prints the active preset, agent, skill counts, selected MCP records, and next
-commands without changing files.
+commands. When you pass `--env-file .env.local`, it may complete safe
+project-local setup such as the Overleaf wrapper and generated MCP snippet. It
+does not register global MCP clients.
 
 Skills are project-local by default.
 
@@ -205,7 +208,7 @@ MCP commands are split by side-effect:
 | `mcp env` | Print required/recommended env vars, hosted endpoints, local prerequisites, and setup commands for selected servers. Use `--dotenv --all` to print dotenv content or `--write .env.example --all` to regenerate `.env.example`. |
 | `mcp enable` | Select an MCP server in project records and generated snippets. Use `--mode local`, `--mode remote`, or `--mode remote-custom --url <url>` where supported. |
 | `mcp disable` | Remove an MCP server from project records and generated snippets. |
-| `mcp setup` | Run or dry-run finite setup for manual-local integrations such as Overleaf. |
+| `mcp setup` | Run or dry-run finite project-local setup for manual-local integrations such as Overleaf, including wrapper and generated snippet refresh. |
 | `mcp client add` / `mcp client remove` | Register or remove supported MCP client entries, currently Codex, without writing secrets into client config. |
 | `mcp install` | Run finite external tool install commands for selected MCP servers. It must not launch stdio MCP servers. |
 | `mcp uninstall` | Run the external uninstall command when one exists. |

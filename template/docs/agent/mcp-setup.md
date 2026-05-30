@@ -70,3 +70,14 @@ npm run mcp:setup -- overleaf --mode local --env-file .env.local
 npm run mcp:client:add -- overleaf --agent codex --dry-run
 npm run mcp:probe -- overleaf --env-file .env.local
 ```
+
+After a scaffold update, the friendlier project setup command can run the same
+project-local Overleaf setup when the env file is present:
+
+```bash
+npm run setup -- --env-file .env.local
+```
+
+This may create ignored files under `.academic-research/mcp/` and refresh the
+generated MCP snippet. It does not run `codex mcp add`; client registration
+stays explicit.

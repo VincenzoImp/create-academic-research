@@ -73,6 +73,7 @@ const CREATE_FLAGS = flagSchema(
 );
 
 const ROOT_FLAGS = flagSchema(["help"], ["root"]);
+const SETUP_FLAGS = flagSchema(["help"], ["root", "env-file"]);
 const UPDATE_FLAGS = flagSchema(["help", "dry-run", "apply"], ["root"]);
 const INIT_FLAGS = flagSchema(
   ["help", "install-skills"],
@@ -230,6 +231,12 @@ async function updateCommand(argv: string[]): Promise<number> {
   if (!apply && result.changes.length > 0) {
     console.log("Run `npm run update -- --apply` from a generated project to write these managed changes.");
   }
+  if (apply && await projectLocalMcpSetupNeeded(root)) {
+    console.log("");
+    console.log("Next:");
+    console.log("1. Run npm run setup -- --env-file .env.local to complete project-local tool setup.");
+    console.log("2. Run npm run doctor to verify the project.");
+  }
   return 0;
 }
 
@@ -257,13 +264,15 @@ async function initCommand(argv: string[]): Promise<number> {
 }
 
 async function setupCommand(argv: string[]): Promise<number> {
-  const parsed = parseFlags(argv, ROOT_FLAGS);
+  const parsed = parseFlags(argv, SETUP_FLAGS);
   if (flagBool(parsed.flags, "help")) {
     printSetupHelp();
     return 0;
   }
   assertNoArguments(parsed.positionals, "setup");
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  const env = await mcpCommandEnvironment(root, parsed.flags);
+  const setupResults = await runProjectLocalMcpSetup(root, env, flagString(parsed.flags, "env-file"));
   const project = await doctorProject(root);
   const state = await readCapabilities(root);
   const skills = await listInstalledSkills(root);
@@ -279,11 +288,26 @@ async function setupCommand(argv: string[]): Promise<number> {
   console.log(`installed_skill_copies\t${skills.length}`);
   console.log(`mcp_enabled\t${state.mcp_servers.length > 0 ? state.mcp_servers.join(",") : "none"}`);
   console.log(`mcp_selected\t${state.mcp_servers.length > 0 ? state.mcp_servers.join(",") : "none"}`);
+  for (const result of setupResults) {
+    if (result.ok) {
+      console.log(`Completed project-local MCP setup: ${result.server}`);
+    }
+  }
   if (!project.ok) {
     for (const error of project.errors) console.error(`ERROR: ${error}`);
   }
-  for (const warning of project.warnings) console.warn(`WARN: ${warning}`);
-  const lifecycle = await getMcpLifecycleStatus(root);
+  const setupWarnings: string[] = [];
+  for (const result of setupResults) {
+    for (const error of result.errors) console.error(`ERROR: ${error}`);
+    setupWarnings.push(...result.warnings);
+    if (!result.ok && result.next.length > 0) {
+      console.log("");
+      console.log(`Next for ${result.server}`);
+      for (const command of result.next) console.log(command);
+    }
+  }
+  for (const warning of dedupeStrings([...setupWarnings, ...project.warnings])) console.warn(`WARN: ${warning}`);
+  const lifecycle = await getMcpLifecycleStatus(root, { env });
   console.log("");
   console.log("Next Commands");
   console.log(`npm run skills:install -- --preset ${state.preset}`);
@@ -706,6 +730,37 @@ function setupNextCommands(item: {
   return dedupeStrings(commands);
 }
 
+async function runProjectLocalMcpSetup(
+  root: string,
+  env: NodeJS.ProcessEnv,
+  envFile: string | undefined
+): Promise<Awaited<ReturnType<typeof setupMcpServer>>[]> {
+  const lifecycle = await getMcpLifecycleStatus(root, { env });
+  const results: Awaited<ReturnType<typeof setupMcpServer>>[] = [];
+  for (const item of lifecycle.servers) {
+    if (!item.selected || item.connection_mode !== "manual-local") continue;
+    if (item.install === "ready" && item.snippet !== "missing") continue;
+    results.push(
+      await setupMcpServer(root, item.id, {
+        mode: item.mode_key,
+        envFile: envFile ?? ".env.local",
+        env
+      })
+    );
+  }
+  return results;
+}
+
+async function projectLocalMcpSetupNeeded(root: string): Promise<boolean> {
+  const lifecycle = await getMcpLifecycleStatus(root);
+  return lifecycle.servers.some(
+    (item) =>
+      item.selected &&
+      item.connection_mode === "manual-local" &&
+      (item.install !== "ready" || item.snippet === "missing")
+  );
+}
+
 function dedupeStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
@@ -1027,10 +1082,11 @@ function printSetupHelp(): void {
     [
       "Usage: academic-research setup [options]",
       "",
-      "Print project onboarding status and next commands without changing files.",
+      "Print project onboarding status and complete safe project-local setup when possible.",
       "",
       "Options:",
       "  --root <path>            Project root. Default: current directory.",
+      "  --env-file <path>        Read local env values for guided project-local MCP setup.",
       "  -h, --help               Show this help."
     ].join("\n")
   );

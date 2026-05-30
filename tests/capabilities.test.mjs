@@ -598,6 +598,7 @@ test("Overleaf lifecycle reports missing setup, writes a non-secret wrapper, and
   const target = join(root, "mcp-overleaf-setup-project");
   await createProject({ target, title: "MCP Overleaf Setup Project", preset: "minimal", installSkills: false });
   await enableMcpServers(target, ["overleaf"], { agent: "codex", mode: "local" });
+  await writeFile(join(target, "docs/agent/generated/codex-mcp.json"), '{\n  "mcpServers": {}\n}\n', "utf8");
 
   const missing = await getMcpLifecycleStatus(target, { env: { PATH: "", OVERLEAF_TOKEN: "", PROJECT_ID: "" } });
   const missingOverleaf = missing.servers.find((server) => server.id === "overleaf");
@@ -607,6 +608,11 @@ test("Overleaf lifecycle reports missing setup, writes a non-secret wrapper, and
   assert.equal(missingOverleaf.env, "missing-required");
   assert.equal(missingOverleaf.install, "setup needed");
   assert.match(missingOverleaf.next, /mcp:setup -- overleaf --mode local --env-file \.env\.local/);
+  const missingDoctor = await doctorMcpServers(target, { env: { PATH: "", OVERLEAF_TOKEN: "", PROJECT_ID: "" } });
+  assert.equal(missingDoctor.ok, false);
+  assert.match(missingDoctor.errors.join("\n"), /overleaf: enabled but missing from generated MCP snippet/);
+  assert.match(missingDoctor.errors.join("\n"), /NEXT: npm run mcp:setup -- overleaf --mode local --env-file \.env\.local/);
+  assert.match(missingDoctor.errors.join("\n"), /Missing env vars: OVERLEAF_TOKEN, PROJECT_ID/);
 
   const plan = await setupMcpServer(target, "overleaf", {
     mode: "local",
@@ -634,10 +640,12 @@ test("Overleaf lifecycle reports missing setup, writes a non-secret wrapper, and
   const wrapper = await readFile(wrapperPath, "utf8");
   const launcher = await readFile(launcherPath, "utf8");
   const lock = await readCapabilityLock(target);
+  const snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/codex-mcp.json"), "utf8"));
 
   assert.equal(setup.ok, true);
   assert.ok(calls.some((call) => call.command.join(" ").includes("git clone")));
   assert.ok(calls.some((call) => call.command.join(" ").includes("uv sync")));
+  assert.ok(!calls.some((call) => call.command.join(" ").includes("codex mcp add")));
   assert.match(wrapper, /\.env\.local/);
   assert.match(wrapper, /run-overleaf-mcp\.mjs/);
   assert.doesNotMatch(wrapper, /\.\s+"\$ENV_FILE"|source|set -a/);
@@ -652,7 +660,9 @@ test("Overleaf lifecycle reports missing setup, writes a non-secret wrapper, and
   assert.equal(lock.mcp.overleaf.setup.server_path, ".academic-research/mcp/overleaf/server");
   assert.equal(lock.mcp.overleaf.selected_mode, "local");
   assert.equal(lock.mcp.overleaf.connection_mode, "manual-local");
+  assert.equal(snippet.mcpServers.overleaf.command, ".academic-research/mcp/overleaf/run-overleaf-mcp.sh");
   assert.doesNotMatch(JSON.stringify(lock), /secret-token|project-123/);
+  assert.doesNotMatch(JSON.stringify(snippet), /secret-token|project-123/);
 
   const ready = await getMcpLifecycleStatus(target, {
     env: { PATH: "", OVERLEAF_TOKEN: "secret-token", PROJECT_ID: "project-123" }
@@ -660,6 +670,47 @@ test("Overleaf lifecycle reports missing setup, writes a non-secret wrapper, and
   const readyOverleaf = ready.servers.find((server) => server.id === "overleaf");
   assert.equal(readyOverleaf.install, "ready");
   assert.equal(readyOverleaf.client, "codex:not-added");
+  const readyDoctor = await doctorMcpServers(target, {
+    env: { PATH: "", OVERLEAF_TOKEN: "secret-token", PROJECT_ID: "project-123" }
+  });
+  assert.equal(readyDoctor.ok, true);
+  assert.doesNotMatch(readyDoctor.errors.join("\n"), /missing from generated MCP snippet/);
+  assert.match(readyDoctor.warnings.join("\n"), /overleaf is setup locally but not registered in Codex/);
+});
+
+test("Overleaf setup with missing env does not record ready setup", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-overleaf-missing-env-"));
+  const target = join(root, "mcp-overleaf-missing-env-project");
+  await createProject({ target, title: "MCP Overleaf Missing Env Project", preset: "minimal", installSkills: false });
+  await enableMcpServers(target, ["overleaf"], { agent: "codex", mode: "local" });
+
+  const result = await setupMcpServer(target, "overleaf", {
+    mode: "local",
+    envFile: ".env.local",
+    env: { OVERLEAF_TOKEN: "", PROJECT_ID: "project-123" }
+  });
+  const lock = await readCapabilityLock(target);
+
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /OVERLEAF_TOKEN/);
+  assert.doesNotMatch(result.errors.join("\n"), /project-123/);
+  assert.equal(lock.mcp.overleaf?.setup?.status, undefined);
+});
+
+test("MCP doctor warns when local MCP setup is not ignored", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-mcp-gitignore-warning-"));
+  const target = join(root, "mcp-gitignore-warning-project");
+  await createProject({ target, title: "MCP Gitignore Warning Project", preset: "minimal", installSkills: false });
+  await enableMcpServers(target, ["overleaf"], { agent: "codex", mode: "local" });
+  await writeFile(join(target, ".gitignore"), "node_modules/\n", "utf8");
+
+  const warned = await doctorMcpServers(target, { env: { OVERLEAF_TOKEN: "", PROJECT_ID: "" } });
+  assert.match(warned.warnings.join("\n"), /\.academic-research\/mcp\/ is not ignored/);
+  assert.match(warned.warnings.join("\n"), /NEXT: add \.academic-research\/mcp\/ to \.gitignore/);
+
+  await writeFile(join(target, ".gitignore"), "node_modules/\n.academic-research/mcp/\n", "utf8");
+  const clean = await doctorMcpServers(target, { env: { OVERLEAF_TOKEN: "", PROJECT_ID: "" } });
+  assert.doesNotMatch(clean.warnings.join("\n"), /\.academic-research\/mcp\/ is not ignored/);
 });
 
 test("dotenv parser keeps shell-sensitive Overleaf values literal", async () => {

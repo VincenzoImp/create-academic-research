@@ -8,7 +8,9 @@ Use this path for the first working session in a new research repository.
 npm install
 npm run doctor
 npm run update
-npm run setup
+npm run update -- --apply
+npm run setup -- --env-file .env.local
+npm run doctor
 ```
 
 `doctor` checks required files and structural contracts. `update` uses
@@ -16,7 +18,9 @@ npm run setup
 `-- --apply`. Safe scaffold files are tracked in
 `.academic-research/managed-files.json`; locally edited files are skipped
 instead of overwritten. `setup` prints the active skill preset, installed skill
-count, enabled MCP records, and next commands without changing files.
+count, enabled MCP records, and next commands. With `-- --env-file .env.local`,
+it can complete safe project-local MCP setup such as the Overleaf wrapper and
+generated snippet. It does not register global MCP clients.
 
 If an older project still has a pinned `update` script, run:
 

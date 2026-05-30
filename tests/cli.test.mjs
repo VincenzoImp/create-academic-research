@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import YAML from "yaml";
@@ -150,6 +150,60 @@ test("create-academic-research binary creates and validates a project", async ()
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function createLegacyOverleafProject(target) {
+  const create = spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--agent", "codex", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  assert.equal(create.status, 0, create.stderr + create.stdout);
+  await writeFile(
+    join(target, "configs/capabilities.yaml"),
+    YAML.stringify({
+      agent: "codex",
+      preset: "minimal",
+      scope: "project-local",
+      mcp_servers: ["arxiv", "dblp", "overleaf"]
+    }),
+    "utf8"
+  );
+  await writeFile(
+    join(target, "docs/agent/generated/codex-mcp.json"),
+    `${JSON.stringify({ mcpServers: { arxiv: {}, dblp: {} } }, null, 2)}\n`,
+    "utf8"
+  );
+  const packagePath = join(target, "package.json");
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+  packageJson.devDependencies["create-academic-research"] = "0.1.14";
+  packageJson.scripts.update = "npm exec --yes --package=create-academic-research@0.1.14 -- academic-research update";
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  await rm(join(target, ".academic-research/managed-files.json"), { force: true });
+}
+
+async function writeFakeOverleafSetupBins(parent) {
+  const bin = join(parent, "fake-bin");
+  await mkdir(bin, { recursive: true });
+  const fakeGit = join(bin, "git");
+  const fakeUv = join(bin, "uv");
+  await writeFile(
+    fakeGit,
+    [
+      "#!/usr/bin/env node",
+      "import { mkdirSync, writeFileSync } from 'node:fs';",
+      "import { join } from 'node:path';",
+      "const destination = process.argv.at(-1);",
+      "mkdirSync(join(destination, 'src'), { recursive: true });",
+      "writeFileSync(join(destination, 'src/main.py'), 'print(\"fake overleaf mcp\")\\n');",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  await writeFile(fakeUv, "#!/usr/bin/env node\nprocess.exit(0);\n", "utf8");
+  await chmod(fakeGit, 0o755);
+  await chmod(fakeUv, 0o755);
+  return bin;
 }
 
 test("academic-research setup prints project onboarding status without changing files", async () => {
@@ -376,6 +430,108 @@ test("academic-research update --apply is idempotent after legacy skipped files"
   assert.doesNotMatch(second.stdout, /update\t\.academic-research\/managed-files\.json/);
   assert.doesNotMatch(second.stdout, /local edits detected/);
   assert.equal(after, before);
+});
+
+test("academic-research update guides legacy Overleaf projects without running setup", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-update-legacy-overleaf-"));
+  const target = join(temp, "cli-update-legacy-overleaf-project");
+  await createLegacyOverleafProject(target);
+
+  const first = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "update", "--apply", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const packageJson = JSON.parse(await readFile(join(target, "package.json"), "utf8"));
+  const manifestPath = join(target, ".academic-research/managed-files.json");
+  const before = await readFile(manifestPath, "utf8");
+  const doctor = spawnSync(process.execPath, ["dist/bin/academic-research.js", "doctor", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  const second = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "update", "--apply", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const after = await readFile(manifestPath, "utf8");
+
+  assert.equal(first.status, 0, first.stderr + first.stdout);
+  assert.equal(packageJson.devDependencies["create-academic-research"], packageVersion);
+  assert.equal(
+    packageJson.scripts.update,
+    "npm exec --yes --package=create-academic-research@latest -- academic-research update"
+  );
+  assert.match(first.stdout, /npm run setup -- --env-file \.env\.local/);
+  assert.match(first.stdout, /npm run doctor/);
+  await assert.rejects(stat(join(target, ".academic-research/mcp")));
+  assert.equal(doctor.status, 1, doctor.stderr + doctor.stdout);
+  assert.match(doctor.stderr, /overleaf: enabled but missing from generated MCP snippet/);
+  assert.match(doctor.stderr, /NEXT: npm run mcp:setup -- overleaf --mode local --env-file \.env\.local/);
+  assert.match(doctor.stderr, /Missing env vars: OVERLEAF_TOKEN, PROJECT_ID/);
+  assert.equal(second.status, 0, second.stderr + second.stdout);
+  assert.match(second.stdout, /No managed file changes/);
+  assert.doesNotMatch(second.stdout, /update\t\.academic-research\/managed-files\.json/);
+  assert.equal(after, before);
+});
+
+test("academic-research setup completes Overleaf project-local setup from an env file", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-setup-overleaf-friendly-"));
+  const target = join(temp, "cli-setup-overleaf-friendly-project");
+  await createLegacyOverleafProject(target);
+  const update = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "update", "--apply", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  assert.equal(update.status, 0, update.stderr + update.stdout);
+  const envFile = join(temp, "overleaf.env");
+  const tokenName = "OVERLEAF_" + "TOKEN";
+  const projectName = "PROJECT_" + "ID";
+  const localSecretValue = "local-" + "fixture";
+  const localProjectValue = "project-" + "fixture";
+  await writeFile(envFile, `${tokenName}=${localSecretValue}\n${projectName}=${localProjectValue}\n`, "utf8");
+  const fakeBin = await writeFakeOverleafSetupBins(temp);
+
+  const setup = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "setup", "--root", target, "--env-file", envFile],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${fakeBin}${delimiter}${process.env.PATH ?? ""}` }
+    }
+  );
+  const lock = JSON.parse(await readFile(join(target, "docs/agent/capability-lock.json"), "utf8"));
+  const snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/codex-mcp.json"), "utf8"));
+  const doctor = spawnSync(process.execPath, ["dist/bin/academic-research.js", "doctor", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const second = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "setup", "--root", target, "--env-file", envFile],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${fakeBin}${delimiter}${process.env.PATH ?? ""}` }
+    }
+  );
+
+  assert.equal(setup.status, 0, setup.stderr + setup.stdout);
+  assert.match(setup.stdout, /Completed project-local MCP setup: overleaf/);
+  assert.match(setup.stdout, /npm run mcp:client:add -- overleaf --agent codex/);
+  assert.equal(lock.mcp.overleaf.setup.wrapper_path, ".academic-research/mcp/overleaf/run-overleaf-mcp.sh");
+  assert.equal(snippet.mcpServers.overleaf.command, ".academic-research/mcp/overleaf/run-overleaf-mcp.sh");
+  assert.doesNotMatch(JSON.stringify(lock), new RegExp(`${localSecretValue}|${localProjectValue}`));
+  assert.doesNotMatch(JSON.stringify(snippet), new RegExp(`${localSecretValue}|${localProjectValue}`));
+  assert.doesNotMatch(setup.stdout + setup.stderr, new RegExp(`${localSecretValue}|${localProjectValue}`));
+  assert.equal(doctor.status, 0, doctor.stderr + doctor.stdout);
+  assert.doesNotMatch(doctor.stderr, /missing from generated MCP snippet/);
+  assert.match(doctor.stderr, /overleaf is setup locally but not registered in Codex/);
+  assert.equal(second.status, 0, second.stderr + second.stdout);
+  assert.doesNotMatch(second.stdout, /Completed project-local MCP setup: overleaf/);
 });
 
 test("academic-research init preserves existing files while adding the research contract", async () => {

@@ -227,20 +227,16 @@ export async function readCapabilities(root: string): Promise<CapabilityState> {
 }
 
 export async function writeCapabilities(root: string, state: Partial<CapabilityState>): Promise<void> {
-  const mcpServers = [...(state.mcp_servers ?? [])];
-  const next: CapabilityState = {
-    agent: assertKnownAgentTarget(state.agent),
-    preset: state.preset ?? "default",
-    scope: "project-local",
-    mcp_servers: mcpServers,
-    mcp_server_modes: normalizeMcpServerModeMap(state.mcp_server_modes ?? {}, mcpServers),
-    mcp_server_remote: normalizeMcpServerRemoteMap(state.mcp_server_remote ?? {}, mcpServers, state.mcp_server_modes ?? {})
-  };
-  await writeFile(join(root, "configs/capabilities.yaml"), YAML.stringify(serializeCapabilityState(next)), "utf8");
-  await writeCapabilityProfile(root, next);
-  await writeMcpSetup(root, next);
-  await writeMcpSnippet(root, next);
+  const next = normalizeCapabilityWriteState(state);
+  await writeCapabilityConfig(root, next);
+  await writeCapabilityGeneratedFiles(root, next);
   await appendCapabilityLog(root, next);
+}
+
+export async function writeCapabilityGeneratedFiles(root: string, state: CapabilityState): Promise<void> {
+  await writeCapabilityProfile(root, state);
+  await writeMcpSetup(root, state);
+  await writeMcpSnippet(root, state);
 }
 
 export async function writeMcpEnvironmentExample(root: string): Promise<void> {
@@ -589,6 +585,17 @@ export async function doctorMcpServers(root: string, options: McpDoctorOptions =
     }
   }
 
+  const lock = await readCapabilityLock(root);
+  const hasManualLocal = enabled.some((name) => {
+    if (!AGENT_STACK.mcp_servers[name]) return false;
+    const server = resolveMcpServerForState(state, name, modes[name]);
+    return server.connection_mode === "manual-local";
+  });
+  if (hasManualLocal) {
+    const gitignoreWarning = await mcpLocalSetupGitignoreWarning(root);
+    if (gitignoreWarning) warnings.push(gitignoreWarning);
+  }
+
   for (const name of enabled) {
     const server = resolveMcpServerForState(state, name, modes[name]);
     if (!server) continue;
@@ -606,7 +613,6 @@ export async function doctorMcpServers(root: string, options: McpDoctorOptions =
       warnings.push(`${name}: requires local service: ${server.local_service}`);
     }
     if (server.connection_mode === "manual-local") {
-      const lock = await readCapabilityLock(root);
       if (lock.mcp[name]?.setup?.status !== "ready") {
         warnings.push(`${name}: local setup not complete; run npm run mcp:setup -- ${name} --mode local --env-file .env.local`);
       }
@@ -616,7 +622,16 @@ export async function doctorMcpServers(root: string, options: McpDoctorOptions =
       continue;
     }
     if (!generatedServers.has(name)) {
-      errors.push(`${name}: enabled but missing from generated MCP snippet`);
+      errors.push(mcpMissingGeneratedSnippetMessage(name, server, env));
+      continue;
+    }
+    if (
+      state.agent === "codex" &&
+      server.connection_mode === "manual-local" &&
+      lock.mcp[name]?.setup?.status === "ready" &&
+      lock.mcp[name]?.clients?.codex?.status !== "registered"
+    ) {
+      warnings.push(`${name} is setup locally but not registered in Codex\nNEXT: npm run mcp:client:add -- ${name} --agent codex`);
     }
   }
 
@@ -1036,8 +1051,15 @@ export async function setupMcpServer(
   runner: Runner = defaultRunner
 ): Promise<McpSetupResult> {
   assertKnownMcpServers([serverName]);
-  const mode = normalizeMcpMode(serverName, options.mode);
-  const server = resolveMcpServer(serverName, mode);
+  const state = await readCapabilities(root);
+  const mode = normalizeMcpMode(serverName, options.mode ?? state.mcp_server_modes?.[serverName]);
+  const nextState = normalizeCapabilityWriteState({
+    ...state,
+    mcp_servers: dedupe([...(state.mcp_servers ?? []), serverName]),
+    mcp_server_modes: { ...(state.mcp_server_modes ?? {}), [serverName]: mode },
+    mcp_server_remote: state.mcp_server_remote ?? {}
+  });
+  const server = resolveMcpServerForState(nextState, serverName, mode);
   if (serverName !== "overleaf") {
     const commands = server.setup_commands.length > 0 ? server.setup_commands : [];
     return {
@@ -1061,6 +1083,7 @@ export async function setupMcpServer(
     `cd ${paths.relativeServer} && uv sync`,
     `write wrapper ${paths.relativeWrapper}`
   ];
+  const gitignoreWarning = await mcpLocalSetupGitignoreWarning(root);
   if (missing.length > 0) {
     return {
       ok: false,
@@ -1068,7 +1091,7 @@ export async function setupMcpServer(
       mode,
       commands,
       created: [],
-      warnings: [],
+      warnings: gitignoreWarning ? [gitignoreWarning] : [],
       errors: [`overleaf: missing required environment variable(s): ${missing.join(", ")}`],
       next: [`fill ${missing.join(", ")} in ${options.envFile ?? ".env.local"}`]
     };
@@ -1080,7 +1103,7 @@ export async function setupMcpServer(
       mode,
       commands,
       created: [],
-      warnings: [],
+      warnings: gitignoreWarning ? [gitignoreWarning] : [],
       errors: [],
       next: [`run npm run mcp:setup -- overleaf --mode local --env-file ${options.envFile ?? ".env.local"}`]
     };
@@ -1103,10 +1126,12 @@ export async function setupMcpServer(
       status: "ready",
       server_path: paths.relativeServer,
       wrapper_path: paths.relativeWrapper,
-      env_file: options.envFile ? toPosix(relative(root, resolve(root, options.envFile))) : ".env.local",
+      env_file: mcpEnvFileRecord(root, options.envFile),
       updated_at: nowIso()
     };
   });
+  await writeCapabilityConfig(root, nextState);
+  await writeCapabilityGeneratedFiles(root, nextState);
 
   return {
     ok: true,
@@ -1114,7 +1139,7 @@ export async function setupMcpServer(
     mode,
     commands,
     created: [paths.relativeWrapper, paths.relativeLauncher],
-    warnings: [],
+    warnings: gitignoreWarning ? [gitignoreWarning] : [],
     errors: [],
     next: [
       "npm run mcp:client:add -- overleaf --agent codex",
@@ -1217,6 +1242,22 @@ function serializeCapabilityState(state: CapabilityState): Record<string, unknow
   if (Object.keys(state.mcp_server_modes).length > 0) serialized.mcp_server_modes = state.mcp_server_modes;
   if (Object.keys(state.mcp_server_remote).length > 0) serialized.mcp_server_remote = state.mcp_server_remote;
   return serialized;
+}
+
+function normalizeCapabilityWriteState(state: Partial<CapabilityState>): CapabilityState {
+  const mcpServers = [...(state.mcp_servers ?? [])];
+  return {
+    agent: assertKnownAgentTarget(state.agent),
+    preset: state.preset ?? "default",
+    scope: "project-local",
+    mcp_servers: mcpServers,
+    mcp_server_modes: normalizeMcpServerModeMap(state.mcp_server_modes ?? {}, mcpServers),
+    mcp_server_remote: normalizeMcpServerRemoteMap(state.mcp_server_remote ?? {}, mcpServers, state.mcp_server_modes ?? {})
+  };
+}
+
+async function writeCapabilityConfig(root: string, state: CapabilityState): Promise<void> {
+  await writeFile(join(root, "configs/capabilities.yaml"), YAML.stringify(serializeCapabilityState(state)), "utf8");
 }
 
 function normalizeMcpServerModeMap(modes: Record<string, string>, servers: string[]): Record<string, string> {
@@ -1404,6 +1445,22 @@ function mcpModeKeyLabelForAction(mode: string): string {
   return "local";
 }
 
+export function mcpMissingGeneratedSnippetMessage(
+  serverName: string,
+  server: ResolvedMcpServer,
+  env: NodeJS.ProcessEnv = process.env
+): string {
+  const lines = [`${serverName}: enabled but missing from generated MCP snippet`];
+  if (server.connection_mode === "manual-local") {
+    lines.push(`NEXT: npm run mcp:setup -- ${serverName} --mode local --env-file .env.local`);
+    const missing = server.required_env.filter((name) => !envHasValue(env, name));
+    if (missing.length > 0) lines.push(`Missing env vars: ${missing.join(", ")}`);
+  } else {
+    lines.push("NEXT: npm run update -- --apply");
+  }
+  return lines.join("\n");
+}
+
 function mcpInstallSkip(serverName: string, server: ResolvedMcpServer): McpSkippedTool {
   if (server.connection_mode === "manual-local") {
     return {
@@ -1523,6 +1580,39 @@ function ensureLockMcpEntry(lock: CapabilityLock, serverName: string, server: Re
   entry.connection_mode = server.connection_mode;
   lock.mcp[serverName] = entry;
   return entry;
+}
+
+export async function mcpLocalSetupGitignoreWarning(root: string): Promise<string | undefined> {
+  if (await mcpLocalSetupPathIsIgnored(root)) return undefined;
+  return [
+    ".academic-research/mcp/ is not ignored",
+    "NEXT: add .academic-research/mcp/ to .gitignore before committing local MCP server files"
+  ].join("\n");
+}
+
+async function mcpLocalSetupPathIsIgnored(root: string): Promise<boolean> {
+  try {
+    const gitignore = await readFile(join(root, ".gitignore"), "utf8");
+    return gitignore
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .some((line) => {
+        const normalized = line.replaceAll("\\", "/").replace(/^\/+/, "");
+        return normalized === ".academic-research/mcp/" || normalized === ".academic-research/mcp";
+      });
+  } catch (error) {
+    if (isMissingFileError(error)) return false;
+    throw error;
+  }
+}
+
+function mcpEnvFileRecord(root: string, envFile: string | undefined): string {
+  if (!envFile) return ".env.local";
+  const resolved = resolve(root, envFile);
+  const relativePath = relative(root, resolved);
+  if (!relativePath.startsWith("..") && !isAbsolute(relativePath)) return toPosix(relativePath);
+  return ".env.local";
 }
 
 function overleafPaths(root: string): {

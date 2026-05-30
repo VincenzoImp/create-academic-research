@@ -69,6 +69,9 @@ credentialed local integrations should use a wrapper that loads `.env.local` at
 runtime. Overleaf client registration is intentionally blocked until
 `npm run mcp:setup -- overleaf --mode local --env-file .env.local` has created
 the wrapper and recorded non-secret setup facts.
+After a legacy scaffold update, `npm run setup -- --env-file .env.local` can
+perform that project-local setup and refresh the generated snippet; global
+client registration remains explicit.
 
 Custom remote endpoints may use a stored URL or a URL env var name. Bearer token
 support stores only the token env var name. Codex automatic registration
