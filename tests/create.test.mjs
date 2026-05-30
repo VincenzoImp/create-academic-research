@@ -598,6 +598,73 @@ test("updateProject migrates legacy projects without a managed manifest conserva
   assert.doesNotMatch(JSON.stringify(manifest), /LEGACY_LOCAL|secret|token|api[_-]?key/i);
 });
 
+test("updateProject is idempotent after legacy migration with skipped files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-legacy-idempotent-"));
+  const target = join(root, "legacy-idempotent-project");
+  await createProject({
+    target,
+    title: "Legacy Idempotent Project",
+    preset: "minimal",
+    installSkills: false
+  });
+  await rm(join(target, ".academic-research/managed-files.json"), { force: true });
+  await writeFile(join(target, ".env.example"), "LEGACY_LOCAL=1\n", "utf8");
+  await writeFile(join(target, "docs/agent/mcp-setup.md"), "LEGACY_SETUP=1\n", "utf8");
+
+  const first = await updateProject(target, { apply: true });
+  const manifestPath = join(target, ".academic-research/managed-files.json");
+  const before = await readFile(manifestPath, "utf8");
+  const beforeManifest = JSON.parse(before);
+  const second = await updateProject(target, { apply: true });
+  const after = await readFile(manifestPath, "utf8");
+  const doctor = await doctorProject(target);
+
+  assert.ok(first.changes.some((change) => change.path === ".academic-research/managed-files.json"));
+  assert.equal(beforeManifest.files[".env.example"].reason, "unknown legacy content");
+  assert.equal(beforeManifest.files["docs/agent/mcp-setup.md"].reason, "unknown legacy content");
+  assert.deepEqual(second.changes, []);
+  assert.equal(after, before);
+  assert.ok(!doctor.warnings.some((warning) => warning.includes(".env.example has local edits")));
+  assert.ok(!doctor.warnings.some((warning) => warning.includes("docs/agent/mcp-setup.md has local edits")));
+});
+
+test("updateProject reclassifies only changed skipped legacy files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-legacy-edited-"));
+  const target = join(root, "legacy-edited-project");
+  await createProject({
+    target,
+    title: "Legacy Edited Project",
+    preset: "minimal",
+    installSkills: false
+  });
+  await rm(join(target, ".academic-research/managed-files.json"), { force: true });
+  await writeFile(join(target, ".env.example"), "LEGACY_LOCAL=1\n", "utf8");
+  await writeFile(join(target, "docs/agent/mcp-setup.md"), "LEGACY_SETUP=1\n", "utf8");
+
+  await updateProject(target, { apply: true });
+  const manifestPath = join(target, ".academic-research/managed-files.json");
+  const beforeManifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const unchangedSetupRecord = beforeManifest.files["docs/agent/mcp-setup.md"];
+
+  await writeFile(join(target, ".env.example"), "LEGACY_LOCAL=2\n", "utf8");
+
+  const result = await updateProject(target, { apply: true });
+  const afterManifest = JSON.parse(await readFile(manifestPath, "utf8"));
+
+  assert.ok(
+    result.changes.some(
+      (change) =>
+        change.path === ".env.example" &&
+        change.action === "skip" &&
+        change.reason === "local edits detected"
+    )
+  );
+  assert.ok(result.changes.some((change) => change.path === ".academic-research/managed-files.json"));
+  assert.ok(!result.changes.some((change) => change.path === "docs/agent/mcp-setup.md"));
+  assert.equal(afterManifest.files[".env.example"].reason, "local edits detected");
+  assert.deepEqual(afterManifest.files["docs/agent/mcp-setup.md"], unchangedSetupRecord);
+});
+
 test("initProject bootstraps an existing repository without overwriting local files", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-init-"));
   const target = join(root, "existing-repo");

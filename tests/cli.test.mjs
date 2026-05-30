@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -337,6 +337,45 @@ test("academic-research update --apply leaves clean generated projects unchanged
     assert.equal(status.status, 0, status.stderr + status.stdout);
     assert.equal(status.stdout, "");
   }
+});
+
+test("academic-research update --apply is idempotent after legacy skipped files", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-update-legacy-idempotent-"));
+  const target = join(temp, "cli-update-legacy-idempotent-project");
+  const create = spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  assert.equal(create.status, 0, create.stderr + create.stdout);
+  await rm(join(target, ".academic-research/managed-files.json"), { force: true });
+  await writeFile(join(target, ".env.example"), "LEGACY_LOCAL=1\n", "utf8");
+
+  const first = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "update", "--apply", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const manifestPath = join(target, ".academic-research/managed-files.json");
+  const before = await readFile(manifestPath, "utf8");
+  const beforeManifest = JSON.parse(before);
+
+  const second = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "update", "--apply", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const after = await readFile(manifestPath, "utf8");
+
+  assert.equal(first.status, 0, first.stderr + first.stdout);
+  assert.match(first.stdout, /^create\t\.academic-research\/managed-files\.json/m);
+  assert.match(first.stdout, /^skip\t\.env\.example\tunknown legacy content/m);
+  assert.equal(beforeManifest.files[".env.example"].reason, "unknown legacy content");
+  assert.equal(second.status, 0, second.stderr + second.stdout);
+  assert.match(second.stdout, /No managed file changes/);
+  assert.doesNotMatch(second.stdout, /update\t\.academic-research\/managed-files\.json/);
+  assert.doesNotMatch(second.stdout, /local edits detected/);
+  assert.equal(after, before);
 });
 
 test("academic-research init preserves existing files while adding the research contract", async () => {

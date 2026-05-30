@@ -793,17 +793,18 @@ async function stageManagedFiles(
       continue;
     }
 
-    options.changes.push({
-      path: relativePath,
-      action: "skip",
-      reason: manifest ? "local edits detected" : "unknown legacy content"
-    });
+    if (isUnchangedSkippedManagedRecord(existing, currentChecksum, generatedChecksum)) {
+      nextManifest.files[relativePath] = existing;
+      continue;
+    }
+    const reason = skippedManagedRecordReason(existing, manifest !== undefined, currentChecksum);
+    options.changes.push({ path: relativePath, action: "skip", reason });
     nextManifest.files[relativePath] = stableManagedRecord(existing, {
       path: relativePath,
       policy: spec.policy,
       generated_checksum: generatedChecksum,
       current_checksum: currentChecksum,
-      reason: manifest ? "local edits detected" : "unknown legacy content"
+      reason
     });
   }
 
@@ -900,6 +901,27 @@ function stableManagedRecord(
 ): ManagedFileRecord {
   if (existing && managedRecordSemanticallyEqual(existing, candidate)) return existing;
   return { ...candidate, updated_at: nowIso() };
+}
+
+function isUnchangedSkippedManagedRecord(
+  record: ManagedFileRecord | undefined,
+  currentChecksum: string | undefined,
+  generatedChecksum: string
+): record is ManagedFileRecord {
+  return Boolean(
+    record?.reason &&
+      record.current_checksum === currentChecksum &&
+      record.generated_checksum === generatedChecksum
+  );
+}
+
+function skippedManagedRecordReason(
+  existing: ManagedFileRecord | undefined,
+  hasManifest: boolean,
+  currentChecksum: string | undefined
+): string {
+  if (existing?.reason && existing.current_checksum === currentChecksum) return existing.reason;
+  return hasManifest ? "local edits detected" : "unknown legacy content";
 }
 
 function managedManifestSemanticallyEqual(
@@ -1048,6 +1070,7 @@ async function validateManagedManifestDrift(root: string, warnings: string[]): P
     if (current === spec.content) continue;
     const checksum = checksumText(current);
     const record = manifest?.files[relativePath];
+    if (isUnchangedSkippedManagedRecord(record, checksum, checksumText(spec.content))) continue;
     if (canSafelyUpdateManagedFile(record, checksum)) {
       warnings.push(`${relativePath} is not current; run npm run update -- --apply`);
     } else {
