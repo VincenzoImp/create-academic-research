@@ -168,6 +168,86 @@ test("skill install records the active preset and agent after a successful insta
   assert.match(profile, /Preset: `minimal`/);
 });
 
+test("skill install writes non-secret capability lock facts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-capability-lock-"));
+  const target = join(root, "skills-capability-lock-project");
+  await createProject({ target, title: "Skills Capability Lock Project", preset: "default", installSkills: false });
+
+  await installSkills(target, "default", { agent: "codex" }, {
+    run: async () => ({ code: 0 })
+  });
+
+  const lock = await readCapabilityLock(target);
+  assert.equal(lock.version, 1);
+  assert.equal(lock.generator.name, "create-academic-research");
+  assert.equal(lock.skills.preset, "default");
+  assert.equal(lock.skills.agent, "codex");
+  assert.equal(lock.skills.last_action, "install");
+  assert.equal(lock.skills.status, "ready");
+  assert.equal(lock.skills.sources.academic_research.source, "VincenzoImp/academic-research-skills");
+  assert.ok(lock.skills.sources.academic_research.skill_ids.includes("source-ingestion"));
+  assert.ok(lock.skills.sources.academic_research.skill_ids.includes("sota-literature-review"));
+  assert.equal(lock.skills.sources.academic_research.action, "install");
+  assert.doesNotMatch(JSON.stringify(lock), /secret-token|api[_-]?key|cookie|session/i);
+});
+
+test("preset skill lock records skill ids for each installed source", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-source-lock-"));
+  const target = join(root, "skills-source-lock-project");
+  await createProject({ target, title: "Skills Source Lock Project", preset: "enhanced", installSkills: false });
+
+  await installSkills(target, "enhanced", {}, {
+    run: async () => ({ code: 0 })
+  });
+
+  const lock = await readCapabilityLock(target);
+  assert.ok(lock.skills.sources.academic_research.skill_ids.includes("source-ingestion"));
+  assert.ok(lock.skills.sources.superpowers.skill_ids.includes("test-driven-development"));
+  assert.ok(lock.skills.sources.anthropics.skill_ids.includes("frontend-design"));
+  assert.ok(lock.skills.sources.docling.skill_ids.includes("docling"));
+  assert.doesNotMatch(JSON.stringify(lock), /secret-token|api[_-]?key|cookie|session/i);
+});
+
+test("explicit skill install writes explicit skill facts to capability lock", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-explicit-lock-"));
+  const target = join(root, "skills-explicit-lock-project");
+  await createProject({ target, title: "Skills Explicit Lock Project", preset: "default", installSkills: false });
+
+  await installSkillIds(target, ["source-ingestion"], { agent: "claude-code" }, {
+    run: async () => ({ code: 0 })
+  });
+
+  const lock = await readCapabilityLock(target);
+  assert.deepEqual(lock.skills.explicit_skill_ids, ["source-ingestion"]);
+  assert.equal(lock.skills.agent, "claude-code");
+  assert.equal(lock.skills.skills["source-ingestion"].source, "VincenzoImp/academic-research-skills");
+  assert.equal(lock.skills.skills["source-ingestion"].action, "install");
+  assert.equal(lock.skills.skills["source-ingestion"].status, "ready");
+});
+
+test("skills update and remove maintain non-secret capability lock state", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-update-lock-"));
+  const target = join(root, "skills-update-lock-project");
+  await createProject({ target, title: "Skills Update Lock Project", preset: "default", installSkills: false });
+  await installSkillIds(target, ["source-ingestion"], {}, {
+    run: async () => ({ code: 0 })
+  });
+
+  await updateSkills(target, { run: async () => ({ code: 0 }) });
+  let lock = await readCapabilityLock(target);
+  assert.equal(lock.skills.last_action, "update");
+  assert.equal(lock.skills.status, "updated");
+  assert.equal(lock.skills.skills["source-ingestion"].action, "update");
+
+  await removeSkills(target, ["source-ingestion"], { run: async () => ({ code: 0 }) });
+  lock = await readCapabilityLock(target);
+  assert.equal(lock.skills.last_action, "remove");
+  assert.equal(lock.skills.status, "removed");
+  assert.equal(lock.skills.skills["source-ingestion"].status, "removed");
+  assert.equal(lock.skills.skills["source-ingestion"].action, "remove");
+  assert.doesNotMatch(JSON.stringify(lock), /secret-token|api[_-]?key|cookie|session/i);
+});
+
 test("skill install normalizes aliases and validates agent targets before running commands", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-skills-agent-target-"));
   const target = join(root, "skills-agent-target-project");
@@ -251,6 +331,19 @@ test("skill removal prunes the project lock so updates do not restore removed sk
 
   const lock = JSON.parse(await readFile(join(target, "skills-lock.json"), "utf8"));
   assert.deepEqual(Object.keys(lock.skills), ["sota-literature-review"]);
+});
+
+test("old MCP-only capability locks remain valid", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-old-capability-lock-"));
+  const target = join(root, "old-capability-lock-project");
+  await createProject({ target, title: "Old Capability Lock Project", preset: "default", installSkills: false });
+  await writeFile(join(target, "docs/agent/capability-lock.json"), '{\n  "version": 1,\n  "mcp": {}\n}\n', "utf8");
+
+  const lock = await readCapabilityLock(target);
+
+  assert.equal(lock.version, 1);
+  assert.deepEqual(lock.mcp, {});
+  assert.deepEqual(lock.skills.skills, {});
 });
 
 test("capability commands do not silently overwrite invalid capability state", async () => {

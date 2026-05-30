@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -41,10 +42,23 @@ test("createProject generates a personalized research project without global sid
   assert.deepEqual(capabilities.mcp_servers, ["arxiv"]);
   assert.equal(packageJson.name, "paper-project");
   assert.equal(packageJson.devDependencies["create-academic-research"], packageVersion);
+  assert.match(packageJson.scripts.update, /--package=create-academic-research@latest -- academic-research update$/);
+  assert.match(
+    packageJson.scripts.doctor,
+    new RegExp(`--package=create-academic-research@${escapeRegExp(packageVersion)} -- academic-research doctor$`)
+  );
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));
   await stat(join(target, "docs/agent/generated/mcp.json"));
+  const manifest = JSON.parse(await readFile(join(target, ".academic-research/managed-files.json"), "utf8"));
+  assert.equal(manifest.generator.name, "create-academic-research");
+  assert.equal(manifest.generator.version, packageVersion);
+  assert.equal(manifest.files[".env.example"].policy, "managed");
+  assert.equal(manifest.files["docs/agent/generated/mcp.json"].policy, "generated");
+  assert.equal(manifest.files["wiki/log.md"].policy, "append-only");
+  assert.equal(manifest.files["README.md"].policy, "user-owned");
+  assert.doesNotMatch(JSON.stringify(manifest), /secret|token|api[_-]?key|cookie|session/i);
   await stat(join(target, ".gitignore"));
   await assert.rejects(stat(join(target, "_gitignore")));
   await stat(join(target, ".env.example"));
@@ -158,6 +172,13 @@ test("generated package scripts all resolve the lifecycle binary through the gen
   assert.deepEqual(Object.keys(packageJson.scripts).sort(), Object.keys(templatePackageJson.scripts).sort());
 
   for (const [scriptName, generatedCommand] of Object.entries(packageJson.scripts)) {
+    if (scriptName === "update") {
+      assert.equal(
+        generatedCommand,
+        "npm exec --yes --package=create-academic-research@latest -- academic-research update"
+      );
+      continue;
+    }
     assert.match(
       generatedCommand,
       new RegExp(
@@ -184,6 +205,18 @@ test("built package bin files are executable for local file package installs", a
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+async function rewriteManifestEntry(root, relativePath, content) {
+  const manifestPath = join(root, ".academic-research/managed-files.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.files[relativePath].generated_checksum = `sha256:${sha256(content)}`;
+  manifest.files[relativePath].baseline_checksum = `sha256:${sha256(content)}`;
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
 test("createProject writes agent-specific MCP snippets when requested", async () => {
@@ -407,8 +440,28 @@ test("doctorProject reports stale lifecycle commands and managed-file drift", as
   assert.ok(result.errors.some((error) => error.includes("package.json script doctor uses stale")));
   assert.ok(result.errors.some((error) => error.includes("package.json script mcp:env uses stale")));
   assert.ok(result.warnings.some((warning) => warning.includes("create-academic-research 0.1.12 is older")));
-  assert.ok(result.warnings.some((warning) => warning.includes(".env.example is not current")));
+  assert.ok(result.warnings.some((warning) => warning.includes("npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply")));
+  assert.ok(result.warnings.some((warning) => warning.includes(".env.example has local edits")));
   assert.ok(result.warnings.some((warning) => warning.includes("stale command reference in README.md")));
+});
+
+test("doctorProject uses the managed manifest for drift warnings", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-doctor-manifest-"));
+  const target = join(root, "doctor-manifest-project");
+  await createProject({
+    target,
+    title: "Doctor Manifest Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await writeFile(join(target, ".env.example"), "LOCAL_EDIT=1\n", "utf8");
+
+  const result = await doctorProject(target);
+
+  assert.equal(result.ok, true);
+  assert.ok(result.warnings.some((warning) => warning.includes(".env.example has local edits")));
+  assert.ok(result.warnings.some((warning) => warning.includes("npm run update")));
 });
 
 test("updateProject previews and applies only managed project files", async () => {
@@ -424,35 +477,125 @@ test("updateProject previews and applies only managed project files", async () =
   const packagePath = join(target, "package.json");
   const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
   packageJson.scripts.doctor = "academic-research doctor";
+  packageJson.scripts.update = "npm exec --yes --package=create-academic-research@0.1.12 -- academic-research update";
   packageJson.devDependencies["create-academic-research"] = "0.1.12";
   await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
-  await writeFile(join(target, ".env.example"), "STALE=1\n", "utf8");
-  await writeFile(join(target, "configs/agent-stack.yaml"), "presets: {}\n", "utf8");
 
   const dryRun = await updateProject(target, { apply: false });
 
   assert.equal(dryRun.applied, false);
   assert.deepEqual(
     dryRun.changes.map((change) => change.path).sort(),
-    [".env.example", "configs/agent-stack.yaml", "package.json"].sort()
+    ["package.json"].sort()
   );
   assert.equal(JSON.parse(await readFile(packagePath, "utf8")).scripts.doctor, "academic-research doctor");
 
   const applied = await updateProject(target, { apply: true });
   const updatedPackage = JSON.parse(await readFile(packagePath, "utf8"));
-  const envExample = await readFile(join(target, ".env.example"), "utf8");
   const result = await doctorProject(target);
 
   assert.equal(applied.applied, true);
   assert.equal(updatedPackage.devDependencies["create-academic-research"], packageVersion);
+  assert.equal(
+    updatedPackage.scripts.update,
+    "npm exec --yes --package=create-academic-research@latest -- academic-research update"
+  );
   assert.match(
     updatedPackage.scripts.doctor,
     new RegExp(`^npm exec --yes --package=create-academic-research@${escapeRegExp(packageVersion)} -- academic-research doctor$`)
   );
-  assert.match(envExample, /^OPENALEX_API_KEY=/m);
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.warnings, []);
+});
+
+test("updateProject apply is idempotent for a clean generated project", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-idempotent-"));
+  const target = join(root, "update-idempotent-project");
+  await createProject({
+    target,
+    title: "Update Idempotent Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const manifestPath = join(target, ".academic-research/managed-files.json");
+  const before = await readFile(manifestPath, "utf8");
+  const result = await updateProject(target, { apply: true });
+  const after = await readFile(manifestPath, "utf8");
+
+  assert.equal(result.applied, true);
+  assert.deepEqual(result.changes, []);
+  assert.equal(after, before);
+});
+
+test("updateProject applies unchanged managed files and skips locally edited managed files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-manifest-"));
+  const target = join(root, "update-manifest-project");
+  await createProject({
+    target,
+    title: "Update Manifest Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const envPath = join(target, ".env.example");
+  const oldEnv = "OLD_GENERATED=1\n";
+  await writeFile(envPath, oldEnv, "utf8");
+  await rewriteManifestEntry(target, ".env.example", oldEnv);
+
+  const setupPath = join(target, "docs/agent/mcp-setup.md");
+  const locallyEdited = "local user edit\n";
+  await writeFile(setupPath, locallyEdited, "utf8");
+
+  const result = await updateProject(target, { apply: true });
+  const envExample = await readFile(envPath, "utf8");
+  const setup = await readFile(setupPath, "utf8");
+
+  assert.ok(result.changes.some((change) => change.path === ".env.example" && change.action === "update"));
+  assert.ok(
+    result.changes.some(
+      (change) => change.path === ".academic-research/managed-files.json" && change.action === "update"
+    )
+  );
+  assert.ok(
+    result.changes.some(
+      (change) =>
+        change.path === "docs/agent/mcp-setup.md" &&
+        change.action === "skip" &&
+        /local edits/.test(change.reason ?? "")
+    )
+  );
+  assert.match(envExample, /^OPENALEX_API_KEY=/m);
+  assert.equal(setup, locallyEdited);
+});
+
+test("updateProject migrates legacy projects without a managed manifest conservatively", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-legacy-manifest-"));
+  const target = join(root, "legacy-manifest-project");
+  await createProject({
+    target,
+    title: "Legacy Manifest Project",
+    preset: "minimal",
+    installSkills: false
+  });
+  await rm(join(target, ".academic-research/managed-files.json"), { force: true });
+  await writeFile(join(target, ".env.example"), "LEGACY_LOCAL=1\n", "utf8");
+  await rm(join(target, "docs/getting-started.md"), { force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  await assert.rejects(stat(join(target, ".academic-research/managed-files.json")));
+
+  const applied = await updateProject(target, { apply: true });
+  const manifest = JSON.parse(await readFile(join(target, ".academic-research/managed-files.json"), "utf8"));
+  const envExample = await readFile(join(target, ".env.example"), "utf8");
+
+  assert.ok(dryRun.changes.some((change) => change.path === ".academic-research/managed-files.json"));
+  assert.ok(applied.changes.some((change) => change.path === "docs/getting-started.md" && change.action === "create"));
+  assert.ok(applied.changes.some((change) => change.path === ".env.example" && change.action === "skip"));
+  assert.equal(envExample, "LEGACY_LOCAL=1\n");
+  assert.equal(manifest.files["docs/getting-started.md"].policy, "managed");
+  assert.doesNotMatch(JSON.stringify(manifest), /LEGACY_LOCAL|secret|token|api[_-]?key/i);
 });
 
 test("initProject bootstraps an existing repository without overwriting local files", async () => {

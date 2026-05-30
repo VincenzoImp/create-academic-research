@@ -11,10 +11,19 @@ npm run update
 npm run setup
 ```
 
-`doctor` checks required files and structural contracts. `update` is a dry-run
-unless you pass `-- --apply`. `setup` prints the active skill preset,
-installed skill count, enabled MCP records, and next commands without changing
-files.
+`doctor` checks required files and structural contracts. `update` uses
+`create-academic-research@latest` and is a dry-run unless you pass
+`-- --apply`. Safe scaffold files are tracked in
+`.academic-research/managed-files.json`; locally edited files are skipped
+instead of overwritten. `setup` prints the active skill preset, installed skill
+count, enabled MCP records, and next commands without changing files.
+
+If an older project still has a pinned `update` script, run:
+
+```bash
+npm exec --yes --package=create-academic-research@latest -- academic-research update --root .
+npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply
+```
 
 ## 2. Install Project-Local Skills
 

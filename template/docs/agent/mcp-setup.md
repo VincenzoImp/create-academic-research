@@ -19,6 +19,12 @@ local app, and manual setup.
 Use `npm run mcp:status -- --verbose` when you need technical mode names,
 snippet state, client registration state, and probe details.
 
+`configs/capabilities.yaml` records intended project capability state.
+`docs/agent/capability-lock.json` records non-secret observed setup facts for
+MCP setup/client/probe actions and project-local skill operations. The scaffold
+manifest at `.academic-research/managed-files.json` records non-secret
+checksums used by `npm run update` to avoid overwriting local edits.
+
 Mode labels:
 
 - local: your machine runs the MCP server when the client needs it.

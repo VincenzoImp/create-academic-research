@@ -151,6 +151,27 @@ For direct one-off invocation without the generated package scripts, use
 
 `academic-research update` is a dry-run by default. It reports managed project
 files that would change and writes them only with `--apply`.
+Generated projects intentionally keep `npm run update` on
+`create-academic-research@latest` so one command can preview migrations from an
+older scaffold. Other lifecycle scripts use the package version recorded in the
+project dev dependency for reproducibility.
+
+```bash
+npm run update
+npm run update -- --apply
+```
+
+Very old projects may still have a pinned `update` script. Use the latest
+generator directly in that case:
+
+```bash
+npm exec --yes --package=create-academic-research@latest -- academic-research update --root .
+npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply
+```
+
+Safe migrations are tracked in `.academic-research/managed-files.json`. The
+manifest stores non-secret checksums for generator-owned files. If a file was
+edited locally, update reports `skip` instead of overwriting it.
 
 `academic-research init` initializes an existing repository without overwriting
 existing files. It adds the research contract, merges lifecycle package scripts,
@@ -270,6 +291,10 @@ tool install; it deliberately does not launch stdio MCP servers.
 `mcp setup overleaf --mode local --env-file .env.local` creates a local wrapper
 that loads secrets at runtime and records non-secret facts in
 `docs/agent/capability-lock.json`.
+`configs/capabilities.yaml` records intended project capabilities. The
+capability lock records observed setup facts such as MCP setup/client/probe
+state and project-local skill install/update/remove actions. The lock is
+non-secret and should never contain API keys, tokens, cookies, or env values.
 Use `mcp smoke` for a non-launching readiness pass before wiring a client: it
 checks required env vars, manual/local-service status, and whether runtime
 commands are visible on `PATH`.

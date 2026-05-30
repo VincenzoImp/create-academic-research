@@ -145,6 +145,7 @@ test("create-academic-research binary creates and validates a project", async ()
     packageJson.scripts.doctor,
     new RegExp(`--package=create-academic-research@${escapeRegExp(packageVersion)}`)
   );
+  assert.match(packageJson.scripts.update, /--package=create-academic-research@latest -- academic-research update$/);
 });
 
 function escapeRegExp(value) {
@@ -265,6 +266,7 @@ test("academic-research update is a dry-run by default and applies with --apply"
   const packagePath = join(target, "package.json");
   const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
   packageJson.scripts.doctor = "academic-research doctor";
+  packageJson.scripts.update = "npm exec --yes --package=create-academic-research@0.1.12 -- academic-research update";
   packageJson.devDependencies["create-academic-research"] = "0.1.12";
   await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
 
@@ -290,6 +292,51 @@ test("academic-research update is a dry-run by default and applies with --apply"
     updated.scripts.doctor,
     new RegExp(`--package=create-academic-research@${escapeRegExp(packageVersion)} -- academic-research doctor`)
   );
+  assert.equal(
+    updated.scripts.update,
+    "npm exec --yes --package=create-academic-research@latest -- academic-research update"
+  );
+});
+
+test("academic-research update --apply leaves clean generated projects unchanged", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-update-clean-"));
+  const target = join(temp, "cli-update-clean-project");
+  const create = spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+  assert.equal(create.status, 0, create.stderr + create.stdout);
+
+  const manifestPath = join(target, ".academic-research/managed-files.json");
+  const before = await readFile(manifestPath, "utf8");
+  const gitAvailable = spawnSync("git", ["--version"], { encoding: "utf8" }).status === 0;
+  if (gitAvailable) {
+    assert.equal(spawnSync("git", ["init"], { cwd: target, encoding: "utf8" }).status, 0);
+    assert.equal(spawnSync("git", ["add", "."], { cwd: target, encoding: "utf8" }).status, 0);
+    const commit = spawnSync(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "baseline"],
+      { cwd: target, encoding: "utf8" }
+    );
+    assert.equal(commit.status, 0, commit.stderr + commit.stdout);
+  }
+
+  const apply = spawnSync(
+    process.execPath,
+    ["dist/bin/academic-research.js", "update", "--apply", "--root", target],
+    { cwd: root, encoding: "utf8" }
+  );
+  const after = await readFile(manifestPath, "utf8");
+
+  assert.equal(apply.status, 0, apply.stderr + apply.stdout);
+  assert.match(apply.stdout, /No managed file changes/);
+  assert.equal(after, before);
+  if (gitAvailable) {
+    const status = spawnSync("git", ["status", "--short"], { cwd: target, encoding: "utf8" });
+    assert.equal(status.status, 0, status.stderr + status.stdout);
+    assert.equal(status.stdout, "");
+  }
 });
 
 test("academic-research init preserves existing files while adding the research contract", async () => {

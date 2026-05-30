@@ -92,6 +92,18 @@ enable optional servers. `mcp install` runs only finite tool installation
 commands; runtime-only `uvx`/`npx` MCP servers may have no install step and are
 started later by the MCP client.
 
+`npm run update` always uses `create-academic-research@latest` so older
+projects can preview scaffold migrations with one command. It is a dry-run
+unless you pass `-- --apply`; safe managed files are tracked in
+`.academic-research/managed-files.json` and locally edited files are skipped
+instead of overwritten. If this project was created before the latest update
+script existed, run:
+
+```bash
+npm exec --yes --package=create-academic-research@latest -- academic-research update --root .
+npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply
+```
+
 `.env.example` is the committed MCP environment reference. Regenerate it with
 `npm run mcp:dotenv`. Copy it to `.env.local`, your shell profile, or your MCP
 client secret store when secrets are needed. Filled `.env` files are ignored by
@@ -108,8 +120,11 @@ network probe.
 
 Overleaf setup creates a local wrapper under `.academic-research/mcp/` that
 parses `.env.local` safely at runtime. The wrapper path and client/probe
-observations are recorded in `docs/agent/capability-lock.json`; token values
-are not stored there or in generated snippets.
+observations are recorded in `docs/agent/capability-lock.json`; project-local
+skill install/update/remove observations are recorded there too.
+`configs/capabilities.yaml` is intended state, while the capability lock is
+observed setup state. Token values are not stored there or in generated
+snippets.
 
 `default` installs the companion academic research skill package and keeps the
 MCP records focused on low-friction arXiv discovery. `literature` and `full`

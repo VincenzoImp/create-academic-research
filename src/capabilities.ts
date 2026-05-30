@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { appendFile, chmod, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
 import {
@@ -25,6 +26,8 @@ import {
 } from "./stack.js";
 import { formatMcpDotenv, listMcpEnvironmentEntries } from "./mcp-env.js";
 import { probeMcpServerList, type McpProbeResult as ProbeResult } from "./mcp-probe.js";
+
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export { formatMcpDotenv, listMcpEnvironmentEntries };
 export {
   mergeMcpEnvironment,
@@ -106,7 +109,37 @@ export interface RenderedMcpSnippet {
 
 export interface CapabilityLock {
   version: number;
+  generator: {
+    name: "create-academic-research";
+    version?: string;
+    updated_at?: string;
+  };
   mcp: Record<string, CapabilityLockMcpServer>;
+  skills: CapabilityLockSkills;
+}
+
+export interface CapabilityLockSkills {
+  preset?: string;
+  agent?: string;
+  explicit_skill_ids?: string[];
+  last_action?: "install" | "update" | "remove";
+  status?: "ready" | "updated" | "removed";
+  updated_at?: string;
+  sources: Record<string, CapabilityLockSkillSource>;
+  skills: Record<string, CapabilityLockSkillEntry>;
+}
+
+export interface CapabilityLockSkillSource {
+  source: string;
+  skill_ids?: string[];
+  action: "install" | "update" | "remove";
+  status: "ready" | "updated" | "removed";
+  updated_at?: string;
+}
+
+export interface CapabilityLockSkillEntry extends CapabilityLockSkillSource {
+  root?: string;
+  path?: string;
 }
 
 export interface CapabilityLockMcpServer {
@@ -296,6 +329,7 @@ export async function installSkills(
       preset
     });
   }
+  await recordSkillPresetLock(root, preset, agent, "install");
   return { ok: true, count: commands.length };
 }
 
@@ -318,6 +352,7 @@ export async function installSkillIds(
       agent
     });
   }
+  await recordExplicitSkillLock(root, selectedSkills, agent, "install");
   return { ok: true, count: commands.length, skills: selectedSkills };
 }
 
@@ -374,6 +409,7 @@ export async function removeSkills(
     { cwd: root }
   );
   await removeSkillsFromLock(root, skills);
+  await recordRemovedSkillLock(root, skills);
   return { ok: true, count: skills.length };
 }
 
@@ -385,6 +421,7 @@ export async function updateSkills(
     ["npm", "exec", "--yes", "--package", "skills", "--", "skills", "update", "--project", "-y"],
     { cwd: root }
   );
+  await recordSkillUpdateLock(root);
   return { ok: true };
 }
 
@@ -982,10 +1019,12 @@ export async function readCapabilityLock(root: string): Promise<CapabilityLock> 
     const record = typeof parsed === "object" && parsed !== null ? parsed as Partial<CapabilityLock> : {};
     return {
       version: typeof record.version === "number" ? record.version : 1,
-      mcp: typeof record.mcp === "object" && record.mcp !== null ? record.mcp as Record<string, CapabilityLockMcpServer> : {}
+      generator: normalizeCapabilityLockGenerator(record.generator),
+      mcp: typeof record.mcp === "object" && record.mcp !== null ? record.mcp as Record<string, CapabilityLockMcpServer> : {},
+      skills: normalizeCapabilityLockSkills(record.skills)
     };
   } catch (error) {
-    if (isMissingFileError(error)) return { version: 1, mcp: {} };
+    if (isMissingFileError(error)) return defaultCapabilityLock();
     throw error;
   }
 }
@@ -1408,9 +1447,74 @@ function capabilityLockPath(root: string): string {
 
 async function updateCapabilityLock(root: string, update: (lock: CapabilityLock) => void): Promise<void> {
   const lock = await readCapabilityLock(root);
+  lock.generator = {
+    name: "create-academic-research",
+    version: await currentPackageVersion(),
+    updated_at: nowIso()
+  };
   update(lock);
   await mkdir(dirname(capabilityLockPath(root)), { recursive: true });
   await writeFile(capabilityLockPath(root), `${JSON.stringify(lock, null, 2)}\n`, "utf8");
+}
+
+function defaultCapabilityLock(): CapabilityLock {
+  return {
+    version: 1,
+    generator: { name: "create-academic-research" },
+    mcp: {},
+    skills: { sources: {}, skills: {} }
+  };
+}
+
+function normalizeCapabilityLockGenerator(value: unknown): CapabilityLock["generator"] {
+  const record = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+  return {
+    name: "create-academic-research",
+    ...(typeof record.version === "string" ? { version: record.version } : {}),
+    ...(typeof record.updated_at === "string" ? { updated_at: record.updated_at } : {})
+  };
+}
+
+function normalizeCapabilityLockSkills(value: unknown): CapabilityLockSkills {
+  const record = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+  return {
+    ...(typeof record.preset === "string" ? { preset: record.preset } : {}),
+    ...(typeof record.agent === "string" ? { agent: record.agent } : {}),
+    ...(Array.isArray(record.explicit_skill_ids)
+      ? { explicit_skill_ids: record.explicit_skill_ids.filter((item): item is string => typeof item === "string") }
+      : {}),
+    ...(record.last_action === "install" || record.last_action === "update" || record.last_action === "remove"
+      ? { last_action: record.last_action }
+      : {}),
+    ...(record.status === "ready" || record.status === "updated" || record.status === "removed"
+      ? { status: record.status }
+      : {}),
+    ...(typeof record.updated_at === "string" ? { updated_at: record.updated_at } : {}),
+    sources: normalizeCapabilityLockEntryMap(record.sources),
+    skills: normalizeCapabilityLockEntryMap(record.skills)
+  };
+}
+
+function normalizeCapabilityLockEntryMap(value: unknown): Record<string, CapabilityLockSkillEntry> {
+  if (typeof value !== "object" || value === null) return {};
+  const result: Record<string, CapabilityLockSkillEntry> = {};
+  for (const [name, rawEntry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof rawEntry !== "object" || rawEntry === null) continue;
+    const entry = rawEntry as Record<string, unknown>;
+    if (typeof entry.source !== "string") continue;
+    result[name] = {
+      source: entry.source,
+      ...(Array.isArray(entry.skill_ids)
+        ? { skill_ids: entry.skill_ids.filter((item): item is string => typeof item === "string") }
+        : {}),
+      action: entry.action === "update" || entry.action === "remove" ? entry.action : "install",
+      status: entry.status === "updated" || entry.status === "removed" ? entry.status : "ready",
+      ...(typeof entry.updated_at === "string" ? { updated_at: entry.updated_at } : {}),
+      ...(typeof entry.root === "string" ? { root: entry.root } : {}),
+      ...(typeof entry.path === "string" ? { path: entry.path } : {})
+    };
+  }
+  return result;
 }
 
 function ensureLockMcpEntry(lock: CapabilityLock, serverName: string, server: ResolvedMcpServer): CapabilityLockMcpServer {
@@ -1582,8 +1686,155 @@ function commandForClient(root: string, command: string): string {
   return isAbsolute(command) ? command : join(root, command);
 }
 
+async function recordSkillPresetLock(
+  root: string,
+  preset: string,
+  agent: string,
+  action: "install"
+): Promise<void> {
+  const selected = AGENT_STACK.presets[preset];
+  if (!selected) return;
+  await updateCapabilityLock(root, (lock) => {
+    lock.skills.preset = preset;
+    lock.skills.agent = agent;
+    delete lock.skills.explicit_skill_ids;
+    lock.skills.last_action = action;
+    lock.skills.status = "ready";
+    lock.skills.updated_at = nowIso();
+    for (const bundleName of selected.skill_bundles) {
+      for (const source of skillSourcesForBundle(bundleName)) {
+        lock.skills.sources[source.key] = {
+          source: source.source,
+          skill_ids: source.skillIds,
+          action,
+          status: "ready",
+          updated_at: nowIso()
+        };
+      }
+    }
+  });
+}
+
+async function recordExplicitSkillLock(
+  root: string,
+  skills: string[],
+  agent: string,
+  action: "install"
+): Promise<void> {
+  await updateCapabilityLock(root, (lock) => {
+    lock.skills.agent = agent;
+    lock.skills.explicit_skill_ids = skills;
+    lock.skills.last_action = action;
+    lock.skills.status = "ready";
+    lock.skills.updated_at = nowIso();
+    for (const skill of skills) {
+      const source = skillSourceForId(skill);
+      if (!source) continue;
+      lock.skills.skills[skill] = {
+        source,
+        action,
+        status: "ready",
+        updated_at: nowIso()
+      };
+    }
+  });
+}
+
+async function recordSkillUpdateLock(root: string): Promise<void> {
+  await updateCapabilityLock(root, (lock) => {
+    lock.skills.last_action = "update";
+    lock.skills.status = "updated";
+    lock.skills.updated_at = nowIso();
+    for (const entry of Object.values(lock.skills.sources)) {
+      entry.action = "update";
+      entry.status = "updated";
+      entry.updated_at = nowIso();
+    }
+    for (const entry of Object.values(lock.skills.skills)) {
+      entry.action = "update";
+      entry.status = "updated";
+      entry.updated_at = nowIso();
+    }
+  });
+}
+
+async function recordRemovedSkillLock(root: string, skills: string[]): Promise<void> {
+  await updateCapabilityLock(root, (lock) => {
+    lock.skills.last_action = "remove";
+    lock.skills.status = "removed";
+    lock.skills.updated_at = nowIso();
+    for (const skill of normalizeSkillIds(skills)) {
+      const source = skillSourceForId(skill) ?? lock.skills.skills[skill]?.source ?? "unknown";
+      lock.skills.skills[skill] = {
+        source,
+        action: "remove",
+        status: "removed",
+        updated_at: nowIso()
+      };
+    }
+  });
+}
+
+interface SkillSourceSelection {
+  key: string;
+  source: string;
+  skillIds: string[];
+}
+
+function skillSourcesForBundle(bundleName: string): SkillSourceSelection[] {
+  const bundle = AGENT_STACK.skill_bundles[bundleName];
+  if (!bundle) return [];
+  const selections = new Map<string, SkillSourceSelection>();
+  for (const command of bundle.commands) {
+    const match = /\bskills\s+add\s+(\S+)/.exec(command);
+    const source = match?.[1];
+    if (!source) continue;
+    const knownSource = skillSourceEntryForSource(source);
+    const key = knownSource?.key ?? bundleName;
+    const skillIds = skillIdsForBundleCommand(command, source);
+    const existing = selections.get(key);
+    selections.set(key, {
+      key,
+      source,
+      skillIds: [...new Set([...(existing?.skillIds ?? []), ...skillIds])]
+    });
+  }
+  return [...selections.values()];
+}
+
+function skillSourceEntryForSource(source: string): { key: string; skills: string[] } | undefined {
+  for (const [key, entry] of Object.entries(AGENT_STACK.skill_sources)) {
+    if (entry.source === source) return { key, skills: entry.skills };
+  }
+  return undefined;
+}
+
+function skillIdsForBundleCommand(command: string, source: string): string[] {
+  const known = skillSourceEntryForSource(source);
+  const tokens = splitCommand(command);
+  const skillFlag = tokens.indexOf("--skill");
+  if (skillFlag === -1) return known?.skills ?? [];
+  const selected: string[] = [];
+  for (let index = skillFlag + 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.startsWith("-")) break;
+    if (token === "*") return known?.skills ?? [];
+    selected.push(token);
+  }
+  return selected.length > 0 ? selected : known?.skills ?? [];
+}
+
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+async function currentPackageVersion(): Promise<string | undefined> {
+  try {
+    const parsed = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function readCapabilitiesFile(root: string): Promise<CapabilityState> {

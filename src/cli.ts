@@ -223,7 +223,9 @@ async function updateCommand(argv: string[]): Promise<number> {
   if (result.changes.length === 0) {
     console.log("No managed file changes.");
   } else {
-    for (const change of result.changes) console.log(`${change.action}\t${change.path}`);
+    for (const change of result.changes) {
+      console.log(`${change.action}\t${change.path}${change.reason ? `\t${change.reason}` : ""}`);
+    }
   }
   if (!apply && result.changes.length > 0) {
     console.log("Run `npm run update -- --apply` from a generated project to write these managed changes.");

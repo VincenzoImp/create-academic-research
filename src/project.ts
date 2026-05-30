@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,7 +62,8 @@ export interface DoctorResult {
 
 export interface ProjectFileChange {
   path: string;
-  action: "create" | "update";
+  action: "create" | "update" | "skip";
+  reason?: string;
 }
 
 export interface UpdateProjectResult {
@@ -89,6 +91,36 @@ interface GeneratedPackageJson {
 
 interface PackageJson {
   version?: string;
+}
+
+interface ManagedFileManifest {
+  version: 1;
+  generator: {
+    name: "create-academic-research";
+    version: string;
+    updated_at: string;
+  };
+  files: Record<string, ManagedFileRecord>;
+}
+
+type ManagedFilePolicy = "managed" | "generated" | "append-only" | "user-owned";
+
+interface ManagedFileRecord {
+  path: string;
+  policy: ManagedFilePolicy;
+  generated_checksum: string;
+  baseline_checksum?: string;
+  current_checksum?: string;
+  updated_at?: string;
+  reason?: string;
+}
+
+interface ManagedFileSpec {
+  path: string;
+  policy: ManagedFilePolicy;
+  content: string;
+  mergeSafe?: boolean;
+  trackOnly?: boolean;
 }
 
 interface PersonalizeOptions {
@@ -192,6 +224,7 @@ export async function createProject(options: CreateProjectOptions): Promise<Proj
   await writeAgentStack(target);
   await writeMcpEnvironmentExample(target);
   await initializeCapabilities(target, { preset, agent });
+  await writeManagedFileManifest(target);
 
   if (options.installSkills) {
     await installSkills(target, preset);
@@ -228,6 +261,7 @@ export async function initProject(options: InitProjectOptions): Promise<ProjectR
   } else {
     await updateManagedCapabilityFiles(target, { apply: true, changes: [] });
   }
+  await writeManagedFileManifest(target);
 
   if (options.installSkills) {
     await installSkills(target, preset, { agent });
@@ -252,25 +286,20 @@ export async function renameProject(root: string, options: RenameProjectOptions)
     previousPackage
   });
   await writeGeneratedPackageJson(target, { slug, preserveExistingSpec: true });
+  await writeManagedFileManifest(target);
   return { root: target, title, slug, packageName };
 }
 
 export async function updateProject(root: string, options: UpdateProjectOptions = {}): Promise<UpdateProjectResult> {
   const target = resolve(root);
-  const config = await readProjectConfig(target);
   const changes: ProjectFileChange[] = [];
-  await updateGeneratedPackageJson(target, config.project.slug, { apply: options.apply === true, changes });
-  await stageTextWrite(
-    target,
-    ".env.example",
-    formatMcpDotenv(Object.keys(AGENT_STACK.mcp_servers)),
-    { apply: options.apply === true, changes }
-  );
-  await stageTextWrite(target, "configs/agent-stack.yaml", YAML.stringify(AGENT_STACK), {
+  const manifest = await readManagedFileManifest(target);
+  const specs = await managedFileSpecs(target);
+  const nextManifest = await stageManagedFiles(target, specs, manifest, {
     apply: options.apply === true,
     changes
   });
-  await updateManagedCapabilityFiles(target, { apply: options.apply === true, changes });
+  await stageManagedManifest(target, manifest, nextManifest, { apply: options.apply === true, changes });
   return { root: target, applied: options.apply === true, changes };
 }
 
@@ -376,13 +405,12 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
           );
         }
       }
-      await validateManagedCapabilityDrift(target, state, warnings);
     } catch (error) {
       errors.push(`invalid configs/capabilities.yaml: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   await validatePackageContract(target, errors, warnings);
-  await validateManagedTextDrift(target, warnings);
+  await validateManagedManifestDrift(target, warnings);
   await validateStaleCommandReferences(target, warnings);
   for (const [relative, requiredColumns] of Object.entries(REQUIRED_CSV_COLUMNS)) {
     await validateCsvHeader(target, relative, requiredColumns, errors);
@@ -501,6 +529,60 @@ async function updateGeneratedPackageJson(
   await stageTextWrite(root, "package.json", next, options);
 }
 
+async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
+  const config = await readProjectConfig(root);
+  const packageJson = await readJson<GeneratedPackageJson>(join(root, "package.json"));
+  const packageSpec = await currentPackageVersion();
+  const state = await readCapabilities(root);
+  const snippet = renderMcpSnippet(state);
+  const currentReadme = await readOptionalText(join(root, "README.md"));
+  const currentDefaultConfig = await readOptionalText(join(root, "configs/default.yaml"));
+  const currentWikiLog = await readOptionalText(join(root, "wiki/log.md"));
+  return [
+    {
+      path: "README.md",
+      policy: "user-owned",
+      trackOnly: true,
+      content: currentReadme ?? ""
+    },
+    {
+      path: "configs/default.yaml",
+      policy: "user-owned",
+      trackOnly: true,
+      content: currentDefaultConfig ?? ""
+    },
+    {
+      path: "wiki/log.md",
+      policy: "append-only",
+      trackOnly: true,
+      content: currentWikiLog ?? ""
+    },
+    {
+      path: "package.json",
+      policy: "managed",
+      mergeSafe: true,
+      content: `${JSON.stringify(generatedPackageJson(packageJson, config.project.slug, packageSpec), null, 2)}\n`
+    },
+    { path: ".gitignore", policy: "managed", content: await templateText("_gitignore") },
+    { path: ".env.example", policy: "managed", content: formatMcpDotenv(Object.keys(AGENT_STACK.mcp_servers)) },
+    { path: "configs/agent-stack.yaml", policy: "managed", content: YAML.stringify(AGENT_STACK) },
+    { path: "docs/getting-started.md", policy: "managed", content: await templateText("docs/getting-started.md") },
+    {
+      path: "docs/agent/mcp-client-setup.md",
+      policy: "managed",
+      content: await templateText("docs/agent/mcp-client-setup.md")
+    },
+    { path: "scripts/README.md", policy: "managed", content: await templateText("scripts/README.md") },
+    { path: "docs/agent/capability-profile.md", policy: "generated", content: renderCapabilityProfile(state) },
+    { path: "docs/agent/mcp-setup.md", policy: "generated", content: renderMcpSetup(state) },
+    { path: join("docs/agent/generated", snippet.fileName), policy: "generated", content: snippet.content }
+  ];
+}
+
+async function templateText(relativePath: string): Promise<string> {
+  return readFile(join(templateRoot, relativePath), "utf8");
+}
+
 async function generatedPackageSpec(data: GeneratedPackageJson, preserveExistingSpec: boolean): Promise<string> {
   const existingSpec = data.devDependencies?.["create-academic-research"];
   return (
@@ -527,9 +609,10 @@ function generatedPackageJson(data: GeneratedPackageJson, slug: string, packageS
 
 function generatedLifecycleScripts(packageSpec: string): Record<string, string> {
   const command = `npm exec --yes --package=${lifecyclePackageSpec(packageSpec)} -- academic-research`;
+  const latestCommand = "npm exec --yes --package=create-academic-research@latest -- academic-research";
   return {
     doctor: `${command} doctor`,
-    update: `${command} update`,
+    update: `${latestCommand} update`,
     setup: `${command} setup`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
@@ -625,6 +708,258 @@ async function stageTextWrite(
   await writeFile(path, content, "utf8");
 }
 
+async function writeManagedFileManifest(root: string): Promise<void> {
+  const specs = await managedFileSpecs(root);
+  const manifest = emptyManagedFileManifest(await currentPackageVersion());
+  for (const spec of specs) {
+    manifest.files[toPosix(spec.path)] = managedRecordForWrittenFile(spec);
+  }
+  await mkdir(dirname(managedManifestPath(root)), { recursive: true });
+  await writeFile(managedManifestPath(root), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+}
+
+async function readManagedFileManifest(root: string): Promise<ManagedFileManifest | undefined> {
+  try {
+    const parsed = JSON.parse(await readFile(managedManifestPath(root), "utf8")) as unknown;
+    return normalizeManagedFileManifest(parsed);
+  } catch (error) {
+    if (isMissingFileError(error)) return undefined;
+    throw error;
+  }
+}
+
+async function stageManagedFiles(
+  root: string,
+  specs: ManagedFileSpec[],
+  manifest: ManagedFileManifest | undefined,
+  options: { apply: boolean; changes: ProjectFileChange[] }
+): Promise<ManagedFileManifest> {
+  const nextManifest = manifest
+    ? cloneManagedFileManifest(manifest)
+    : emptyManagedFileManifest(await currentPackageVersion());
+  nextManifest.generator = {
+    name: "create-academic-research",
+    version: await currentPackageVersion(),
+    updated_at: manifest?.generator.updated_at ?? nextManifest.generator.updated_at
+  };
+
+  for (const spec of specs) {
+    const relativePath = toPosix(spec.path);
+    const path = join(root, relativePath);
+    const current = await readOptionalText(path);
+    const currentChecksum = current === undefined ? undefined : checksumText(current);
+    const existing = manifest?.files[relativePath];
+    const generatedChecksum = checksumText(spec.content);
+
+    if (spec.trackOnly) {
+      if (current !== undefined) {
+        nextManifest.files[relativePath] = stableManagedRecord(existing, {
+          path: relativePath,
+          policy: spec.policy,
+          generated_checksum: generatedChecksum,
+          baseline_checksum: currentChecksum
+        });
+      }
+      continue;
+    }
+
+    if (current === spec.content) {
+      nextManifest.files[relativePath] = stableManagedRecord(existing, {
+        path: relativePath,
+        policy: spec.policy,
+        generated_checksum: generatedChecksum,
+        baseline_checksum: generatedChecksum
+      });
+      continue;
+    }
+
+    if (current === undefined) {
+      options.changes.push({ path: relativePath, action: "create" });
+      if (options.apply) {
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, spec.content, "utf8");
+      }
+      nextManifest.files[relativePath] = stableManagedRecord(existing, managedRecordCandidateForWrittenFile(spec));
+      continue;
+    }
+
+    if (spec.mergeSafe || canSafelyUpdateManagedFile(existing, currentChecksum)) {
+      options.changes.push({ path: relativePath, action: "update" });
+      if (options.apply) {
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, spec.content, "utf8");
+      }
+      nextManifest.files[relativePath] = stableManagedRecord(existing, managedRecordCandidateForWrittenFile(spec));
+      continue;
+    }
+
+    options.changes.push({
+      path: relativePath,
+      action: "skip",
+      reason: manifest ? "local edits detected" : "unknown legacy content"
+    });
+    nextManifest.files[relativePath] = stableManagedRecord(existing, {
+      path: relativePath,
+      policy: spec.policy,
+      generated_checksum: generatedChecksum,
+      current_checksum: currentChecksum,
+      reason: manifest ? "local edits detected" : "unknown legacy content"
+    });
+  }
+
+  return nextManifest;
+}
+
+async function stageManagedManifest(
+  root: string,
+  previous: ManagedFileManifest | undefined,
+  next: ManagedFileManifest,
+  options: { apply: boolean; changes: ProjectFileChange[] }
+): Promise<void> {
+  if (previous && managedManifestSemanticallyEqual(previous, next)) return;
+  next.generator = {
+    name: "create-academic-research",
+    version: await currentPackageVersion(),
+    updated_at: nowIso()
+  };
+  const content = `${JSON.stringify(next, null, 2)}\n`;
+  const current = await readOptionalText(managedManifestPath(root));
+  options.changes.push({
+    path: ".academic-research/managed-files.json",
+    action: previous ? "update" : "create"
+  });
+  if (options.apply && current !== content) {
+    await mkdir(dirname(managedManifestPath(root)), { recursive: true });
+    await writeFile(managedManifestPath(root), content, "utf8");
+  }
+}
+
+function emptyManagedFileManifest(version: string): ManagedFileManifest {
+  return {
+    version: 1,
+    generator: {
+      name: "create-academic-research",
+      version,
+      updated_at: nowIso()
+    },
+    files: {}
+  };
+}
+
+function normalizeManagedFileManifest(value: unknown): ManagedFileManifest {
+  const record = typeof value === "object" && value !== null ? value as Partial<ManagedFileManifest> : {};
+  const generator =
+    typeof record.generator === "object" && record.generator !== null
+      ? record.generator as Record<string, unknown>
+      : {};
+  const files =
+    typeof record.files === "object" && record.files !== null
+      ? record.files as Record<string, ManagedFileRecord>
+      : {};
+  return {
+    version: 1,
+    generator: {
+      name: "create-academic-research",
+      version: typeof generator.version === "string" ? generator.version : "unknown",
+      updated_at: typeof generator.updated_at === "string" ? generator.updated_at : nowIso()
+    },
+    files
+  };
+}
+
+function cloneManagedFileManifest(manifest: ManagedFileManifest): ManagedFileManifest {
+  return {
+    version: 1,
+    generator: { ...manifest.generator },
+    files: Object.fromEntries(
+      Object.entries(manifest.files).map(([path, record]) => [path, { ...record }])
+    )
+  };
+}
+
+function managedRecordForWrittenFile(spec: ManagedFileSpec): ManagedFileRecord {
+  return {
+    ...managedRecordCandidateForWrittenFile(spec),
+    updated_at: nowIso()
+  };
+}
+
+function managedRecordCandidateForWrittenFile(spec: ManagedFileSpec): ManagedFileRecord {
+  const generatedChecksum = checksumText(spec.content);
+  return {
+    path: toPosix(spec.path),
+    policy: spec.policy,
+    generated_checksum: generatedChecksum,
+    baseline_checksum: generatedChecksum
+  };
+}
+
+function stableManagedRecord(
+  existing: ManagedFileRecord | undefined,
+  candidate: ManagedFileRecord
+): ManagedFileRecord {
+  if (existing && managedRecordSemanticallyEqual(existing, candidate)) return existing;
+  return { ...candidate, updated_at: nowIso() };
+}
+
+function managedManifestSemanticallyEqual(
+  left: ManagedFileManifest,
+  right: ManagedFileManifest
+): boolean {
+  if (left.version !== right.version) return false;
+  if (left.generator.name !== right.generator.name) return false;
+  if (left.generator.version !== right.generator.version) return false;
+  const leftPaths = Object.keys(left.files).sort();
+  const rightPaths = Object.keys(right.files).sort();
+  if (leftPaths.length !== rightPaths.length) return false;
+  for (let index = 0; index < leftPaths.length; index += 1) {
+    const path = leftPaths[index];
+    if (path !== rightPaths[index]) return false;
+    if (!managedRecordSemanticallyEqual(left.files[path], right.files[path])) return false;
+  }
+  return true;
+}
+
+function managedRecordSemanticallyEqual(
+  left: ManagedFileRecord,
+  right: ManagedFileRecord
+): boolean {
+  return (
+    left.path === right.path &&
+    left.policy === right.policy &&
+    left.generated_checksum === right.generated_checksum &&
+    left.baseline_checksum === right.baseline_checksum &&
+    left.current_checksum === right.current_checksum &&
+    left.reason === right.reason
+  );
+}
+
+function canSafelyUpdateManagedFile(record: ManagedFileRecord | undefined, currentChecksum: string | undefined): boolean {
+  if (!record || !currentChecksum) return false;
+  return currentChecksum === record.baseline_checksum || currentChecksum === record.generated_checksum;
+}
+
+async function readOptionalText(path: string): Promise<string | undefined> {
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    if (isMissingFileError(error)) return undefined;
+    throw error;
+  }
+}
+
+function managedManifestPath(root: string): string {
+  return join(root, ".academic-research", "managed-files.json");
+}
+
+function checksumText(value: string): string {
+  return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
 async function copyDirectoryMissing(source: string, target: string): Promise<Set<string>> {
   const created = new Set<string>();
 
@@ -683,50 +1018,42 @@ async function validatePackageContract(root: string, errors: string[], warnings:
   const current = await currentPackageVersion();
   if (isOlderSimpleVersion(packageSpec, current)) {
     warnings.push(
-      `create-academic-research ${packageSpec} is older than ${current}; run npm run update -- --apply`
+      `create-academic-research ${packageSpec} is older than ${current}; run npm run update -- --apply or npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply`
     );
   }
 }
 
-async function validateManagedTextDrift(root: string, warnings: string[]): Promise<void> {
-  const expectedEnv = formatMcpDotenv(Object.keys(AGENT_STACK.mcp_servers));
-  await warnIfTextDrift(root, ".env.example", expectedEnv, ".env.example is not current", warnings);
-  await warnIfTextDrift(
-    root,
-    "configs/agent-stack.yaml",
-    YAML.stringify(AGENT_STACK),
-    "configs/agent-stack.yaml is not current",
-    warnings
-  );
-}
-
-async function validateManagedCapabilityDrift(
-  root: string,
-  state: Awaited<ReturnType<typeof readCapabilities>>,
-  warnings: string[]
-): Promise<void> {
-  await warnIfTextDrift(
-    root,
-    "docs/agent/capability-profile.md",
-    renderCapabilityProfile(state),
-    "docs/agent/capability-profile.md is not current",
-    warnings
-  );
-  await warnIfTextDrift(
-    root,
-    "docs/agent/mcp-setup.md",
-    renderMcpSetup(state),
-    "docs/agent/mcp-setup.md is not current",
-    warnings
-  );
-  const snippet = renderMcpSnippet(state);
-  await warnIfTextDrift(
-    root,
-    join("docs/agent/generated", snippet.fileName),
-    snippet.content,
-    `docs/agent/generated/${snippet.fileName} is not current`,
-    warnings
-  );
+async function validateManagedManifestDrift(root: string, warnings: string[]): Promise<void> {
+  let specs: ManagedFileSpec[];
+  try {
+    specs = await managedFileSpecs(root);
+  } catch {
+    return;
+  }
+  const manifest = await readManagedFileManifest(root);
+  if (!manifest) {
+    warnings.push(
+      "managed-file manifest is missing; run npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply"
+    );
+  }
+  for (const spec of specs) {
+    if (spec.trackOnly) continue;
+    if (spec.path === "package.json") continue;
+    const relativePath = toPosix(spec.path);
+    const current = await readOptionalText(join(root, relativePath));
+    if (current === undefined) {
+      warnings.push(`${relativePath} is missing; run npm run update -- --apply`);
+      continue;
+    }
+    if (current === spec.content) continue;
+    const checksum = checksumText(current);
+    const record = manifest?.files[relativePath];
+    if (canSafelyUpdateManagedFile(record, checksum)) {
+      warnings.push(`${relativePath} is not current; run npm run update -- --apply`);
+    } else {
+      warnings.push(`${relativePath} has local edits; run npm run update to preview managed changes`);
+    }
+  }
 }
 
 async function warnIfTextDrift(

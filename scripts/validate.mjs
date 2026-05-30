@@ -185,6 +185,24 @@ for (const scriptName of requiredTemplateScripts) {
     errors.push(`template/package.json script must resolve package explicitly: ${scriptName}`);
   }
 }
+if (
+  templatePackageJson.scripts?.update !==
+  "npm exec --yes --package=create-academic-research@latest -- academic-research update"
+) {
+  errors.push("template/package.json update script must use create-academic-research@latest");
+}
+
+const rootReadme = await readFile(join(root, "README.md"), "utf8");
+const templateReadme = await readFile(join(root, "template/README.md"), "utf8");
+for (const [label, text] of [["README.md", rootReadme], ["template/README.md", templateReadme]]) {
+  for (const required of [
+    "create-academic-research@latest -- academic-research update --root .",
+    ".academic-research/managed-files.json",
+    "docs/agent/capability-lock.json"
+  ]) {
+    if (!text.includes(required)) errors.push(`${label} missing migration/lock guidance: ${required}`);
+  }
+}
 
 const gitignore = await readFile(join(root, "template/.gitignore"), "utf8");
 const packedGitignore = await readFile(join(root, "template/_gitignore"), "utf8");
