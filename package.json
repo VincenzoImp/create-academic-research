@@ -1,6 +1,6 @@
 {
   "name": "create-academic-research",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Scaffold agent-ready academic research repositories with SOTA, source ledgers, wiki memory, MCP setup, and project-local skills.",
   "type": "module",
   "license": "MIT",
