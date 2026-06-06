@@ -29,6 +29,10 @@ npm exec --yes --package=create-academic-research@latest -- academic-research up
 npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply
 ```
 
+Read `docs/agent/project-quality.md` before substantive work. It defines where
+each class of source, SOTA record, experiment, analysis, LaTeX file, artifact,
+and final output belongs.
+
 ## 2. Install Project-Local Skills
 
 Install the default academic research skill package:
@@ -66,13 +70,30 @@ npm run mcp:smoke -- --env-file .env.local
 npm run mcp:probe -- arxiv --timeout-ms 5000
 ```
 
-## 4. Start Source Work
+## 4. Prepare The Literature Workflow
+
+For SOTA, survey, or related-work tasks, configure the practical citation graph
+stack before broad searching:
+
+```bash
+npm run workflow:literature
+npm run skills:install -- --preset literature
+npm run mcp:status
+npm run mcp:smoke -- --env-file .env.local
+```
+
+This selects arXiv, DBLP, Semantic Scholar, and OpenAlex remote graph search.
+Use `$sota-literature-review` with a declared scale: `quick-scan`,
+`focused-sota`, or `full-survey`.
+
+## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.
 
 ```text
 sources/pdfs/       native PDFs
 sources/markdown/   derived Markdown
+sources/markdown-linear/ cover-to-cover reading copies
 sources/metadata/   downloaded metadata or query exports
 sources/bib/        BibTeX and citation audits
 ```
@@ -80,16 +101,20 @@ sources/bib/        BibTeX and citation audits
 Update `sources/source-ledger.csv` whenever a paper, report, dataset, or web
 source becomes evidence for the project.
 
-## 5. Build The First SOTA Pass
+## 6. Build The First SOTA Pass
 
 Use `sota/search-strategy.md` to record search terms, databases, dates, and
-inclusion criteria. Put screened sources in `sota/literature-matrix.csv`, then
-summarize stable conclusions in `sota/synthesis.md`.
+inclusion criteria. Record full-text reading in `sota/reading-log.csv` and
+citation expansion in `sota/citation-chasing-log.csv`. Put screened sources in
+`sota/literature-matrix.csv`, create per-paper syntheses in
+`sota/paper-syntheses/`, then summarize stable conclusions in
+`sota/synthesis.md`.
 
 Do not treat MCP output as final evidence until the relevant source has been
-ingested, deduplicated, and tied to a source record.
+ingested, deduplicated, read in full when core/supporting, and tied to a source
+record and bibliography key.
 
-## 6. Keep Durable Memory Current
+## 7. Keep Durable Memory Current
 
 Update the wiki when project knowledge changes:
 

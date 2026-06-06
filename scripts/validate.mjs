@@ -26,7 +26,7 @@ const paths = await filesUnder(
   root,
   (path) =>
     !/\.d\.ts$/.test(path) &&
-    /\.(mjs|ts|md|json|yaml|toml|py|csv)$/.test(path) &&
+    /\.(mjs|ts|md|json|ya?ml|toml|py|csv)$/.test(path) &&
     !path.includes("/tests/") &&
     !path.endsWith("/scripts/validate.mjs")
 );
@@ -122,6 +122,18 @@ const requiredTemplateFiles = [
   "template/.gitignore",
   "template/.env.example",
   "template/docs/getting-started.md",
+  "template/docs/agent/output-contracts.md",
+  "template/docs/agent/project-quality.md",
+  "template/docs/agent/repo-migration-playbook.md",
+  "template/docs/reproducibility/commands.md",
+  "template/analysis_outputs/claim-audit.md",
+  "template/experiments/campaigns/autonomous-campaign-template.md",
+  "template/experiments/campaigns/frontier-results.tsv",
+  "template/repro_outputs/SUMMARY.md",
+  "template/repro_outputs/COMMANDS.md",
+  "template/repro_outputs/LOG.md",
+  "template/repro_outputs/PATCHES.md",
+  "template/repro_outputs/status.json",
   "template/scripts/README.md",
   "template/docs/agent/mcp-client-setup.md",
   "template/wiki/templates/source-page.md",
@@ -142,10 +154,14 @@ for (const relative of requiredTemplateFiles) {
 }
 
 const templatePackageJson = JSON.parse(await readFile(join(root, "template/package.json"), "utf8"));
+if (templatePackageJson.devDependencies?.["create-academic-research"] !== packageJson.version) {
+  errors.push("template/package.json create-academic-research devDependency must match package.json version");
+}
 const requiredTemplateScripts = [
   "doctor",
   "update",
   "setup",
+  "workflow:literature",
   "rename",
   "agents:list",
   "skills:install",
@@ -202,6 +218,45 @@ for (const [label, text] of [["README.md", rootReadme], ["template/README.md", t
   ]) {
     if (!text.includes(required)) errors.push(`${label} missing migration/lock guidance: ${required}`);
   }
+}
+
+const outputContracts = await readFile(join(root, "template/docs/agent/output-contracts.md"), "utf8");
+for (const required of [
+  "Trust Levels",
+  "Promotion Rules",
+  "reports/paper/sota-survey.tex",
+  "experiments/campaigns/frontier-results.tsv",
+  "artifacts/badge-evidence-ledger.csv",
+  "Project Quality Contract"
+]) {
+  if (!outputContracts.includes(required)) {
+    errors.push(`template/docs/agent/output-contracts.md missing ${required}`);
+  }
+}
+
+const autonomousCampaign = await readFile(
+  join(root, "template/experiments/campaigns/autonomous-campaign-template.md"),
+  "utf8"
+);
+for (const required of [
+  "Mutability Envelope",
+  "Frozen Harness",
+  "Baseline Run",
+  "Frontier Tracking",
+  "keep",
+  "discard",
+  "crash"
+]) {
+  if (!autonomousCampaign.includes(required)) {
+    errors.push(`template/experiments/campaigns/autonomous-campaign-template.md missing ${required}`);
+  }
+}
+
+const frontierHeader = (
+  await readFile(join(root, "template/experiments/campaigns/frontier-results.tsv"), "utf8")
+).split(/\r?\n/, 1)[0];
+if (frontierHeader !== "run_id\tgit_commit\tmetric_value\tresource_value\tstatus\tdescription") {
+  errors.push("template/experiments/campaigns/frontier-results.tsv has an invalid header");
 }
 
 const gitignore = await readFile(join(root, "template/.gitignore"), "utf8");
@@ -263,6 +318,16 @@ const requiredCsvColumns = {
     "expected_fix",
     "checked_on"
   ],
+  "template/artifacts/badge-evidence-ledger.csv": [
+    "badge_target",
+    "evidence_id",
+    "evidence_path",
+    "claim_or_result_id",
+    "artifact_component",
+    "command_or_procedure",
+    "validation_status",
+    "checked_on"
+  ],
   "template/sota/literature-matrix.csv": [
     "source_id",
     "title",
@@ -277,7 +342,12 @@ const requiredCsvColumns = {
     "limitations",
     "relevance",
     "citation_count_or_signal",
-    "identifiers"
+    "identifiers",
+    "full_text_status",
+    "reading_status",
+    "synthesis_path",
+    "bib_key",
+    "role"
   ],
   "template/sota/screening-decisions.csv": [
     "stage",
@@ -286,6 +356,29 @@ const requiredCsvColumns = {
     "decision",
     "reason",
     "screened_by",
+    "date"
+  ],
+  "template/sota/reading-log.csv": [
+    "source_id",
+    "role",
+    "reading_copy_path",
+    "start_location",
+    "end_location",
+    "status",
+    "reader",
+    "started_on",
+    "completed_on"
+  ],
+  "template/sota/citation-chasing-log.csv": [
+    "round",
+    "seed_source_id",
+    "direction",
+    "tool_or_database",
+    "query_or_graph_call",
+    "found_count",
+    "new_after_dedup",
+    "promoted_to_seed_count",
+    "screening_status",
     "date"
   ],
   "template/experiments/registry.csv": [

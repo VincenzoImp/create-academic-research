@@ -78,6 +78,8 @@ jobs:
           cd "$tmpdir/e2e-research"
           npm install --ignore-scripts
           npm run doctor
+          npm run workflow:literature
+          npm run doctor
           npm run mcp:dotenv
           npm run mcp:doctor -- --env-file .env.example
           npm run mcp:smoke -- --env-file .env.example

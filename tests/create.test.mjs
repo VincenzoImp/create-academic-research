@@ -58,12 +58,33 @@ test("createProject generates a personalized research project without global sid
   assert.equal(manifest.files["docs/agent/generated/mcp.json"].policy, "generated");
   assert.equal(manifest.files["wiki/log.md"].policy, "append-only");
   assert.equal(manifest.files["README.md"].policy, "user-owned");
+  assert.equal(manifest.files["docs/agent/repo-migration-playbook.md"].policy, "user-owned");
+  assert.equal(manifest.files["docs/reproducibility/commands.md"].policy, "user-owned");
+  assert.equal(manifest.files["analysis_outputs/claim-audit.md"].policy, "user-owned");
+  assert.equal(manifest.files["repro_outputs/SUMMARY.md"].policy, "user-owned");
   assert.doesNotMatch(JSON.stringify(manifest), /secret|token|api[_-]?key|cookie|session/i);
   await stat(join(target, ".gitignore"));
   await assert.rejects(stat(join(target, "_gitignore")));
   await stat(join(target, ".env.example"));
   await stat(join(target, "docs/getting-started.md"));
   await stat(join(target, "docs/agent/mcp-client-setup.md"));
+  await stat(join(target, "docs/agent/repo-migration-playbook.md"));
+  await stat(join(target, "docs/agent/project-quality.md"));
+  await stat(join(target, "docs/reproducibility/commands.md"));
+  await stat(join(target, "analysis_outputs/claim-audit.md"));
+  await stat(join(target, "repro_outputs/SUMMARY.md"));
+  await stat(join(target, "repro_outputs/COMMANDS.md"));
+  await stat(join(target, "repro_outputs/LOG.md"));
+  await stat(join(target, "repro_outputs/PATCHES.md"));
+  await stat(join(target, "repro_outputs/status.json"));
+  await stat(join(target, "sources/markdown-linear/.gitkeep"));
+  await stat(join(target, "sota/paper-syntheses/.gitkeep"));
+  await stat(join(target, "sota/reading-log.csv"));
+  await stat(join(target, "sota/citation-chasing-log.csv"));
+  await stat(join(target, "reports/paper/sota-survey.tex"));
+  await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
+  await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
+  await stat(join(target, "experiments/campaigns/frontier-results.tsv"));
   const envExample = await readFile(join(target, ".env.example"), "utf8");
   assert.match(envExample, /SEMANTIC_SCHOLAR_API_KEY=/);
   assert.match(envExample, /OPENALEX_API_KEY=/);
@@ -87,6 +108,48 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "wiki/templates/decision-record.md"));
   await stat(join(target, "wiki/templates/reviewer-concern.md"));
   await stat(join(target, "wiki/templates/research-question.md"));
+  const literatureMatrix = await readFile(join(target, "sota/literature-matrix.csv"), "utf8");
+  assert.match(literatureMatrix, /role/);
+  assert.match(literatureMatrix, /full_text_status/);
+  assert.match(literatureMatrix, /reading_status/);
+  assert.match(literatureMatrix, /synthesis_path/);
+  assert.match(literatureMatrix, /bib_key/);
+  const artifactChecklist = await readFile(join(target, "artifacts/artifact-checklist.md"), "utf8");
+  assert.match(artifactChecklist, /ACM Artifact Review And Badging/);
+  assert.match(artifactChecklist, /Artifacts Available/);
+  assert.match(artifactChecklist, /Functional/);
+  assert.match(artifactChecklist, /Reusable/);
+  assert.match(artifactChecklist, /Results Reproduced/);
+  const projectQuality = await readFile(join(target, "docs/agent/project-quality.md"), "utf8");
+  assert.match(projectQuality, /Project Quality Contract/);
+  assert.match(projectQuality, /Request Intake/);
+  assert.match(projectQuality, /Trusted Outputs/);
+  assert.match(projectQuality, /Project Hygiene Gate/);
+  assert.match(projectQuality, /Badge Readiness/);
+  const outputContracts = await readFile(join(target, "docs/agent/output-contracts.md"), "utf8");
+  assert.match(outputContracts, /Trust Levels/);
+  assert.match(outputContracts, /Promotion Rules/);
+  assert.match(outputContracts, /reports\/paper\/sota-survey\.tex/);
+  assert.match(outputContracts, /artifacts\/badge-evidence-ledger\.csv/);
+  assert.match(outputContracts, /Project Quality Contract/);
+  const badgeEvidence = await readFile(join(target, "artifacts/badge-evidence-ledger.csv"), "utf8");
+  assert.match(badgeEvidence, /badge_target/);
+  assert.match(badgeEvidence, /evidence_path/);
+  assert.match(badgeEvidence, /claim_or_result_id/);
+  const campaignTemplate = await readFile(
+    join(target, "experiments/campaigns/autonomous-campaign-template.md"),
+    "utf8"
+  );
+  assert.match(campaignTemplate, /Mutability Envelope/);
+  assert.match(campaignTemplate, /Frozen Harness/);
+  assert.match(campaignTemplate, /Baseline Run/);
+  assert.match(campaignTemplate, /Frontier Tracking/);
+  assert.match(campaignTemplate, /keep, discard, crash/);
+  const frontierResults = await readFile(
+    join(target, "experiments/campaigns/frontier-results.tsv"),
+    "utf8"
+  );
+  assert.match(frontierResults, /^run_id\tgit_commit\tmetric_value\tresource_value\tstatus\tdescription/m);
   await assert.rejects(stat(join(target, ".agents")));
   await assert.rejects(stat(join(target, "skills-lock.json")));
 });
@@ -402,6 +465,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "configs/default.yaml"), "project: [\n", "utf8");
   await writeFile(join(target, "configs/capabilities.yaml"), "agent: [\n", "utf8");
   await writeFile(join(target, "sources/source-ledger.csv"), "source_id,title\n", "utf8");
+  await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
 
@@ -411,6 +475,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("invalid configs/default.yaml")));
   assert.ok(result.errors.some((error) => error.includes("invalid configs/capabilities.yaml")));
   assert.ok(result.errors.some((error) => error.includes("sources/source-ledger.csv missing column type")));
+  assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
 });
@@ -568,6 +633,81 @@ test("updateProject applies unchanged managed files and skips locally edited man
   );
   assert.match(envExample, /^OPENALEX_API_KEY=/m);
   assert.equal(setup, locallyEdited);
+});
+
+test("updateProject migrates 0.1.17 projects to the 0.1.18 research contract", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-017-to-018-"));
+  const target = join(root, "update-017-to-018-project");
+  await createProject({
+    target,
+    title: "Update 017 To 018 Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const addedIn018 = [
+    "analysis_outputs/claim-audit.md",
+    "artifacts/badge-evidence-ledger.csv",
+    "docs/agent/project-quality.md",
+    "docs/agent/repo-migration-playbook.md",
+    "docs/reproducibility/commands.md",
+    "experiments/campaigns/autonomous-campaign-template.md",
+    "experiments/campaigns/frontier-results.tsv",
+    "reports/paper/sota-survey.tex",
+    "repro_outputs/COMMANDS.md",
+    "repro_outputs/LOG.md",
+    "repro_outputs/PATCHES.md",
+    "repro_outputs/SUMMARY.md",
+    "repro_outputs/status.json",
+    "sota/citation-chasing-log.csv",
+    "sota/paper-syntheses/.gitkeep",
+    "sota/reading-log.csv",
+    "sources/markdown-linear/.gitkeep"
+  ];
+
+  for (const relative of addedIn018) {
+    await rm(join(target, relative), { force: true });
+  }
+
+  const packagePath = join(target, "package.json");
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+  packageJson.devDependencies["create-academic-research"] = "0.1.17";
+  for (const [name, command] of Object.entries(packageJson.scripts)) {
+    if (name !== "update") {
+      packageJson.scripts[name] = command.replace(packageVersion, "0.1.17");
+    }
+  }
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+
+  const manifestPath = join(target, ".academic-research/managed-files.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.generator.version = "0.1.17";
+  for (const relative of addedIn018) {
+    delete manifest.files[relative];
+  }
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  const applied = await updateProject(target, { apply: true });
+  const updatedPackage = JSON.parse(await readFile(packagePath, "utf8"));
+  const updatedManifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const doctor = await doctorProject(target);
+  const rootReadme = await readFile(join(packageRoot, "README.md"), "utf8");
+  const templateReadme = await readFile(join(packageRoot, "template/README.md"), "utf8");
+
+  for (const relative of addedIn018) {
+    await stat(join(target, relative));
+    assert.ok(applied.changes.some((change) => change.path === relative && change.action === "create"));
+    assert.ok(updatedManifest.files[relative], `${relative} should be tracked after migration`);
+  }
+
+  assert.equal(updatedPackage.devDependencies["create-academic-research"], packageVersion);
+  assert.equal(updatedManifest.generator.version, packageVersion);
+  assert.equal(updatedManifest.files["analysis_outputs/claim-audit.md"].policy, "user-owned");
+  assert.equal(updatedManifest.files["repro_outputs/SUMMARY.md"].policy, "user-owned");
+  assert.equal(doctor.ok, true);
+  assert.deepEqual(doctor.errors, []);
+  assert.match(rootReadme, /0\.1\.17 -> 0\.1\.18/);
+  assert.match(templateReadme, /0\.1\.17 -> 0\.1\.18/);
 });
 
 test("updateProject migrates legacy projects without a managed manifest conservatively", async () => {

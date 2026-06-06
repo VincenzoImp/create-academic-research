@@ -97,14 +97,15 @@ snippet, a supported client registration path, and the next setup action.
 
 ## Workflow
 
-1. Enable only the MCP servers needed for the current research task.
-2. Inspect prerequisites with `npm run mcp:env -- <server>`.
-3. Put required secrets in the MCP client secret store, shell, or `.env.local`.
-4. Run `npm run mcp:smoke -- --env-file .env.local`.
-5. Run `npm run mcp:status`.
-6. Register the selected server with the active client, or load the generated
+1. For SOTA or survey work, run `npm run workflow:literature` before manual MCP selection.
+2. Enable only the MCP servers needed for the current research task.
+3. Inspect prerequisites with `npm run mcp:env -- <server>`.
+4. Put required secrets in the MCP client secret store, shell, or `.env.local`.
+5. Run `npm run mcp:smoke -- --env-file .env.local`.
+6. Run `npm run mcp:status`.
+7. Register the selected server with the active client, or load the generated
    snippet manually.
-7. Run `npm run mcp:probe -- <server>` only when you want to start
+8. Run `npm run mcp:probe -- <server>` only when you want to start
    the server and verify a real stdio handshake.
-8. Treat MCP output as retrieval metadata until it is ingested into repository
+9. Treat MCP output as retrieval metadata until it is ingested into repository
    source records.

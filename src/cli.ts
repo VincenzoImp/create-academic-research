@@ -26,7 +26,8 @@ import {
   resolveMcpServerForState,
   setupMcpServer,
   uninstallMcpTools,
-  updateSkills
+  updateSkills,
+  writeCapabilities
 } from "./capabilities.js";
 import { createProject, doctorProject, initProject, renameProject, updateProject } from "./project.js";
 import { askCreateOptions } from "./prompts.js";
@@ -74,6 +75,7 @@ const CREATE_FLAGS = flagSchema(
 
 const ROOT_FLAGS = flagSchema(["help"], ["root"]);
 const SETUP_FLAGS = flagSchema(["help"], ["root", "env-file"]);
+const WORKFLOW_FLAGS = flagSchema(["help"], ["root", "agent", "env-file"]);
 const UPDATE_FLAGS = flagSchema(["help", "dry-run", "apply"], ["root"]);
 const INIT_FLAGS = flagSchema(
   ["help", "install-skills"],
@@ -189,6 +191,7 @@ async function lifecycleMain(argv: string[]): Promise<number> {
   if (command === "agents") return agentsCommand(argv.slice(1));
   if (command === "skills") return skillsCommand(argv.slice(1));
   if (command === "mcp") return mcpCommand(argv.slice(1));
+  if (command === "workflow") return workflowCommand(argv.slice(1));
   printLifecycleHelp();
   return command === "help" ? 0 : 1;
 }
@@ -676,6 +679,50 @@ async function mcpCommand(argv: string[]): Promise<number> {
   throw new Error(`unknown mcp command: ${subcommand}`);
 }
 
+async function workflowCommand(argv: string[]): Promise<number> {
+  const subcommand = argv[0] ?? "help";
+  const parsed = parseFlags(argv.slice(1), WORKFLOW_FLAGS);
+  if (subcommand === "help" || subcommand === "--help" || subcommand === "-h" || flagBool(parsed.flags, "help")) {
+    printWorkflowHelp();
+    return 0;
+  }
+  if (subcommand !== "literature") throw new Error(`unknown workflow command: ${subcommand}`);
+  assertNoArguments(parsed.positionals, "workflow literature");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  const state = await readCapabilities(root);
+  const agent = flagString(parsed.flags, "agent") ?? state.agent;
+  const literatureServers = ["arxiv", "dblp", "semantic-scholar", "openalex"];
+  await writeCapabilities(root, {
+    ...state,
+    agent,
+    preset: "literature",
+    mcp_servers: literatureServers,
+    mcp_server_modes: {
+      ...state.mcp_server_modes,
+      openalex: "remote"
+    },
+    mcp_server_remote: state.mcp_server_remote
+  });
+  const env = await mcpCommandEnvironment(root, parsed.flags);
+  const lifecycle = await getMcpLifecycleStatus(root, { env });
+  const selected = lifecycle.servers.filter((server) => server.selected);
+
+  console.log("Literature Workflow");
+  console.log(`root\t${root}`);
+  console.log("preset\tliterature");
+  console.log(`mcp_selected\t${literatureServers.join(",")}`);
+  for (const item of selected) {
+    console.log(`mcp\t${item.id}\t${item.mode}\t${item.state}\t${friendlyNext(item.next)}`);
+  }
+  console.log("");
+  console.log("Next Commands");
+  console.log("npm run skills:install -- --preset literature");
+  console.log("npm run mcp:status");
+  console.log("npm run mcp:smoke -- --env-file .env.local");
+  console.log("Use $sota-literature-review with a declared scale, seed set, and citation-chasing budget.");
+  return 0;
+}
+
 async function mcpClientCommand(parsed: ParsedArgs): Promise<number> {
   const action = parsed.positionals[0];
   const server = parsed.positionals[1];
@@ -1029,13 +1076,32 @@ function printMissingTargetHelp(): void {
 function printLifecycleHelp(): void {
   console.log(
     [
-      "Usage: academic-research <doctor|update|init|setup|rename|agents|skills|mcp>",
+      "Usage: academic-research <doctor|update|init|setup|rename|agents|skills|mcp|workflow>",
       "",
       "Manage a generated academic research repository after creation.",
       "",
       "Options:",
       "  -h, --help               Show this help.",
       "  -v, --version            Show package version."
+    ].join("\n")
+  );
+}
+
+function printWorkflowHelp(): void {
+  console.log(
+    [
+      "Usage: academic-research workflow <literature> [options]",
+      "",
+      "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
+      "",
+      "Workflows:",
+      "  literature                Configure the practical SOTA stack for arXiv, DBLP, Semantic Scholar citation graph, and OpenAlex graph search.",
+      "",
+      "Options:",
+      "  --root <path>             Project root. Default: current directory.",
+      "  --agent <id>              Agent target for generated MCP snippets.",
+      "  --env-file <path>         Read local env values for readiness reporting.",
+      "  -h, --help                Show this help."
     ].join("\n")
   );
 }

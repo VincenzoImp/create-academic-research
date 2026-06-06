@@ -41,7 +41,7 @@ npx --yes github:VincenzoImp/create-academic-research my-project
 | Sources | PDFs, derived Markdown, metadata, BibTeX, conversion ledger, source ledger. |
 | Literature Review | Search strategy, screening decisions, literature matrix, SOTA synthesis, gaps, PRISMA flow. |
 | Agent Memory | `AGENTS.md`, capability profile, MCP setup docs, generated MCP snippets, wiki index/log/templates. |
-| Reproducibility | Python package scaffold, tests, experiment registry, output folders, artifact checklist. |
+| Reproducibility | Python package scaffold, tests, experiment registry, autonomous campaign ledgers, output folders, artifact checklist. |
 | Skills | Project-local installation flow for `VincenzoImp/academic-research-skills`. |
 | MCP | Conservative default records for scholarly discovery plus documented optional integrations. |
 
@@ -117,6 +117,7 @@ npm run doctor
 npm run update
 npm run update -- --apply
 npm run setup -- --env-file .env.local
+npm run workflow:literature
 npm run rename -- --title "New Title" --slug new-title --package new_title
 npm run agents:list
 npm run skills:presets
@@ -174,6 +175,23 @@ Safe migrations are tracked in `.academic-research/managed-files.json`. The
 manifest stores non-secret checksums for generator-owned files. If a file was
 edited locally, update reports `skip` instead of overwriting it.
 
+### Migration 0.1.17 -> 0.1.18
+
+Projects created with `0.1.17` can migrate in place:
+
+```bash
+npm run update
+npm run update -- --apply
+npm run doctor
+```
+
+The migration adds the project-quality contract, badge evidence ledger, SOTA
+reading and citation-chasing ledgers, paper synthesis folders, linear reading
+copies, autonomous experiment campaign files, claim-audit and reproduction
+templates, and `workflow:literature`. Locally edited managed files are skipped;
+new research record templates are created as user-owned where the project is
+expected to fill them over time.
+
 `academic-research init` initializes an existing repository without overwriting
 existing files. It adds the research contract, merges lifecycle package scripts,
 and preserves existing README, `.gitignore`, and custom package scripts.
@@ -215,6 +233,11 @@ MCP commands are split by side-effect:
 | `mcp smoke` | Print non-launching readiness diagnostics for enabled or selected MCP servers. |
 | `mcp doctor` | Validate enabled MCP records, generated snippets, required env vars, and documented manual prerequisites. Pass `--env-file .env.local` to read explicit local secrets. |
 | `mcp probe` | Opt-in runtime check. Local stdio servers get a JSON-RPC handshake; remote endpoints are reported as configured without a network probe. |
+
+Workflow commands are scenario-level shortcuts over skills and MCP records.
+Use `npm run workflow:literature` when starting a serious SOTA, survey, or
+related-work pass: it selects a practical literature stack with arXiv, DBLP,
+Semantic Scholar, and OpenAlex remote graph search, then prints the next checks.
 
 ## Companion Skills
 
@@ -268,6 +291,17 @@ Zotero desktop app and Zoty setup. Overleaf is a manual setup integration with
 a generated safe dotenv-loading wrapper after `mcp setup`.
 Crossref and broad paper-search aggregators are kept as fallback/manual entries
 until a project explicitly needs them.
+
+For SOTA work, the recommended low-friction path is:
+
+```bash
+npm run workflow:literature
+npm run skills:install -- --preset literature
+npm run mcp:status
+npm run mcp:smoke -- --env-file .env.local
+```
+
+Then use `$sota-literature-review` with a declared review scale and seed set.
 
 Codex automatic registration supports custom remote endpoints when the URL is
 stored in project config with `--url`. If the endpoint URL is kept private via

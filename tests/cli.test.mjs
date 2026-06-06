@@ -58,6 +58,7 @@ test("create-academic-research help exits successfully and explains framing", ()
   assert.match(lifecycleHelp.stdout, /update/);
   assert.match(lifecycleHelp.stdout, /setup/);
   assert.match(lifecycleHelp.stdout, /agents/);
+  assert.match(lifecycleHelp.stdout, /workflow/);
 
   const mcpHelp = spawnSync(process.execPath, ["dist/bin/academic-research.js", "mcp", "help"], {
     cwd: root,
@@ -76,6 +77,14 @@ test("create-academic-research help exits successfully and explains framing", ()
   assert.match(mcpHelp.stdout, /--write <path>/);
   assert.match(mcpHelp.stdout, /--timeout-ms <ms>/);
   assert.equal((mcpHelp.stdout.match(/--root <path>/g) ?? []).length, 1);
+
+  const workflowHelp = spawnSync(process.execPath, ["dist/bin/academic-research.js", "workflow", "help"], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  assert.equal(workflowHelp.status, 0, workflowHelp.stderr + workflowHelp.stdout);
+  assert.match(workflowHelp.stdout, /workflow <literature>/);
+  assert.match(workflowHelp.stdout, /citation graph/);
 });
 
 test("create-academic-research version flags report package version", () => {
@@ -256,6 +265,35 @@ test("academic-research setup derives MCP next commands from selected servers", 
   assert.match(setup.stdout, /npm run mcp:setup -- overleaf --mode local --env-file \.env\.local/);
   assert.doesNotMatch(setup.stdout, /npm run mcp:client:add -- overleaf --agent codex/);
   assert.doesNotMatch(setup.stdout, /npm run mcp:probe -- arxiv/);
+});
+
+test("academic-research workflow literature configures a practical SOTA stack", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-workflow-"));
+  const target = join(temp, "cli-workflow-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const workflow = spawnSync(process.execPath, ["dist/bin/academic-research.js", "workflow", "literature", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
+  assert.match(workflow.stdout, /Literature Workflow/);
+  assert.match(workflow.stdout, /mcp_selected\tarxiv,dblp,semantic-scholar,openalex/);
+  assert.match(workflow.stdout, /npm run mcp:status/);
+  assert.match(workflow.stdout, /Use \$sota-literature-review/);
+
+  const capabilities = YAML.parse(await readFile(join(target, "configs/capabilities.yaml"), "utf8"));
+  assert.equal(capabilities.preset, "literature");
+  assert.deepEqual(capabilities.mcp_servers, ["arxiv", "dblp", "semantic-scholar", "openalex"]);
+  assert.equal(capabilities.mcp_server_modes.openalex, "remote");
+  const snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/mcp.json"), "utf8"));
+  assert.deepEqual(Object.keys(snippet.mcpServers).sort(), ["arxiv", "dblp", "openalex", "semantic-scholar"]);
+  assert.equal(snippet.mcpServers.openalex.url, "https://openalex.caseyjhand.com/mcp");
 });
 
 test("academic-research setup prints Overleaf client registration only after setup is ready", async () => {

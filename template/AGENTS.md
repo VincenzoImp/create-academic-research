@@ -20,8 +20,9 @@ scholarly record.
 2. `configs/default.yaml`
 3. `configs/capabilities.yaml`
 4. `docs/agent/capability-profile.md`
-5. `docs/agent/research-program.md`
-6. `wiki/index.md`
+5. `docs/agent/project-quality.md`
+6. `docs/agent/research-program.md`
+7. `wiki/index.md`
 
 ## Standard Workflow
 
@@ -30,6 +31,14 @@ scholarly record.
 3. Make repeatable changes in `src/`, `configs/`, or documented workflows.
 4. Add tests or validation for code and structural changes.
 5. Update `wiki/log.md` and affected wiki/docs pages before finishing.
+
+## Project Quality
+
+- Keep every user request inside the project quality contract in `docs/agent/project-quality.md`.
+- Put each artifact in its correct work zone: exploratory, debug, analysis, reproduction, final output, report, source, or release.
+- Promote outputs only when inputs, command/procedure, validation, limitations, and linked claims are recorded.
+- Update `artifacts/badge-evidence-ledger.csv` whenever a task creates evidence for artifact availability, functionality, reusability, reproduction, or replication.
+- The user guides the research direction; agents preserve internal order, provenance, and validation discipline.
 
 ## Memory Contract
 
@@ -45,9 +54,21 @@ scholarly record.
 
 - Native PDFs and reports go in `sources/pdfs/`.
 - Derived Markdown goes in `sources/markdown/`.
+- Linear reading copies go in `sources/markdown-linear/`.
 - Metadata goes in `sources/metadata/`.
 - Bibliography records go in `sources/bib/references.bib`.
 - Citation issues go in `sources/bib/citation-audit.csv`.
 - SOTA records go in `sota/`.
+- Core/supporting paper syntheses go in `sota/paper-syntheses/`.
+- Full-text reading progress goes in `sota/reading-log.csv`.
+- Citation graph expansion goes in `sota/citation-chasing-log.csv`.
 - Curated experiment records go in `experiments/`.
 - Repeatable command entrypoints go in `scripts/`.
+
+## SOTA Discipline
+
+- Run `npm run workflow:literature` before serious SOTA, survey, or related-work work.
+- Declare the review scale: quick-scan, focused-sota, or full-survey.
+- Use citation chasing in both directions from seeds; record rounds and stopping conditions.
+- Do not use abstract-only records for durable claims.
+- For core/supporting papers, acquire full text, read linearly, create a per-paper synthesis, normalize the BibTeX entry, then cite.

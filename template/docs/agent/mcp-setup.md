@@ -19,6 +19,18 @@ local app, and manual setup.
 Use `npm run mcp:status -- --verbose` when you need technical mode names,
 snippet state, client registration state, and probe details.
 
+For literature review work, prefer the scenario command before manual MCP
+selection:
+
+```bash
+npm run workflow:literature
+npm run mcp:status
+npm run mcp:smoke -- --env-file .env.local
+```
+
+This selects arXiv, DBLP, Semantic Scholar, and OpenAlex remote graph search as
+the default SOTA discovery stack.
+
 `configs/capabilities.yaml` records intended project capability state.
 `docs/agent/capability-lock.json` records non-secret observed setup facts for
 MCP setup/client/probe actions and project-local skill operations. The scaffold

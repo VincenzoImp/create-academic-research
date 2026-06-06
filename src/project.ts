@@ -173,6 +173,16 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "expected_fix",
     "checked_on"
   ],
+  "artifacts/badge-evidence-ledger.csv": [
+    "badge_target",
+    "evidence_id",
+    "evidence_path",
+    "claim_or_result_id",
+    "artifact_component",
+    "command_or_procedure",
+    "validation_status",
+    "checked_on"
+  ],
   "sota/literature-matrix.csv": [
     "source_id",
     "title",
@@ -186,10 +196,38 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "metric_or_result",
     "limitations",
     "relevance",
+    "full_text_status",
+    "reading_status",
+    "synthesis_path",
     "citation_count_or_signal",
-    "identifiers"
+    "identifiers",
+    "bib_key",
+    "role"
   ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
+  "sota/reading-log.csv": [
+    "source_id",
+    "role",
+    "reading_copy_path",
+    "start_location",
+    "end_location",
+    "status",
+    "reader",
+    "started_on",
+    "completed_on"
+  ],
+  "sota/citation-chasing-log.csv": [
+    "round",
+    "seed_source_id",
+    "direction",
+    "tool_or_database",
+    "query_or_graph_call",
+    "found_count",
+    "new_after_dedup",
+    "promoted_to_seed_count",
+    "screening_status",
+    "date"
+  ],
   "experiments/registry.csv": [
     "run_id",
     "date",
@@ -205,6 +243,17 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "runtime",
     "status",
     "record_path"
+  ]
+};
+
+const REQUIRED_TSV_COLUMNS: Record<string, string[]> = {
+  "experiments/campaigns/frontier-results.tsv": [
+    "run_id",
+    "git_commit",
+    "metric_value",
+    "resource_value",
+    "status",
+    "description"
   ]
 };
 
@@ -323,10 +372,28 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "docs/agent/capability-profile.md",
     "docs/agent/mcp-setup.md",
     "docs/agent/mcp-client-setup.md",
+    "docs/agent/output-contracts.md",
+    "docs/agent/project-quality.md",
+    "docs/agent/repo-migration-playbook.md",
     "docs/agent/generated",
+    "docs/reproducibility/commands.md",
     "scripts/README.md",
+    "analysis_outputs/claim-audit.md",
+    "artifacts/badge-evidence-ledger.csv",
+    "experiments/campaigns/autonomous-campaign-template.md",
+    "experiments/campaigns/frontier-results.tsv",
+    "repro_outputs/SUMMARY.md",
+    "repro_outputs/COMMANDS.md",
+    "repro_outputs/LOG.md",
+    "repro_outputs/PATCHES.md",
+    "repro_outputs/status.json",
+    "sources/markdown-linear",
     "sources/source-ledger.csv",
+    "sota/reading-log.csv",
+    "sota/citation-chasing-log.csv",
     "sota/literature-matrix.csv",
+    "sota/paper-syntheses",
+    "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
     "wiki/templates/source-page.md",
@@ -438,6 +505,9 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
   await validateStaleCommandReferences(target, warnings);
   for (const [relative, requiredColumns] of Object.entries(REQUIRED_CSV_COLUMNS)) {
     await validateCsvHeader(target, relative, requiredColumns, errors);
+  }
+  for (const [relative, requiredColumns] of Object.entries(REQUIRED_TSV_COLUMNS)) {
+    await validateDelimitedHeader(target, relative, requiredColumns, "\t", errors);
   }
   return { ok: errors.length === 0, errors, warnings };
 }
@@ -592,6 +662,69 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
     { path: "configs/agent-stack.yaml", policy: "managed", content: YAML.stringify(AGENT_STACK) },
     { path: "docs/getting-started.md", policy: "managed", content: await templateText("docs/getting-started.md") },
     {
+      path: "docs/agent/output-contracts.md",
+      policy: "managed",
+      content: await templateText("docs/agent/output-contracts.md")
+    },
+    {
+      path: "docs/agent/project-quality.md",
+      policy: "managed",
+      content: await templateText("docs/agent/project-quality.md")
+    },
+    {
+      path: "docs/agent/repo-migration-playbook.md",
+      policy: "user-owned",
+      content: await templateText("docs/agent/repo-migration-playbook.md")
+    },
+    {
+      path: "docs/reproducibility/commands.md",
+      policy: "user-owned",
+      content: await templateText("docs/reproducibility/commands.md")
+    },
+    {
+      path: "analysis_outputs/claim-audit.md",
+      policy: "user-owned",
+      content: await templateText("analysis_outputs/claim-audit.md")
+    },
+    {
+      path: "sources/markdown-linear/.gitkeep",
+      policy: "managed",
+      content: await templateText("sources/markdown-linear/.gitkeep")
+    },
+    { path: "sota/reading-log.csv", policy: "managed", content: await templateText("sota/reading-log.csv") },
+    {
+      path: "sota/citation-chasing-log.csv",
+      policy: "managed",
+      content: await templateText("sota/citation-chasing-log.csv")
+    },
+    {
+      path: "sota/paper-syntheses/.gitkeep",
+      policy: "managed",
+      content: await templateText("sota/paper-syntheses/.gitkeep")
+    },
+    { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
+    { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
+    {
+      path: "artifacts/badge-evidence-ledger.csv",
+      policy: "managed",
+      content: await templateText("artifacts/badge-evidence-ledger.csv")
+    },
+    {
+      path: "experiments/campaigns/autonomous-campaign-template.md",
+      policy: "managed",
+      content: await templateText("experiments/campaigns/autonomous-campaign-template.md")
+    },
+    {
+      path: "experiments/campaigns/frontier-results.tsv",
+      policy: "managed",
+      content: await templateText("experiments/campaigns/frontier-results.tsv")
+    },
+    { path: "repro_outputs/SUMMARY.md", policy: "user-owned", content: await templateText("repro_outputs/SUMMARY.md") },
+    { path: "repro_outputs/COMMANDS.md", policy: "user-owned", content: await templateText("repro_outputs/COMMANDS.md") },
+    { path: "repro_outputs/LOG.md", policy: "user-owned", content: await templateText("repro_outputs/LOG.md") },
+    { path: "repro_outputs/PATCHES.md", policy: "user-owned", content: await templateText("repro_outputs/PATCHES.md") },
+    { path: "repro_outputs/status.json", policy: "user-owned", content: await templateText("repro_outputs/status.json") },
+    {
       path: "docs/agent/mcp-client-setup.md",
       policy: "managed",
       content: await templateText("docs/agent/mcp-client-setup.md")
@@ -638,6 +771,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     doctor: `${command} doctor`,
     update: `${latestCommand} update`,
     setup: `${command} setup`,
+    "workflow:literature": `${command} workflow literature`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,
@@ -1199,10 +1333,20 @@ async function validateCsvHeader(
   requiredColumns: string[],
   errors: string[]
 ): Promise<void> {
+  await validateDelimitedHeader(root, relative, requiredColumns, ",", errors);
+}
+
+async function validateDelimitedHeader(
+  root: string,
+  relative: string,
+  requiredColumns: string[],
+  delimiter: string,
+  errors: string[]
+): Promise<void> {
   const path = join(root, relative);
   if (!(await exists(path))) return;
   const header = (await readFile(path, "utf8")).split(/\r?\n/, 1)[0] ?? "";
-  const columns = new Set(header.split(",").map((column) => column.trim()).filter(Boolean));
+  const columns = new Set(header.split(delimiter).map((column) => column.trim()).filter(Boolean));
   for (const column of requiredColumns) {
     if (!columns.has(column)) errors.push(`${relative} missing column ${column}`);
   }

@@ -40,8 +40,10 @@ npm run update
 - `sota/`: search strategy, screening, literature matrix, synthesis, and gaps.
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
+- `docs/agent/project-quality.md`: cross-project quality, hygiene, and badge-readiness contract.
 - `docs/methodology/`: research design, evaluation plan, and validity threats.
 - `experiments/`: curated experiment registry and run records.
+- `experiments/campaigns/`: autonomous campaign templates and frontier result ledgers.
 - `scripts/`: thin repeatable entrypoints that call reusable code in `src/`.
 - `notebooks/`: optional exploratory and narrative notebooks.
 - `outputs/`: final figures, tables, models, and paper-supporting derived assets.
@@ -63,6 +65,7 @@ npm run skills:list
 npm run skills:status
 npm run update
 npm run setup
+npm run workflow:literature
 npm run mcp:dotenv
 npm run mcp:list
 npm run mcp:modes
@@ -104,6 +107,22 @@ npm exec --yes --package=create-academic-research@latest -- academic-research up
 npm exec --yes --package=create-academic-research@latest -- academic-research update --root . --apply
 ```
 
+### Migration 0.1.17 -> 0.1.18
+
+Projects created with `0.1.17` can migrate in place:
+
+```bash
+npm run update
+npm run update -- --apply
+npm run doctor
+```
+
+The migration adds the project-quality contract, badge evidence ledger, SOTA
+reading and citation-chasing ledgers, paper synthesis folders, linear reading
+copies, autonomous experiment campaign files, claim-audit and reproduction
+templates, and `workflow:literature`. Locally edited managed files are skipped;
+new research record templates are created for the project to fill over time.
+
 `.env.example` is the committed MCP environment reference. Regenerate it with
 `npm run mcp:dotenv`. Copy it to `.env.local`, your shell profile, or your MCP
 client secret store when secrets are needed. Filled `.env` files are ignored by
@@ -137,3 +156,17 @@ and Overleaf should be enabled only after reading `docs/agent/mcp-setup.md` and
 checking their prerequisites with `mcp env`.
 
 See `docs/getting-started.md` for the recommended first session workflow.
+
+For a serious SOTA or survey, start with:
+
+```bash
+npm run workflow:literature
+npm run skills:install -- --preset literature
+npm run mcp:status
+npm run mcp:smoke -- --env-file .env.local
+```
+
+This configures arXiv, DBLP, Semantic Scholar, and OpenAlex remote graph search
+as the practical citation-discovery stack. MCP output still becomes evidence
+only after source ingestion, full-text reading, bibliography normalization, and
+claim audit.
