@@ -120,6 +120,16 @@ Copy `contributions/templates/` to `contributions/<contribution_id>/`, update
 `contributions/contribution-ledger.csv`, and keep claims, reports, badge plans,
 reviews, and generated output paths inside that package.
 
+For contribution-local analysis work, run:
+
+```bash
+npm run workflow:analysis
+```
+
+Copy `contributions/templates/analyses/templates/` to
+`contributions/<contribution_id>/analyses/<analysis_id>/`. If strict preflight
+fails, write only `blocker-summary.md` until the missing fields are resolved.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

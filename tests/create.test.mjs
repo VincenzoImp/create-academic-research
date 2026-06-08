@@ -156,6 +156,21 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "contributions/templates/paper-export/.gitkeep"));
   await stat(join(target, "contributions/templates/reviews/.gitkeep"));
   await stat(join(target, "contributions/templates/archive/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/analysis.yaml"));
+  await stat(join(target, "contributions/templates/analyses/templates/README.md"));
+  await stat(join(target, "contributions/templates/analyses/templates/blocker-summary.md"));
+  await stat(join(target, "contributions/templates/analyses/templates/inputs/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/data/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/scripts/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/tables/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/figures/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/figure-catalog.md"));
+  await stat(join(target, "contributions/templates/analyses/templates/stats-appendix.md"));
+  await stat(join(target, "contributions/templates/analyses/templates/report.md"));
+  await stat(join(target, "contributions/templates/analyses/templates/paper-export/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/paper-export/README.md"));
+  await stat(join(target, "contributions/templates/analyses/templates/reviews/.gitkeep"));
+  await stat(join(target, "contributions/templates/analyses/templates/archive/.gitkeep"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -229,6 +244,16 @@ test("createProject generates a personalized research project without global sid
   const contributionReport = await readFile(join(target, "contributions/templates/report.md"), "utf8");
   assert.match(contributionReport, /Generated Outputs/);
   assert.match(contributionReport, /Do not rewrite numeric truth/);
+  const analysisManifest = YAML.parse(
+    await readFile(join(target, "contributions/templates/analyses/templates/analysis.yaml"), "utf8")
+  );
+  assert.equal(analysisManifest.analysis.status, "planned");
+  assert.equal(analysisManifest.metric.direction, "higher-is-better | lower-is-better | neutral");
+  assert.deepEqual(analysisManifest.outputs.tables, []);
+  const figureCatalog = await readFile(join(target, "contributions/templates/analyses/templates/figure-catalog.md"), "utf8");
+  assert.match(figureCatalog, /source_data_path/);
+  const analysisReport = await readFile(join(target, "contributions/templates/analyses/templates/report.md"), "utf8");
+  assert.match(analysisReport, /Reference generated outputs directly/);
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -631,6 +656,13 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await mkdir(join(target, "contributions/templates"), { recursive: true });
   await writeFile(join(target, "contributions/contribution-ledger.csv"), "contribution_id,title\n", "utf8");
   await writeFile(join(target, "contributions/templates/contribution.yaml"), "contribution: [\n", "utf8");
+  await mkdir(join(target, "contributions/templates/analyses/templates"), { recursive: true });
+  await writeFile(join(target, "contributions/templates/analyses/templates/analysis.yaml"), "analysis: [\n", "utf8");
+  await writeFile(
+    join(target, "contributions/templates/analyses/templates/figure-catalog.md"),
+    "| figure_id | purpose |\n| --- | --- |\n",
+    "utf8"
+  );
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -649,6 +681,12 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("research_agenda/opportunity-ledger.csv missing column evidence_summary")));
   assert.ok(result.errors.some((error) => error.includes("contributions/contribution-ledger.csv missing column type")));
   assert.ok(result.errors.some((error) => error.includes("invalid contributions/templates/contribution.yaml")));
+  assert.ok(result.errors.some((error) => error.includes("invalid contributions/templates/analyses/templates/analysis.yaml")));
+  assert.ok(
+    result.errors.some((error) =>
+      error.includes("contributions/templates/analyses/templates/figure-catalog.md missing table column source_data_path")
+    )
+  );
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -1056,6 +1094,38 @@ test("updateProject adds contribution package workflow files", async () => {
 
   await stat(join(target, "contributions/contribution-ledger.csv"));
   await stat(join(target, "contributions/templates/contribution.yaml"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds analysis workflow templates", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-analysis-workflow-"));
+  const target = join(root, "update-analysis-workflow-project");
+  await createProject({
+    target,
+    title: "Update Analysis Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "contributions/templates/analyses"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(
+    dryRun.changes.some(
+      (change) => change.path === "contributions/templates/analyses/templates/analysis.yaml" && change.action === "create"
+    )
+  );
+  assert.ok(
+    dryRun.changes.some(
+      (change) => change.path === "contributions/templates/analyses/templates/figure-catalog.md" && change.action === "create"
+    )
+  );
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "contributions/templates/analyses/templates/analysis.yaml"));
+  await stat(join(target, "contributions/templates/analyses/templates/figure-catalog.md"));
   assert.equal(doctor.ok, true);
 });
 

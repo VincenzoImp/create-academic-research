@@ -71,6 +71,7 @@ source ingestion -> SOTA -> survey -> research agenda -> contribution -> analysi
 - Survey contracts, claim ledgers, section plans, drafts, final survey artifacts, compliance notes, and reviews go in `survey/`.
 - Agenda opportunities, direction records, final agenda artifacts, and reviews go in `research_agenda/`.
 - Contribution packages, claim maps, badge plans, generated output references, paper exports, reviews, and archives go in `contributions/`.
+- Strict analysis bundles for contribution-local analyses go in `contributions/<contribution_id>/analyses/<analysis_id>/`.
 - Core/supporting paper syntheses go in `sota/paper-syntheses/`.
 - Full-text reading progress goes in `sota/reading-log.csv`.
 - Citation graph expansion goes in `sota/citation-chasing-log.csv`.

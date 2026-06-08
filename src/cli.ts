@@ -690,6 +690,7 @@ async function workflowCommand(argv: string[]): Promise<number> {
   if (subcommand === "survey") return workflowSurveyCommand(parsed);
   if (subcommand === "agenda") return workflowAgendaCommand(parsed);
   if (subcommand === "contribution") return workflowContributionCommand(parsed);
+  if (subcommand === "analysis") return workflowAnalysisCommand(parsed);
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
@@ -813,6 +814,38 @@ async function workflowContributionCommand(parsed: ParsedArgs): Promise<number> 
   console.log("next_skill\tbadge-compliance-profiles");
   console.log("");
   console.log("Rule\tcreate a package from a reviewed agenda opportunity, link evidence before component work, and promote only after review and clean-copy gates pass.");
+  return 0;
+}
+
+async function workflowAnalysisCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow analysis");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Analysis Workflow");
+  console.log(`root\t${root}`);
+  console.log("template\tcontributions/templates/analyses/templates/analysis.yaml");
+  console.log("template\tcontributions/templates/analyses/templates/report.md");
+  console.log("template\tcontributions/templates/analyses/templates/stats-appendix.md");
+  console.log("template\tcontributions/templates/analyses/templates/figure-catalog.md");
+  console.log("blocker\tcontributions/templates/analyses/templates/blocker-summary.md");
+  console.log("paper_export\tcontributions/templates/analyses/templates/paper-export/");
+  console.log("input\tcontributions/contribution-ledger.csv");
+  console.log("input\tcontributions/<contribution_id>/contribution.yaml");
+  console.log("preflight\tprimary_question");
+  console.log("preflight\tunit_of_analysis");
+  console.log("preflight\tmetric_direction");
+  console.log("preflight\traw_provenance");
+  console.log("preflight\tsample_seed_run_counts");
+  console.log("preflight\tcomparison_family");
+  console.log("outputs\tdata,tables,figures,paper_export");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tresearch-data-analysis");
+  console.log("next_skill\tresearch-results-reporting");
+  console.log("next_skill\tpublication-figures-tables");
+  console.log("next_skill\tcitation-claim-audit");
+  console.log("next_skill\tadversarial-peer-review");
+  console.log("");
+  console.log("Rule\tif strict preflight fails, write only blocker-summary.md; polished conclusions require manifest paths, generated outputs, QA, and final review.");
   return 0;
 }
 
@@ -1183,7 +1216,7 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature|survey|agenda|contribution> [options]",
+      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
@@ -1192,6 +1225,7 @@ function printWorkflowHelp(): void {
       "  survey                    Route SOTA claims into a section-by-section reviewed survey workflow.",
       "  agenda                    Route SOTA gaps and survey claims into reviewed research opportunities.",
       "  contribution              Route reviewed agenda opportunities into contribution packages and reports.",
+      "  analysis                  Route contribution-local analyses through strict preflight, reports, and publication assets.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",

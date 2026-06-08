@@ -26,6 +26,12 @@ Contribution packages must use `contributions/contribution-ledger.csv` and a cop
 
 Contribution reports reference generated data, tables, figures, models, software, and artifact files by path. Do not rewrite numeric truth in prose when a generated output is the canonical source.
 
+Strict analysis bundles live inside contribution packages. If primary question,
+unit of analysis, metric direction, raw provenance, sample/seed/run counts, or
+comparison family are missing, the only valid analysis output is
+`blocker-summary.md`; polished reports and paper-facing figures/tables wait
+until the strict manifest and review gates pass.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

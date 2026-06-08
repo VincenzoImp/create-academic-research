@@ -1,0 +1,47 @@
+version: 1
+analysis:
+  id: analysis-example
+  contribution_id: contrib-example
+  status: planned
+  primary_question: Example primary analysis question
+  unit_of_analysis: Example unit of analysis
+  linked_claim_ids: []
+metric:
+  name: example_metric
+  direction: "higher-is-better | lower-is-better | neutral"
+  primary: true
+data:
+  raw_provenance: []
+  canonical_inputs: []
+  exclusions: []
+design:
+  sample_count: 0
+  seed_count: 0
+  run_count: 0
+  comparison_family: "baseline | ablation | sensitivity | reproduction | replication | descriptive | causal | qualitative | mixed"
+  statistical_plan: stats-appendix.md
+scripts:
+  commands: []
+  environment: []
+outputs:
+  data: []
+  tables: []
+  figures: []
+  paper_export: []
+validation:
+  commands: []
+  expected_checks: []
+publication_assets:
+  figure_paths: []
+  table_paths: []
+  caption_requirements: []
+  accessibility_checks: []
+review:
+  status: not-reviewed
+  latest_review_path: reviews/
+  clean_copy_gate: not-started
+  unresolved_blockers: []
+supersession:
+  status: active
+  replaces: []
+  replaced_by: []

@@ -87,6 +87,10 @@ Contribution packages should select active compliance profiles early, but a
 badge claim is valid only after the package report, output paths, validation
 commands, and final review all agree.
 
+Analysis reports should be written only after strict preflight passes. Figure
+and table claims stay tied to generated source-data paths, stats appendix rows,
+figure-catalog rows, and paper-export snippets.
+
 Map work to these targets:
 
 - Artifacts Available

@@ -414,6 +414,62 @@ const REQUIRED_YAML_PATHS: Record<string, string[]> = {
     "active_profiles",
     "available_profiles",
     "evidence_ledger"
+  ],
+  "contributions/templates/analyses/templates/analysis.yaml": [
+    "version",
+    "analysis.id",
+    "analysis.contribution_id",
+    "analysis.status",
+    "analysis.primary_question",
+    "analysis.unit_of_analysis",
+    "analysis.linked_claim_ids",
+    "metric.name",
+    "metric.direction",
+    "data.raw_provenance",
+    "data.canonical_inputs",
+    "design.sample_count",
+    "design.seed_count",
+    "design.run_count",
+    "design.comparison_family",
+    "scripts.commands",
+    "scripts.environment",
+    "outputs.data",
+    "outputs.tables",
+    "outputs.figures",
+    "outputs.paper_export",
+    "validation.commands",
+    "publication_assets.figure_paths",
+    "publication_assets.table_paths",
+    "review.status",
+    "review.clean_copy_gate",
+    "supersession.status"
+  ]
+};
+
+const REQUIRED_MARKDOWN_TABLE_COLUMNS: Record<string, string[]> = {
+  "contributions/templates/analyses/templates/figure-catalog.md": [
+    "figure_id",
+    "source_data_path",
+    "purpose",
+    "caption_requirement",
+    "key_observation",
+    "interpretation_checklist",
+    "known_caveats",
+    "qa_status"
+  ],
+  "contributions/templates/analyses/templates/stats-appendix.md": [
+    "stat_id",
+    "analysis_question",
+    "variable_or_metric",
+    "descriptive_stats",
+    "test_choice",
+    "assumptions",
+    "effect_size",
+    "confidence_interval",
+    "multiple_comparison_handling",
+    "sample_seed_run_counts",
+    "limitations",
+    "source_path"
   ]
 };
 
@@ -627,6 +683,21 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "contributions/templates/paper-export",
     "contributions/templates/reviews",
     "contributions/templates/archive",
+    "contributions/templates/analyses/templates/analysis.yaml",
+    "contributions/templates/analyses/templates/README.md",
+    "contributions/templates/analyses/templates/blocker-summary.md",
+    "contributions/templates/analyses/templates/inputs",
+    "contributions/templates/analyses/templates/data",
+    "contributions/templates/analyses/templates/scripts",
+    "contributions/templates/analyses/templates/tables",
+    "contributions/templates/analyses/templates/figures",
+    "contributions/templates/analyses/templates/figure-catalog.md",
+    "contributions/templates/analyses/templates/stats-appendix.md",
+    "contributions/templates/analyses/templates/report.md",
+    "contributions/templates/analyses/templates/paper-export",
+    "contributions/templates/analyses/templates/paper-export/README.md",
+    "contributions/templates/analyses/templates/reviews",
+    "contributions/templates/analyses/templates/archive",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -746,6 +817,9 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
   }
   for (const [relative, requiredPaths] of Object.entries(REQUIRED_YAML_PATHS)) {
     await validateYamlRequiredPaths(target, relative, requiredPaths, errors);
+  }
+  for (const [relative, requiredColumns] of Object.entries(REQUIRED_MARKDOWN_TABLE_COLUMNS)) {
+    await validateMarkdownTableHeader(target, relative, requiredColumns, errors);
   }
   return { ok: errors.length === 0, errors, warnings };
 }
@@ -1210,6 +1284,81 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "managed",
       content: await templateText("contributions/templates/archive/.gitkeep")
     },
+    {
+      path: "contributions/templates/analyses/templates/analysis.yaml",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/analysis.yaml")
+    },
+    {
+      path: "contributions/templates/analyses/templates/README.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/README.md")
+    },
+    {
+      path: "contributions/templates/analyses/templates/blocker-summary.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/blocker-summary.md")
+    },
+    {
+      path: "contributions/templates/analyses/templates/inputs/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/inputs/.gitkeep")
+    },
+    {
+      path: "contributions/templates/analyses/templates/data/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/data/.gitkeep")
+    },
+    {
+      path: "contributions/templates/analyses/templates/scripts/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/scripts/.gitkeep")
+    },
+    {
+      path: "contributions/templates/analyses/templates/tables/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/tables/.gitkeep")
+    },
+    {
+      path: "contributions/templates/analyses/templates/figures/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/figures/.gitkeep")
+    },
+    {
+      path: "contributions/templates/analyses/templates/figure-catalog.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/figure-catalog.md")
+    },
+    {
+      path: "contributions/templates/analyses/templates/stats-appendix.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/stats-appendix.md")
+    },
+    {
+      path: "contributions/templates/analyses/templates/report.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/report.md")
+    },
+    {
+      path: "contributions/templates/analyses/templates/paper-export/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/paper-export/.gitkeep")
+    },
+    {
+      path: "contributions/templates/analyses/templates/paper-export/README.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/paper-export/README.md")
+    },
+    {
+      path: "contributions/templates/analyses/templates/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/reviews/.gitkeep")
+    },
+    {
+      path: "contributions/templates/analyses/templates/archive/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/analyses/templates/archive/.gitkeep")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -1283,6 +1432,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "workflow:survey": `${command} workflow survey`,
     "workflow:agenda": `${command} workflow agenda`,
     "workflow:contribution": `${command} workflow contribution`,
+    "workflow:analysis": `${command} workflow analysis`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,
@@ -1950,4 +2100,41 @@ function hasObjectPath(value: unknown, dottedPath: string): boolean {
     current = (current as Record<string, unknown>)[segment];
   }
   return true;
+}
+
+async function validateMarkdownTableHeader(
+  root: string,
+  relative: string,
+  requiredColumns: string[],
+  errors: string[]
+): Promise<void> {
+  const path = join(root, relative);
+  if (!(await exists(path))) return;
+  const content = await readFile(path, "utf8");
+  const header = firstMarkdownTableHeader(content);
+  if (!header) {
+    errors.push(`${relative} missing markdown table header`);
+    return;
+  }
+  const columns = new Set(header);
+  for (const column of requiredColumns) {
+    if (!columns.has(column)) errors.push(`${relative} missing table column ${column}`);
+  }
+}
+
+function firstMarkdownTableHeader(content: string): string[] | undefined {
+  const lines = content.split(/\r?\n/);
+  for (let index = 0; index < lines.length - 1; index += 1) {
+    const header = markdownTableCells(lines[index]);
+    const separator = markdownTableCells(lines[index + 1]);
+    if (header.length === 0 || separator.length === 0) continue;
+    if (separator.every((cell) => /^:?-{3,}:?$/.test(cell))) return header;
+  }
+  return undefined;
+}
+
+function markdownTableCells(line: string): string[] {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return [];
+  return trimmed.slice(1, -1).split("|").map((cell) => cell.trim()).filter(Boolean);
 }

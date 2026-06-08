@@ -41,7 +41,7 @@ npm run update
 - `sota/`: search strategy, screening, literature matrix, synthesis, and gaps.
 - `survey/`: SOTA-derived survey contract, outline, claim ledger, section plans, drafts, final artifacts, compliance notes, and reviews.
 - `research_agenda/`: reviewed opportunity ledger, direction records, final agenda synthesis, and agenda reviews.
-- `contributions/`: contribution packages, claim maps, badge plans, component outputs, reports, paper exports, reviews, and archives.
+- `contributions/`: contribution packages, strict analysis templates, claim maps, badge plans, component outputs, reports, paper exports, reviews, and archives.
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
 - `docs/agent/project-quality.md`: cross-project quality, hygiene, and badge-readiness contract.
@@ -77,6 +77,7 @@ npm run workflow:literature
 npm run workflow:survey
 npm run workflow:agenda
 npm run workflow:contribution
+npm run workflow:analysis
 npm run mcp:dotenv
 npm run mcp:list
 npm run mcp:modes
