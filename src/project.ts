@@ -82,6 +82,8 @@ interface ProjectConfig {
     profile: string;
     package: string;
   };
+  workflow?: Record<string, unknown>;
+  paths?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -257,6 +259,36 @@ const REQUIRED_TSV_COLUMNS: Record<string, string[]> = {
   ]
 };
 
+const REQUIRED_WORKFLOW_STAGES = [
+  "source-ingestion",
+  "sota",
+  "survey",
+  "research-agenda",
+  "contribution",
+  "analysis",
+  "paper-framing",
+  "paper-release",
+  "manuscript",
+  "submission",
+  "response"
+];
+
+const REQUIRED_PROJECT_PATHS: Record<string, string> = {
+  sources: "sources",
+  sota: "sota",
+  survey: "survey",
+  research_agenda: "research_agenda",
+  contributions: "contributions",
+  paper_frames: "paper_frames",
+  paper_releases: "paper_releases",
+  paper_submissions: "paper_submissions",
+  reports: "reports",
+  compliance: "compliance",
+  wiki: "wiki",
+  experiments: "experiments",
+  outputs: "outputs"
+};
+
 export async function createProject(options: CreateProjectOptions): Promise<ProjectResult> {
   const target = resolve(options.target);
   if (await isNonEmptyDirectory(target)) {
@@ -346,6 +378,7 @@ export async function updateProject(root: string, options: UpdateProjectOptions 
   const target = resolve(root);
   const changes: ProjectFileChange[] = [];
   const manifest = await readManagedFileManifest(target);
+  await updateProjectConfigDefaults(target, { apply: options.apply === true, changes });
   const specs = await managedFileSpecs(target);
   const nextManifest = await stageManagedFiles(target, specs, manifest, {
     apply: options.apply === true,
@@ -374,7 +407,13 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "docs/agent/mcp-client-setup.md",
     "docs/agent/output-contracts.md",
     "docs/agent/project-quality.md",
+    "docs/agent/skill-readiness.md",
+    "docs/agent/research-workflow.md",
+    "docs/agent/review-loop.md",
+    "docs/agent/workflow-prompts/README.md",
     "docs/agent/repo-migration-playbook.md",
+    "compliance/profiles.yaml",
+    "compliance/README.md",
     "docs/agent/generated",
     "docs/reproducibility/commands.md",
     "scripts/README.md",
@@ -414,6 +453,7 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
       } else if (!(await exists(join(target, "src", config.project.package, "__init__.py")))) {
         errors.push(`missing src/${config.project.package}/__init__.py`);
       }
+      validateWorkflowConfig(config, errors);
     } catch (error) {
       errors.push(`invalid configs/default.yaml: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -520,6 +560,7 @@ async function personalizeInitializedProject(
   const configPath = join(root, "configs/default.yaml");
   let config = await readProjectConfig(root);
   if (created.has("configs/default.yaml")) {
+    config = withWorkflowDefaults(config);
     config.project = {
       ...config.project,
       slug,
@@ -571,7 +612,7 @@ async function personalizeProject(
   { title, slug, packageName, profile, previousPackage = "project_package" }: PersonalizeOptions
 ): Promise<void> {
   const configPath = join(root, "configs/default.yaml");
-  const config = YAML.parse(await readFile(configPath, "utf8")) as ProjectConfig;
+  const config = withWorkflowDefaults(YAML.parse(await readFile(configPath, "utf8")) as ProjectConfig);
   config.project = {
     ...config.project,
     slug,
@@ -623,6 +664,21 @@ async function updateGeneratedPackageJson(
   await stageTextWrite(root, "package.json", next, options);
 }
 
+async function updateProjectConfigDefaults(
+  root: string,
+  options: { apply: boolean; changes: ProjectFileChange[] }
+): Promise<void> {
+  const path = join(root, "configs/default.yaml");
+  if (!(await exists(path))) return;
+  const current = await readFile(path, "utf8");
+  const parsed = YAML.parse(current) as ProjectConfig;
+  const next = YAML.stringify(withWorkflowDefaults(parsed));
+  if (current === next) return;
+  options.changes.push({ path: "configs/default.yaml", action: "update" });
+  if (!options.apply) return;
+  await writeFile(path, next, "utf8");
+}
+
 async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
   const config = await readProjectConfig(root);
   const packageJson = await readJson<GeneratedPackageJson>(join(root, "package.json"));
@@ -670,6 +726,36 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       path: "docs/agent/project-quality.md",
       policy: "managed",
       content: await templateText("docs/agent/project-quality.md")
+    },
+    {
+      path: "docs/agent/skill-readiness.md",
+      policy: "managed",
+      content: await templateText("docs/agent/skill-readiness.md")
+    },
+    {
+      path: "docs/agent/research-workflow.md",
+      policy: "managed",
+      content: await templateText("docs/agent/research-workflow.md")
+    },
+    {
+      path: "docs/agent/review-loop.md",
+      policy: "managed",
+      content: await templateText("docs/agent/review-loop.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/README.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/README.md")
+    },
+    {
+      path: "compliance/profiles.yaml",
+      policy: "managed",
+      content: await templateText("compliance/profiles.yaml")
+    },
+    {
+      path: "compliance/README.md",
+      policy: "managed",
+      content: await templateText("compliance/README.md")
     },
     {
       path: "docs/agent/repo-migration-playbook.md",
@@ -833,6 +919,35 @@ async function currentPackageVersion(): Promise<string> {
 
 async function readProjectConfig(root: string): Promise<ProjectConfig> {
   return YAML.parse(await readFile(join(root, "configs/default.yaml"), "utf8")) as ProjectConfig;
+}
+
+function withWorkflowDefaults(config: ProjectConfig): ProjectConfig {
+  const currentWorkflow =
+    typeof config.workflow === "object" && config.workflow !== null ? config.workflow : {};
+  const currentStages = Array.isArray(currentWorkflow.available_stages)
+    ? currentWorkflow.available_stages.filter((stage): stage is string => typeof stage === "string")
+    : [];
+  const mergedStages = [...currentStages];
+  for (const stage of REQUIRED_WORKFLOW_STAGES) {
+    if (!mergedStages.includes(stage)) mergedStages.push(stage);
+  }
+  const currentPaths =
+    typeof config.paths === "object" && config.paths !== null ? config.paths : {};
+  return {
+    ...config,
+    workflow: {
+      ...currentWorkflow,
+      active_stage:
+        typeof currentWorkflow.active_stage === "string"
+          ? currentWorkflow.active_stage
+          : "source-ingestion",
+      available_stages: mergedStages
+    },
+    paths: {
+      ...REQUIRED_PROJECT_PATHS,
+      ...currentPaths
+    }
+  };
 }
 
 async function updateManagedCapabilityFiles(
@@ -1334,6 +1449,35 @@ async function validateCsvHeader(
   errors: string[]
 ): Promise<void> {
   await validateDelimitedHeader(root, relative, requiredColumns, ",", errors);
+}
+
+function validateWorkflowConfig(config: ProjectConfig, errors: string[]): void {
+  const workflow =
+    typeof config.workflow === "object" && config.workflow !== null ? config.workflow : undefined;
+  if (!workflow) {
+    errors.push("configs/default.yaml missing workflow");
+    return;
+  }
+  const stages = Array.isArray(workflow.available_stages)
+    ? new Set(workflow.available_stages.filter((stage): stage is string => typeof stage === "string"))
+    : undefined;
+  if (!stages) {
+    errors.push("configs/default.yaml missing workflow.available_stages");
+  } else {
+    for (const stage of REQUIRED_WORKFLOW_STAGES) {
+      if (!stages.has(stage)) errors.push(`configs/default.yaml missing workflow.available_stages ${stage}`);
+    }
+  }
+  const paths = typeof config.paths === "object" && config.paths !== null ? config.paths : undefined;
+  if (!paths) {
+    errors.push("configs/default.yaml missing paths");
+    return;
+  }
+  for (const key of Object.keys(REQUIRED_PROJECT_PATHS)) {
+    if (typeof paths[key] !== "string" || paths[key].trim() === "") {
+      errors.push(`configs/default.yaml missing paths.${key}`);
+    }
+  }
 }
 
 async function validateDelimitedHeader(

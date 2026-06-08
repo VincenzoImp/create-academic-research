@@ -22,7 +22,10 @@ scholarly record.
 4. `docs/agent/capability-profile.md`
 5. `docs/agent/project-quality.md`
 6. `docs/agent/research-program.md`
-7. `wiki/index.md`
+7. `docs/agent/research-workflow.md`
+8. `docs/agent/review-loop.md`
+9. `docs/agent/skill-readiness.md`
+10. `wiki/index.md`
 
 ## Standard Workflow
 
@@ -31,6 +34,11 @@ scholarly record.
 3. Make repeatable changes in `src/`, `configs/`, or documented workflows.
 4. Add tests or validation for code and structural changes.
 5. Update `wiki/log.md` and affected wiki/docs pages before finishing.
+
+For multi-stage research, preserve this order unless the user explicitly narrows
+the task:
+
+source ingestion -> SOTA -> survey -> research agenda -> contribution -> analysis -> paper framing -> paper release + manuscript -> submission -> response/revision
 
 ## Project Quality
 

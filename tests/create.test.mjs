@@ -37,6 +37,31 @@ test("createProject generates a personalized research project without global sid
   assert.equal(config.project.slug, "paper-project");
   assert.equal(config.project.title, "Paper Project");
   assert.equal(config.project.package, "paper_project");
+  assert.equal(config.workflow?.active_stage, "source-ingestion");
+  assert.deepEqual(config.workflow?.available_stages, [
+    "source-ingestion",
+    "sota",
+    "survey",
+    "research-agenda",
+    "contribution",
+    "analysis",
+    "paper-framing",
+    "paper-release",
+    "manuscript",
+    "submission",
+    "response"
+  ]);
+  assert.equal(config.paths.sources, "sources");
+  assert.equal(config.paths.sota, "sota");
+  assert.equal(config.paths.survey, "survey");
+  assert.equal(config.paths.research_agenda, "research_agenda");
+  assert.equal(config.paths.contributions, "contributions");
+  assert.equal(config.paths.paper_frames, "paper_frames");
+  assert.equal(config.paths.paper_releases, "paper_releases");
+  assert.equal(config.paths.paper_submissions, "paper_submissions");
+  assert.equal(config.paths.reports, "reports");
+  assert.equal(config.paths.compliance, "compliance");
+  assert.equal(config.paths.wiki, "wiki");
   assert.equal(capabilities.scope, "project-local");
   assert.equal(capabilities.agent, "universal");
   assert.deepEqual(capabilities.mcp_servers, ["arxiv"]);
@@ -59,6 +84,12 @@ test("createProject generates a personalized research project without global sid
   assert.equal(manifest.files["wiki/log.md"].policy, "append-only");
   assert.equal(manifest.files["README.md"].policy, "user-owned");
   assert.equal(manifest.files["docs/agent/repo-migration-playbook.md"].policy, "user-owned");
+  assert.equal(manifest.files["docs/agent/skill-readiness.md"]?.policy, "managed");
+  assert.equal(manifest.files["docs/agent/research-workflow.md"]?.policy, "managed");
+  assert.equal(manifest.files["docs/agent/review-loop.md"]?.policy, "managed");
+  assert.equal(manifest.files["docs/agent/workflow-prompts/README.md"]?.policy, "managed");
+  assert.equal(manifest.files["compliance/profiles.yaml"]?.policy, "managed");
+  assert.equal(manifest.files["compliance/README.md"]?.policy, "managed");
   assert.equal(manifest.files["docs/reproducibility/commands.md"].policy, "user-owned");
   assert.equal(manifest.files["analysis_outputs/claim-audit.md"].policy, "user-owned");
   assert.equal(manifest.files["repro_outputs/SUMMARY.md"].policy, "user-owned");
@@ -70,6 +101,12 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "docs/agent/mcp-client-setup.md"));
   await stat(join(target, "docs/agent/repo-migration-playbook.md"));
   await stat(join(target, "docs/agent/project-quality.md"));
+  await stat(join(target, "docs/agent/skill-readiness.md"));
+  await stat(join(target, "docs/agent/research-workflow.md"));
+  await stat(join(target, "docs/agent/review-loop.md"));
+  await stat(join(target, "docs/agent/workflow-prompts/README.md"));
+  await stat(join(target, "compliance/profiles.yaml"));
+  await stat(join(target, "compliance/README.md"));
   await stat(join(target, "docs/reproducibility/commands.md"));
   await stat(join(target, "analysis_outputs/claim-audit.md"));
   await stat(join(target, "repro_outputs/SUMMARY.md"));
@@ -126,12 +163,35 @@ test("createProject generates a personalized research project without global sid
   assert.match(projectQuality, /Trusted Outputs/);
   assert.match(projectQuality, /Project Hygiene Gate/);
   assert.match(projectQuality, /Badge Readiness/);
+  assert.match(projectQuality, /Universal Review Loop/);
+  assert.match(projectQuality, /Final Clean-Copy Gate/);
+  assert.match(projectQuality, /paper_submissions\//);
   const outputContracts = await readFile(join(target, "docs/agent/output-contracts.md"), "utf8");
   assert.match(outputContracts, /Trust Levels/);
   assert.match(outputContracts, /Promotion Rules/);
   assert.match(outputContracts, /reports\/paper\/sota-survey\.tex/);
   assert.match(outputContracts, /artifacts\/badge-evidence-ledger\.csv/);
   assert.match(outputContracts, /Project Quality Contract/);
+  assert.match(outputContracts, /survey\//);
+  assert.match(outputContracts, /research_agenda\//);
+  assert.match(outputContracts, /contributions\//);
+  assert.match(outputContracts, /paper_frames\//);
+  assert.match(outputContracts, /paper_releases\//);
+  assert.match(outputContracts, /paper_submissions\//);
+  assert.match(outputContracts, /compliance\//);
+  const researchWorkflow = await readFile(join(target, "docs/agent/research-workflow.md"), "utf8");
+  assert.match(researchWorkflow, /source ingestion -> SOTA -> survey -> research agenda/);
+  assert.match(researchWorkflow, /submission -> response/);
+  const skillReadiness = await readFile(join(target, "docs/agent/skill-readiness.md"), "utf8");
+  assert.match(skillReadiness, /Academic research skills are required/);
+  assert.match(skillReadiness, /Superpowers/);
+  const workflowPromptReadme = await readFile(join(target, "docs/agent/workflow-prompts/README.md"), "utf8");
+  assert.match(workflowPromptReadme, /Prompt-level workflow commands/);
+  assert.match(workflowPromptReadme, /npm run workflow:<stage>/);
+  const complianceProfiles = YAML.parse(await readFile(join(target, "compliance/profiles.yaml"), "utf8"));
+  assert.equal(complianceProfiles.version, 1);
+  assert.equal(complianceProfiles.profiles["acm-artifact-review"].status, "available");
+  assert.equal(complianceProfiles.profiles["survey-reporting"].status, "available");
   const badgeEvidence = await readFile(join(target, "artifacts/badge-evidence-ledger.csv"), "utf8");
   assert.match(badgeEvidence, /badge_target/);
   assert.match(badgeEvidence, /evidence_path/);
@@ -468,6 +528,8 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
+  await rm(join(target, "docs/agent/research-workflow.md"), { force: true });
+  await rm(join(target, "compliance/profiles.yaml"), { force: true });
 
   const result = await doctorProject(target);
 
@@ -478,6 +540,58 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
+  assert.ok(result.errors.some((error) => error.includes("missing docs/agent/research-workflow.md")));
+  assert.ok(result.errors.some((error) => error.includes("missing compliance/profiles.yaml")));
+});
+
+test("doctorProject reports incomplete workflow contract in default config", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-doctor-workflow-config-"));
+  const target = join(root, "doctor-workflow-config-project");
+  await createProject({
+    target,
+    title: "Doctor Workflow Config Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const configPath = join(target, "configs/default.yaml");
+  const config = YAML.parse(await readFile(configPath, "utf8"));
+  config.workflow = {
+    active_stage: "source-ingestion",
+    available_stages: [
+      "source-ingestion",
+      "sota",
+      "survey",
+      "research-agenda",
+      "contribution",
+      "analysis",
+      "paper-framing",
+      "paper-release",
+      "manuscript",
+      "submission"
+    ]
+  };
+  config.paths = {
+    ...config.paths,
+    survey: "survey",
+    research_agenda: "research_agenda",
+    contributions: "contributions",
+    paper_frames: "paper_frames",
+    paper_releases: "paper_releases",
+    reports: "reports",
+    compliance: "compliance",
+    wiki: "wiki",
+    experiments: "experiments",
+    outputs: "outputs"
+  };
+  delete config.paths.paper_submissions;
+  await writeFile(configPath, YAML.stringify(config), "utf8");
+
+  const result = await doctorProject(target);
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("configs/default.yaml missing workflow.available_stages response")));
+  assert.ok(result.errors.some((error) => error.includes("configs/default.yaml missing paths.paper_submissions")));
 });
 
 test("doctorProject reports stale lifecycle commands and managed-file drift", async () => {
@@ -633,6 +747,49 @@ test("updateProject applies unchanged managed files and skips locally edited man
   );
   assert.match(envExample, /^OPENALEX_API_KEY=/m);
   assert.equal(setup, locallyEdited);
+});
+
+test("updateProject adds missing workflow defaults to user-owned config without overwriting project fields", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-workflow-config-"));
+  const target = join(root, "update-workflow-config-project");
+  await createProject({
+    target,
+    title: "Update Workflow Config Project",
+    slug: "update-workflow-config-project",
+    packageName: "update_workflow_config_project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  const configPath = join(target, "configs/default.yaml");
+  const config = YAML.parse(await readFile(configPath, "utf8"));
+  delete config.workflow;
+  config.paths.sources = "library/sources";
+  delete config.paths.survey;
+  delete config.paths.paper_submissions;
+  config.paths.custom_local_path = "custom";
+  config.project.title = "Locally Edited Title";
+  await writeFile(configPath, YAML.stringify(config), "utf8");
+
+  const dryRun = await updateProject(target, { apply: false });
+  const stillOld = YAML.parse(await readFile(configPath, "utf8"));
+  assert.ok(dryRun.changes.some((change) => change.path === "configs/default.yaml" && change.action === "update"));
+  assert.equal(stillOld.workflow, undefined);
+  assert.equal(stillOld.project.title, "Locally Edited Title");
+
+  const applied = await updateProject(target, { apply: true });
+  const updated = YAML.parse(await readFile(configPath, "utf8"));
+  const doctor = await doctorProject(target);
+
+  assert.ok(applied.changes.some((change) => change.path === "configs/default.yaml" && change.action === "update"));
+  assert.equal(updated.project.title, "Locally Edited Title");
+  assert.equal(updated.paths.sources, "library/sources");
+  assert.equal(updated.paths.custom_local_path, "custom");
+  assert.equal(updated.paths.survey, "survey");
+  assert.equal(updated.paths.paper_submissions, "paper_submissions");
+  assert.equal(updated.workflow.active_stage, "source-ingestion");
+  assert.ok(updated.workflow.available_stages.includes("response"));
+  assert.equal(doctor.ok, true);
 });
 
 test("updateProject migrates 0.1.17 projects to the 0.1.18 research contract", async () => {

@@ -26,6 +26,17 @@ from exploratory work to trusted project evidence.
 - `experiments/campaigns/frontier-results.tsv`: machine-readable frontier ledger for `keep`, `discard`, and `crash` campaign outcomes.
 - `reports/paper/sota-survey.tex`: survey-scale LaTeX draft when the task asks for a SOTA chapter or survey.
 - `artifacts/badge-evidence-ledger.csv`: badge evidence paths, linked claims/results, procedures, and validation status.
+- `survey/`: survey contracts, outlines, section plans, claims, drafts, final survey artifacts, and reviews.
+- `research_agenda/`: opportunity ledgers, direction records, final agenda artifacts, and reviews.
+- `contributions/`: contribution packages, claim maps, component outputs, badge plans, compliance files, reports, and reviews.
+- `paper_frames/`: frame contracts, selected contributions, evidence maps, venue fit, badge fit, compliance fit, release plans, outlines, and decisions.
+- `paper_releases/`: materialized paper-specific release packages, source maps, locks, checksums, metadata, and release reviews.
+- `paper_submissions/`: cover letters, submitted snapshots, decision letters, reviewer comments, response letters, rebuttals, revision plans, and private correspondence.
+- `compliance/`: project-level compliance profile registry and evidence files.
+
+`paper_submissions/` is private communication state. New reviewer-requested
+scientific work belongs in `contributions/` and analysis bundles, not in
+rebuttal folders.
 
 ## Promotion Rules
 

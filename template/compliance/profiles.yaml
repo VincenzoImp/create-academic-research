@@ -1,0 +1,47 @@
+version: 1
+active_profiles: []
+profiles:
+  acm-artifact-review:
+    status: available
+    applies_to: code, data, models, benchmarks, systems, reproducibility packages
+    evidence_file: compliance/acm-artifact-review.md
+  usenix-artifact-evaluation:
+    status: available
+    applies_to: venue-specific artifact evaluation
+    evidence_file: compliance/acm-artifact-review.md
+  sigplan-acm-artifact-evaluation:
+    status: available
+    applies_to: SIGPLAN and ACM artifact evaluation variants
+    evidence_file: compliance/acm-artifact-review.md
+  cos-open-science-badges:
+    status: available
+    applies_to: open data, open materials, preregistration
+    evidence_file: compliance/open-practice-badges.md
+  osf-open-practice-resource-badges:
+    status: available
+    applies_to: data, analytic code, materials, papers, supplements
+    evidence_file: compliance/open-practice-badges.md
+  top-transparency:
+    status: available
+    applies_to: transparency and reproducibility standards
+    evidence_file: compliance/top-transparency.md
+  venue-reproducibility-checklist:
+    status: available
+    applies_to: venue-year submission checklists
+    evidence_file: compliance/venue-checklist.md
+  method-reporting-standards:
+    status: available
+    applies_to: evaluation methods, threats to validity, statistical reporting
+    evidence_file: compliance/method-reporting.md
+  survey-reporting:
+    status: available
+    applies_to: systematic, scoping, or meta-analytic reviews
+    evidence_file: compliance/survey-reporting.md
+  dataset-metadata:
+    status: available
+    applies_to: dataset releases and FAIR metadata
+    evidence_file: compliance/dataset-metadata.md
+  ai-model-release:
+    status: available
+    applies_to: model, checkpoint, inference code, training code, and provenance releases
+    evidence_file: compliance/ai-model-release.md

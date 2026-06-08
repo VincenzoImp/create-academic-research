@@ -33,6 +33,14 @@ Read `docs/agent/project-quality.md` before substantive work. It defines where
 each class of source, SOTA record, experiment, analysis, LaTeX file, artifact,
 and final output belongs.
 
+Also read:
+
+- `docs/agent/research-workflow.md`
+- `docs/agent/review-loop.md`
+- `docs/agent/skill-readiness.md`
+- `docs/agent/workflow-prompts/README.md`
+- `compliance/README.md`
+
 ## 2. Install Project-Local Skills
 
 Install the default academic research skill package:

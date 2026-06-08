@@ -41,6 +41,7 @@ npm run update
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
 - `docs/agent/project-quality.md`: cross-project quality, hygiene, and badge-readiness contract.
+- `compliance/`: project-level badge, open-science, method-reporting, survey-reporting, dataset, model-release, and venue checklist profile registry.
 - `docs/methodology/`: research design, evaluation plan, and validity threats.
 - `experiments/`: curated experiment registry and run records.
 - `experiments/campaigns/`: autonomous campaign templates and frontier result ledgers.
@@ -50,6 +51,10 @@ npm run update
 - `reports/`: proposal, paper, slides, reviews, and rebuttal material.
 - `artifacts/`: open science and artifact evaluation preparation.
 - `src/`: reusable project code.
+
+Future workflow layers, including `survey/`, `research_agenda/`,
+`contributions/`, `paper_frames/`, `paper_releases/`, and
+`paper_submissions/`, are governed by `docs/agent/research-workflow.md`.
 
 ## Agent Capabilities
 

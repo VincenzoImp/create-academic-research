@@ -1,0 +1,25 @@
+# Research Workflow
+
+The project workflow is:
+
+source ingestion -> SOTA -> survey -> research agenda -> contribution packages -> analysis / experiment / artifact subworkflows -> paper framing -> paper release + manuscript -> submission -> response/revision
+
+## Stage Contracts
+
+Each stage has a contract, expected inputs, expected outputs, review state, and handoff target.
+
+The stage order is not a command to produce everything in one pass. Large outputs are built section by section or bundle by bundle, reviewed adversarially, fixed, and reviewed again before promotion.
+
+## Claim Promotion
+
+Claims move through source evidence, SOTA claim ledgers, survey claims, agenda opportunities, contribution claim maps, analysis bundles, paper frames, manuscript claim maps, and response/revision evidence.
+
+Do not introduce a claim directly in a late-stage artifact if it has not been grounded in the earlier evidence layers.
+
+## New Sources
+
+New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.
+
+## Submission And Response
+
+Cover letters, decision letters, reviewer comments, rebuttals, response letters, and revision plans are communication artifacts. Reviewer-requested new scientific work belongs in contribution packages and analysis bundles, then is linked from the response package.

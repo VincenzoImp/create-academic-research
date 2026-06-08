@@ -31,6 +31,13 @@ update the durable records for each workflow instead of relying on chat history.
 - `reports/`: proposal, manuscript, slides, reviews, rebuttal, and LaTeX.
 - `artifacts/`: release package, badge evidence, public artifact preparation.
 - `wiki/`: durable project memory, claims, decisions, contradictions, questions.
+- `survey/`: survey contracts, outlines, section plans, claims, drafts, final survey artifacts, and reviews.
+- `research_agenda/`: opportunity ledgers, direction records, final agenda artifacts, and reviews.
+- `contributions/`: contribution packages, claim maps, component outputs, badge plans, compliance files, reports, and reviews.
+- `paper_frames/`: frame contracts, selected contributions, evidence maps, venue fit, badge fit, compliance fit, release plans, outlines, and decisions.
+- `paper_releases/`: materialized paper-specific release packages, source maps, locks, checksums, metadata, and release reviews.
+- `paper_submissions/`: cover letters, submitted snapshots, decision letters, reviewer comments, response letters, rebuttals, revision plans, and private correspondence.
+- `compliance/`: project-level compliance profile registry and evidence files.
 
 Do not mix exploratory, trusted, raw, and final outputs. Promote artifacts only
 when provenance, command, input, and validation are recorded.
@@ -48,6 +55,14 @@ An output becomes trusted only when it has:
 
 If any of these are missing, keep the output in `explore_outputs/`,
 `analysis_outputs/`, or `debug_outputs/` and record the gap.
+
+## Universal Review Loop
+
+Substantial artifacts repeat contract -> outline -> partial draft or analysis slice -> adversarial review -> fix -> re-review until no blocker or major issue remains.
+
+## Final Clean-Copy Gate
+
+Final artifacts must not contain draft residue, stale tables, stale figures, unsupported claims, contradictory claims, unresolved notes, or obsolete alternatives.
 
 ## Project Hygiene Gate
 
