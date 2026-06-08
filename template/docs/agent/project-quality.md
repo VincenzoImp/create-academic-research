@@ -83,6 +83,10 @@ Badge evidence should accumulate throughout the project. When a task affects
 code, data, benchmarks, models, experiments, reproduction, or release material,
 update `artifacts/badge-evidence-ledger.csv` and `artifacts/artifact-checklist.md`.
 
+Contribution packages should select active compliance profiles early, but a
+badge claim is valid only after the package report, output paths, validation
+commands, and final review all agree.
+
 Map work to these targets:
 
 - Artifacts Available

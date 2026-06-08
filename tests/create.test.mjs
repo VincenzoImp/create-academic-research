@@ -90,6 +90,8 @@ test("createProject generates a personalized research project without global sid
   assert.equal(manifest.files["docs/agent/workflow-prompts/README.md"]?.policy, "managed");
   assert.equal(manifest.files["compliance/profiles.yaml"]?.policy, "managed");
   assert.equal(manifest.files["compliance/README.md"]?.policy, "managed");
+  assert.equal(manifest.files["contributions/contribution-ledger.csv"]?.policy, "user-owned");
+  assert.equal(manifest.files["contributions/templates/contribution.yaml"]?.policy, "managed");
   assert.equal(manifest.files["docs/reproducibility/commands.md"].policy, "user-owned");
   assert.equal(manifest.files["analysis_outputs/claim-audit.md"].policy, "user-owned");
   assert.equal(manifest.files["repro_outputs/SUMMARY.md"].policy, "user-owned");
@@ -136,6 +138,24 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "research_agenda/directions/.gitkeep"));
   await stat(join(target, "research_agenda/final/.gitkeep"));
   await stat(join(target, "research_agenda/reviews/.gitkeep"));
+  await stat(join(target, "contributions/contribution-ledger.csv"));
+  await stat(join(target, "contributions/templates/contribution.yaml"));
+  await stat(join(target, "contributions/templates/README.md"));
+  await stat(join(target, "contributions/templates/claim-map.md"));
+  await stat(join(target, "contributions/templates/badge-plan.md"));
+  await stat(join(target, "contributions/templates/compliance/profiles.yaml"));
+  await stat(join(target, "contributions/templates/components/.gitkeep"));
+  await stat(join(target, "contributions/templates/inputs/.gitkeep"));
+  await stat(join(target, "contributions/templates/outputs/data/.gitkeep"));
+  await stat(join(target, "contributions/templates/outputs/tables/.gitkeep"));
+  await stat(join(target, "contributions/templates/outputs/figures/.gitkeep"));
+  await stat(join(target, "contributions/templates/outputs/models/.gitkeep"));
+  await stat(join(target, "contributions/templates/outputs/software/.gitkeep"));
+  await stat(join(target, "contributions/templates/outputs/artifacts/.gitkeep"));
+  await stat(join(target, "contributions/templates/report.md"));
+  await stat(join(target, "contributions/templates/paper-export/.gitkeep"));
+  await stat(join(target, "contributions/templates/reviews/.gitkeep"));
+  await stat(join(target, "contributions/templates/archive/.gitkeep"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -197,6 +217,18 @@ test("createProject generates a personalized research project without global sid
   const agendaContract = await readFile(join(target, "research_agenda/agenda-contract.md"), "utf8");
   assert.match(agendaContract, /Agenda Review Gate/);
   assert.match(agendaContract, /novelty, feasibility, evidence, publishability, and ethical\/release constraints/);
+  const contributionLedger = await readFile(join(target, "contributions/contribution-ledger.csv"), "utf8");
+  assert.match(
+    contributionLedger,
+    /^contribution_id,title,type,agenda_opportunity_ids,status,primary_claim_ids,source_ids,sota_claim_ids,survey_claim_ids,analysis_ids,experiment_ids,artifact_paths,output_data_paths,output_table_paths,output_figure_paths,badge_targets,compliance_profiles,report_path,claim_map_path,badge_plan_path,review_status,clean_copy_status,supersession_status,next_step,notes/m
+  );
+  const contributionManifest = YAML.parse(await readFile(join(target, "contributions/templates/contribution.yaml"), "utf8"));
+  assert.equal(contributionManifest.contribution.status, "planned");
+  assert.deepEqual(contributionManifest.outputs.tables, []);
+  assert.deepEqual(contributionManifest.badge_targets, []);
+  const contributionReport = await readFile(join(target, "contributions/templates/report.md"), "utf8");
+  assert.match(contributionReport, /Generated Outputs/);
+  assert.match(contributionReport, /Do not rewrite numeric truth/);
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -596,6 +628,9 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "survey/survey-claim-ledger.csv"), "survey_claim_id,claim_text\n", "utf8");
   await mkdir(join(target, "research_agenda"), { recursive: true });
   await writeFile(join(target, "research_agenda/opportunity-ledger.csv"), "opportunity_id,title\n", "utf8");
+  await mkdir(join(target, "contributions/templates"), { recursive: true });
+  await writeFile(join(target, "contributions/contribution-ledger.csv"), "contribution_id,title\n", "utf8");
+  await writeFile(join(target, "contributions/templates/contribution.yaml"), "contribution: [\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -612,6 +647,8 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("sota/sota-claim-ledger.csv missing column source_ids")));
   assert.ok(result.errors.some((error) => error.includes("survey/survey-claim-ledger.csv missing column sota_claim_ids")));
   assert.ok(result.errors.some((error) => error.includes("research_agenda/opportunity-ledger.csv missing column evidence_summary")));
+  assert.ok(result.errors.some((error) => error.includes("contributions/contribution-ledger.csv missing column type")));
+  assert.ok(result.errors.some((error) => error.includes("invalid contributions/templates/contribution.yaml")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -995,6 +1032,30 @@ test("updateProject adds research agenda workflow files", async () => {
 
   await stat(join(target, "research_agenda/agenda-contract.md"));
   await stat(join(target, "research_agenda/opportunity-ledger.csv"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds contribution package workflow files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-contribution-workflow-"));
+  const target = join(root, "update-contribution-workflow-project");
+  await createProject({
+    target,
+    title: "Update Contribution Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "contributions"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "contributions/contribution-ledger.csv" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "contributions/templates/contribution.yaml" && change.action === "create"));
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "contributions/contribution-ledger.csv"));
+  await stat(join(target, "contributions/templates/contribution.yaml"));
   assert.equal(doctor.ok, true);
 });
 

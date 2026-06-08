@@ -32,6 +32,8 @@ from exploratory work to trusted project evidence.
 - `research_agenda/`: opportunity ledgers, direction records, final agenda artifacts, and reviews.
 - `research_agenda/opportunity-ledger.csv`: reviewed research opportunities with evidence, nearest prior work, feasibility, expected contribution, risks, cost, priority, and decision.
 - `contributions/`: contribution packages, claim maps, component outputs, badge plans, compliance files, reports, and reviews.
+- `contributions/contribution-ledger.csv`: package index linking agenda opportunities, evidence, analyses, experiments, artifact paths, output data, tables, figures, badge targets, compliance profiles, review state, and supersession state.
+- `contributions/<contribution_id>/report.md`: internal contribution report. It references generated files rather than rewriting numeric truth.
 - `paper_frames/`: frame contracts, selected contributions, evidence maps, venue fit, badge fit, compliance fit, release plans, outlines, and decisions.
 - `paper_releases/`: materialized paper-specific release packages, source maps, locks, checksums, metadata, and release reviews.
 - `paper_submissions/`: cover letters, submitted snapshots, decision letters, reviewer comments, response letters, rebuttals, revision plans, and private correspondence.

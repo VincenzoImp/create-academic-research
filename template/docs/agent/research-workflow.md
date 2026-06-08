@@ -22,6 +22,10 @@ Survey claims must use `survey/survey-claim-ledger.csv` and link back to SOTA cl
 
 Research agenda opportunities must use `research_agenda/opportunity-ledger.csv`. Opportunity review checks novelty, feasibility, evidence, publishability, and ethical/release constraints before contribution work begins.
 
+Contribution packages must use `contributions/contribution-ledger.csv` and a copied package template under `contributions/<contribution_id>/`. A package links agenda opportunities, evidence records, component analyses or experiments, generated output paths, badge targets, compliance profiles, review state, and supersession state before it can support a paper frame.
+
+Contribution reports reference generated data, tables, figures, models, software, and artifact files by path. Do not rewrite numeric truth in prose when a generated output is the canonical source.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

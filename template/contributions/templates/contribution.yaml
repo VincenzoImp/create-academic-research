@@ -1,0 +1,47 @@
+version: 1
+contribution:
+  id: contrib-example
+  title: Example contribution package
+  type: "analysis | experiment | artifact | pipeline | dataset | software | benchmark | system | protocol | reproduction | replication | negative-result | mixed"
+  status: planned
+  agenda_opportunity_ids: []
+  owner: project-team
+  created_on: 1970-01-01
+  updated_on: 1970-01-01
+evidence:
+  source_ids: []
+  sota_claim_ids: []
+  survey_claim_ids: []
+  agenda_opportunity_ids: []
+  nearest_prior_work: []
+components:
+  analyses: []
+  experiments: []
+  artifacts: []
+  datasets: []
+  software: []
+  benchmarks: []
+  protocols: []
+outputs:
+  data: []
+  tables: []
+  figures: []
+  models: []
+  software: []
+  artifacts: []
+  paper_export: []
+badge_targets: []
+compliance_profiles: []
+review:
+  status: not-reviewed
+  latest_review_path: contributions/templates/reviews/
+  clean_copy_gate: not-started
+  unresolved_blockers: []
+supersession:
+  status: active
+  replaces: []
+  replaced_by: []
+release:
+  intended_visibility: internal
+  paper_frame_ids: []
+  release_paths: []

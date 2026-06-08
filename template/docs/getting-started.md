@@ -110,6 +110,16 @@ npm run workflow:agenda
 
 Use `research_agenda/opportunity-ledger.csv` for durable opportunity decisions.
 
+For accepted opportunity work that may become a paper contribution, run:
+
+```bash
+npm run workflow:contribution
+```
+
+Copy `contributions/templates/` to `contributions/<contribution_id>/`, update
+`contributions/contribution-ledger.csv`, and keep claims, reports, badge plans,
+reviews, and generated output paths inside that package.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

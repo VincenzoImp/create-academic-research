@@ -298,6 +298,33 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "next_step",
     "notes"
   ],
+  "contributions/contribution-ledger.csv": [
+    "contribution_id",
+    "title",
+    "type",
+    "agenda_opportunity_ids",
+    "status",
+    "primary_claim_ids",
+    "source_ids",
+    "sota_claim_ids",
+    "survey_claim_ids",
+    "analysis_ids",
+    "experiment_ids",
+    "artifact_paths",
+    "output_data_paths",
+    "output_table_paths",
+    "output_figure_paths",
+    "badge_targets",
+    "compliance_profiles",
+    "report_path",
+    "claim_map_path",
+    "badge_plan_path",
+    "review_status",
+    "clean_copy_status",
+    "supersession_status",
+    "next_step",
+    "notes"
+  ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
     "source_id",
@@ -348,6 +375,45 @@ const REQUIRED_TSV_COLUMNS: Record<string, string[]> = {
     "resource_value",
     "status",
     "description"
+  ]
+};
+
+const REQUIRED_YAML_PATHS: Record<string, string[]> = {
+  "contributions/templates/contribution.yaml": [
+    "version",
+    "contribution.id",
+    "contribution.title",
+    "contribution.type",
+    "contribution.status",
+    "contribution.agenda_opportunity_ids",
+    "evidence.source_ids",
+    "evidence.sota_claim_ids",
+    "evidence.survey_claim_ids",
+    "evidence.agenda_opportunity_ids",
+    "components.analyses",
+    "components.experiments",
+    "components.artifacts",
+    "outputs.data",
+    "outputs.tables",
+    "outputs.figures",
+    "outputs.models",
+    "outputs.software",
+    "outputs.artifacts",
+    "outputs.paper_export",
+    "badge_targets",
+    "compliance_profiles",
+    "review.status",
+    "review.latest_review_path",
+    "review.clean_copy_gate",
+    "supersession.status",
+    "supersession.replaces",
+    "supersession.replaced_by"
+  ],
+  "contributions/templates/compliance/profiles.yaml": [
+    "version",
+    "active_profiles",
+    "available_profiles",
+    "evidence_ledger"
   ]
 };
 
@@ -543,6 +609,24 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "research_agenda/directions",
     "research_agenda/final",
     "research_agenda/reviews",
+    "contributions/contribution-ledger.csv",
+    "contributions/templates/contribution.yaml",
+    "contributions/templates/README.md",
+    "contributions/templates/claim-map.md",
+    "contributions/templates/badge-plan.md",
+    "contributions/templates/compliance/profiles.yaml",
+    "contributions/templates/components",
+    "contributions/templates/inputs",
+    "contributions/templates/outputs/data",
+    "contributions/templates/outputs/tables",
+    "contributions/templates/outputs/figures",
+    "contributions/templates/outputs/models",
+    "contributions/templates/outputs/software",
+    "contributions/templates/outputs/artifacts",
+    "contributions/templates/report.md",
+    "contributions/templates/paper-export",
+    "contributions/templates/reviews",
+    "contributions/templates/archive",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -659,6 +743,9 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
   }
   for (const [relative, requiredColumns] of Object.entries(REQUIRED_TSV_COLUMNS)) {
     await validateDelimitedHeader(target, relative, requiredColumns, "\t", errors);
+  }
+  for (const [relative, requiredPaths] of Object.entries(REQUIRED_YAML_PATHS)) {
+    await validateYamlRequiredPaths(target, relative, requiredPaths, errors);
   }
   return { ok: errors.length === 0, errors, warnings };
 }
@@ -1033,6 +1120,96 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "managed",
       content: await templateText("research_agenda/reviews/.gitkeep")
     },
+    {
+      path: "contributions/contribution-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("contributions/contribution-ledger.csv")
+    },
+    {
+      path: "contributions/templates/contribution.yaml",
+      policy: "managed",
+      content: await templateText("contributions/templates/contribution.yaml")
+    },
+    {
+      path: "contributions/templates/README.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/README.md")
+    },
+    {
+      path: "contributions/templates/claim-map.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/claim-map.md")
+    },
+    {
+      path: "contributions/templates/badge-plan.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/badge-plan.md")
+    },
+    {
+      path: "contributions/templates/compliance/profiles.yaml",
+      policy: "managed",
+      content: await templateText("contributions/templates/compliance/profiles.yaml")
+    },
+    {
+      path: "contributions/templates/components/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/components/.gitkeep")
+    },
+    {
+      path: "contributions/templates/inputs/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/inputs/.gitkeep")
+    },
+    {
+      path: "contributions/templates/outputs/data/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/outputs/data/.gitkeep")
+    },
+    {
+      path: "contributions/templates/outputs/tables/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/outputs/tables/.gitkeep")
+    },
+    {
+      path: "contributions/templates/outputs/figures/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/outputs/figures/.gitkeep")
+    },
+    {
+      path: "contributions/templates/outputs/models/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/outputs/models/.gitkeep")
+    },
+    {
+      path: "contributions/templates/outputs/software/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/outputs/software/.gitkeep")
+    },
+    {
+      path: "contributions/templates/outputs/artifacts/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/outputs/artifacts/.gitkeep")
+    },
+    {
+      path: "contributions/templates/report.md",
+      policy: "managed",
+      content: await templateText("contributions/templates/report.md")
+    },
+    {
+      path: "contributions/templates/paper-export/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/paper-export/.gitkeep")
+    },
+    {
+      path: "contributions/templates/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/reviews/.gitkeep")
+    },
+    {
+      path: "contributions/templates/archive/.gitkeep",
+      policy: "managed",
+      content: await templateText("contributions/templates/archive/.gitkeep")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -1105,6 +1282,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "workflow:literature": `${command} workflow literature`,
     "workflow:survey": `${command} workflow survey`,
     "workflow:agenda": `${command} workflow agenda`,
+    "workflow:contribution": `${command} workflow contribution`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,
@@ -1741,4 +1919,35 @@ async function validateDelimitedHeader(
   for (const column of requiredColumns) {
     if (!columns.has(column)) errors.push(`${relative} missing column ${column}`);
   }
+}
+
+async function validateYamlRequiredPaths(
+  root: string,
+  relative: string,
+  requiredPaths: string[],
+  errors: string[]
+): Promise<void> {
+  const path = join(root, relative);
+  if (!(await exists(path))) return;
+  let parsed: unknown;
+  try {
+    parsed = YAML.parse(await readFile(path, "utf8")) as unknown;
+  } catch (error) {
+    errors.push(`invalid ${relative}: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  for (const requiredPath of requiredPaths) {
+    if (!hasObjectPath(parsed, requiredPath)) errors.push(`${relative} missing ${requiredPath}`);
+  }
+}
+
+function hasObjectPath(value: unknown, dottedPath: string): boolean {
+  let current = value;
+  for (const segment of dottedPath.split(".")) {
+    if (typeof current !== "object" || current === null || !Object.hasOwn(current, segment)) {
+      return false;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return true;
 }

@@ -689,6 +689,7 @@ async function workflowCommand(argv: string[]): Promise<number> {
   if (subcommand === "literature") return workflowLiteratureCommand(parsed);
   if (subcommand === "survey") return workflowSurveyCommand(parsed);
   if (subcommand === "agenda") return workflowAgendaCommand(parsed);
+  if (subcommand === "contribution") return workflowContributionCommand(parsed);
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
@@ -780,6 +781,38 @@ async function workflowAgendaCommand(parsed: ParsedArgs): Promise<number> {
   console.log("next_skill\tadversarial-peer-review");
   console.log("");
   console.log("Rule\treview novelty, feasibility, evidence, publishability, and ethical/release constraints before contribution work.");
+  return 0;
+}
+
+async function workflowContributionCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow contribution");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Contribution Workflow");
+  console.log(`root\t${root}`);
+  console.log("ledger\tcontributions/contribution-ledger.csv");
+  console.log("template\tcontributions/templates/contribution.yaml");
+  console.log("template\tcontributions/templates/claim-map.md");
+  console.log("template\tcontributions/templates/badge-plan.md");
+  console.log("template\tcontributions/templates/report.md");
+  console.log("template\tcontributions/templates/compliance/profiles.yaml");
+  console.log("input\tresearch_agenda/opportunity-ledger.csv");
+  console.log("input\tsota/sota-claim-ledger.csv");
+  console.log("input\tsurvey/survey-claim-ledger.csv");
+  console.log("components\tcontributions/<contribution_id>/components/");
+  console.log("outputs\tcontributions/<contribution_id>/outputs/");
+  console.log("paper_export\tcontributions/<contribution_id>/paper-export/");
+  console.log("reviews\tcontributions/<contribution_id>/reviews/");
+  console.log("archive\tcontributions/<contribution_id>/archive/");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tcontribution-package");
+  console.log("next_skill\tresearch-data-analysis");
+  console.log("next_skill\tresearch-results-reporting");
+  console.log("next_skill\texperiment-logbook");
+  console.log("next_skill\tpublication-figures-tables");
+  console.log("next_skill\tbadge-compliance-profiles");
+  console.log("");
+  console.log("Rule\tcreate a package from a reviewed agenda opportunity, link evidence before component work, and promote only after review and clean-copy gates pass.");
   return 0;
 }
 
@@ -1150,7 +1183,7 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature|survey|agenda> [options]",
+      "Usage: academic-research workflow <literature|survey|agenda|contribution> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
@@ -1158,6 +1191,7 @@ function printWorkflowHelp(): void {
       "  literature                Configure the practical SOTA stack for arXiv, DBLP, Semantic Scholar citation graph, and OpenAlex graph search.",
       "  survey                    Route SOTA claims into a section-by-section reviewed survey workflow.",
       "  agenda                    Route SOTA gaps and survey claims into reviewed research opportunities.",
+      "  contribution              Route reviewed agenda opportunities into contribution packages and reports.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",
