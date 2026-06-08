@@ -45,6 +45,6 @@
     "mcp:probe": "npm exec --yes --package=create-academic-research@latest -- academic-research mcp probe"
   },
   "devDependencies": {
-    "create-academic-research": "0.1.18"
+    "create-academic-research": "0.1.19"
   }
 }
