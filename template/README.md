@@ -43,6 +43,7 @@ npm run update
 - `research_agenda/`: reviewed opportunity ledger, direction records, final agenda synthesis, and agenda reviews.
 - `contributions/`: contribution packages, strict analysis templates, claim maps, badge plans, component outputs, reports, paper exports, reviews, and archives.
 - `paper_frames/`: paper frame ledger, selected contributions, argument/evidence maps, venue fit, badge fit, release plan, outline, reviews, and decisions.
+- `paper_releases/`: paper-specific release manifests, source maps, locks, checksums, staged artifacts, metadata, reviews, and archives.
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
 - `docs/agent/project-quality.md`: cross-project quality, hygiene, and badge-readiness contract.
@@ -57,8 +58,8 @@ npm run update
 - `artifacts/`: open science and artifact evaluation preparation.
 - `src/`: reusable project code.
 
-Future workflow layers, including `paper_releases/` and `paper_submissions/`,
-are governed by `docs/agent/research-workflow.md`.
+Future workflow layers, including `paper_submissions/`, are governed by
+`docs/agent/research-workflow.md`.
 
 ## Agent Capabilities
 
@@ -80,6 +81,7 @@ npm run workflow:agenda
 npm run workflow:contribution
 npm run workflow:analysis
 npm run workflow:frame
+npm run workflow:release
 npm run mcp:dotenv
 npm run mcp:list
 npm run mcp:modes

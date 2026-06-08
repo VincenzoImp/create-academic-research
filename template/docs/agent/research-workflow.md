@@ -41,6 +41,10 @@ year, audience, contribution packages, analysis bundles, badge targets,
 compliance profiles, and release implications. Manuscript and release work
 start only after a frame decision is accepted.
 
+Paper releases live in `paper_releases/`. Release staging is generated from a
+manifest, source map, lock, and checksums. Staged release files are not a
+second source of truth and should not be edited by hand.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

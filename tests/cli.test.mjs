@@ -83,13 +83,14 @@ test("create-academic-research help exits successfully and explains framing", ()
     encoding: "utf8"
   });
   assert.equal(workflowHelp.status, 0, workflowHelp.stderr + workflowHelp.stdout);
-  assert.match(workflowHelp.stdout, /workflow <literature\|survey\|agenda\|contribution\|analysis\|frame>/);
+  assert.match(workflowHelp.stdout, /workflow <literature\|survey\|agenda\|contribution\|analysis\|frame\|release>/);
   assert.match(workflowHelp.stdout, /citation graph/);
   assert.match(workflowHelp.stdout, /survey/);
   assert.match(workflowHelp.stdout, /agenda/);
   assert.match(workflowHelp.stdout, /contribution/);
   assert.match(workflowHelp.stdout, /analysis/);
   assert.match(workflowHelp.stdout, /frame/);
+  assert.match(workflowHelp.stdout, /release/);
 });
 
 test("create-academic-research version flags report package version", () => {
@@ -443,6 +444,34 @@ test("academic-research workflow frame prints paper framing workflow routing", a
   assert.match(workflow.stdout, /next_skill\tpaper-framing/);
   assert.match(workflow.stdout, /next_skill\tcs-venue-strategy/);
   assert.match(workflow.stdout, /next_skill\tadversarial-peer-review/);
+  assert.match(workflow.stdout, /next_skill\tbadge-compliance-profiles/);
+});
+
+test("academic-research workflow release prints paper release workflow routing", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-workflow-release-"));
+  const target = join(temp, "cli-workflow-release-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const workflow = spawnSync(process.execPath, ["dist/bin/academic-research.js", "workflow", "release", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
+  assert.match(workflow.stdout, /Paper Release Workflow/);
+  assert.match(workflow.stdout, /ledger\tpaper_releases\/release-ledger\.csv/);
+  assert.match(workflow.stdout, /manifest\tpaper_releases\/templates\/release\.yaml/);
+  assert.match(workflow.stdout, /source_map\tpaper_releases\/templates\/source-map\.csv/);
+  assert.match(workflow.stdout, /lock\tpaper_releases\/templates\/release-plan\.lock/);
+  assert.match(workflow.stdout, /checksums\tpaper_releases\/templates\/checksums\.txt/);
+  assert.match(workflow.stdout, /input\tpaper_frames\/frame-ledger\.csv/);
+  assert.match(workflow.stdout, /next_skill\tpaper-release/);
+  assert.match(workflow.stdout, /next_skill\tartifact-open-science/);
+  assert.match(workflow.stdout, /next_skill\tresearch-repo-reproduction/);
   assert.match(workflow.stdout, /next_skill\tbadge-compliance-profiles/);
 });
 

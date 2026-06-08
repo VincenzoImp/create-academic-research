@@ -191,6 +191,20 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "paper_frames/templates/outline.md"));
   await stat(join(target, "paper_frames/templates/reviews/.gitkeep"));
   await stat(join(target, "paper_frames/templates/decision.md"));
+  await stat(join(target, "paper_releases/release-ledger.csv"));
+  await stat(join(target, "paper_releases/templates/release.yaml"));
+  await stat(join(target, "paper_releases/templates/source-map.csv"));
+  await stat(join(target, "paper_releases/templates/release-plan.lock"));
+  await stat(join(target, "paper_releases/templates/checksums.txt"));
+  await stat(join(target, "paper_releases/templates/artifact/.gitkeep"));
+  await stat(join(target, "paper_releases/templates/manuscript/.gitkeep"));
+  await stat(join(target, "paper_releases/templates/supplement/.gitkeep"));
+  await stat(join(target, "paper_releases/templates/data/.gitkeep"));
+  await stat(join(target, "paper_releases/templates/models/.gitkeep"));
+  await stat(join(target, "paper_releases/templates/metadata/README.md"));
+  await stat(join(target, "paper_releases/templates/reviews/.gitkeep"));
+  await stat(join(target, "paper_releases/templates/archive/.gitkeep"));
+  await stat(join(target, "scripts/release-paper/README.md"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -284,6 +298,16 @@ test("createProject generates a personalized research project without global sid
   assert.deepEqual(selectedContributions.selected_contributions, []);
   const frameReleasePlan = YAML.parse(await readFile(join(target, "paper_frames/templates/release-plan.yaml"), "utf8"));
   assert.equal(frameReleasePlan.frame_id, "frame-example");
+  const releaseLedger = await readFile(join(target, "paper_releases/release-ledger.csv"), "utf8");
+  assert.match(
+    releaseLedger,
+    /^release_id,frame_id,status,release_type,source_map_path,release_yaml_path,lock_path,checksum_path,included_paths,excluded_paths,active_profiles,anonymization_mode,public_destination,artifact_destination,smoke_tests,metadata_path,review_status,next_step,notes/m
+  );
+  const releaseManifest = YAML.parse(await readFile(join(target, "paper_releases/templates/release.yaml"), "utf8"));
+  assert.equal(releaseManifest.release.status, "planned");
+  assert.equal(releaseManifest.frame_id, "frame-example");
+  const sourceMap = await readFile(join(target, "paper_releases/templates/source-map.csv"), "utf8");
+  assert.match(sourceMap, /^release_id,released_path,canonical_source_path,source_type,include_mode,checksum,profile_ids,notes/m);
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -713,6 +737,10 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await mkdir(join(target, "paper_frames/templates"), { recursive: true });
   await writeFile(join(target, "paper_frames/frame-ledger.csv"), "frame_id,title\n", "utf8");
   await writeFile(join(target, "paper_frames/templates/selected-contributions.yaml"), "frame: [\n", "utf8");
+  await mkdir(join(target, "paper_releases/templates"), { recursive: true });
+  await writeFile(join(target, "paper_releases/release-ledger.csv"), "release_id,frame_id\n", "utf8");
+  await writeFile(join(target, "paper_releases/templates/source-map.csv"), "release_id,released_path\n", "utf8");
+  await writeFile(join(target, "paper_releases/templates/release.yaml"), "release: [\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -739,6 +767,9 @@ test("doctorProject reports broken configs and research ledger headers", async (
   );
   assert.ok(result.errors.some((error) => error.includes("paper_frames/frame-ledger.csv missing column status")));
   assert.ok(result.errors.some((error) => error.includes("invalid paper_frames/templates/selected-contributions.yaml")));
+  assert.ok(result.errors.some((error) => error.includes("paper_releases/release-ledger.csv missing column status")));
+  assert.ok(result.errors.some((error) => error.includes("paper_releases/templates/source-map.csv missing column canonical_source_path")));
+  assert.ok(result.errors.some((error) => error.includes("invalid paper_releases/templates/release.yaml")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -1260,6 +1291,33 @@ test("updateProject adds paper framing workflow files", async () => {
 
   await stat(join(target, "paper_frames/frame-ledger.csv"));
   await stat(join(target, "paper_frames/templates/selected-contributions.yaml"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds paper release workflow files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-release-workflow-"));
+  const target = join(root, "update-release-workflow-project");
+  await createProject({
+    target,
+    title: "Update Release Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "paper_releases"), { recursive: true, force: true });
+  await rm(join(target, "scripts/release-paper"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "paper_releases/release-ledger.csv" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "paper_releases/templates/source-map.csv" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "scripts/release-paper/README.md" && change.action === "create"));
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "paper_releases/release-ledger.csv"));
+  await stat(join(target, "paper_releases/templates/source-map.csv"));
+  await stat(join(target, "scripts/release-paper/README.md"));
   assert.equal(doctor.ok, true);
 });
 

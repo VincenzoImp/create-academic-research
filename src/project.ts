@@ -356,6 +356,37 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "next_step",
     "notes"
   ],
+  "paper_releases/release-ledger.csv": [
+    "release_id",
+    "frame_id",
+    "status",
+    "release_type",
+    "source_map_path",
+    "release_yaml_path",
+    "lock_path",
+    "checksum_path",
+    "included_paths",
+    "excluded_paths",
+    "active_profiles",
+    "anonymization_mode",
+    "public_destination",
+    "artifact_destination",
+    "smoke_tests",
+    "metadata_path",
+    "review_status",
+    "next_step",
+    "notes"
+  ],
+  "paper_releases/templates/source-map.csv": [
+    "release_id",
+    "released_path",
+    "canonical_source_path",
+    "source_type",
+    "include_mode",
+    "checksum",
+    "profile_ids",
+    "notes"
+  ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
     "source_id",
@@ -519,6 +550,29 @@ const REQUIRED_YAML_PATHS: Record<string, string[]> = {
     "smoke_tests",
     "metadata_requirements",
     "known_release_risks"
+  ],
+  "paper_releases/templates/release.yaml": [
+    "version",
+    "release.id",
+    "release.status",
+    "release.type",
+    "frame_id",
+    "source_frame_decision",
+    "included_contributions",
+    "included_analyses",
+    "included_paths",
+    "excluded_paths",
+    "active_profiles",
+    "anonymization_mode",
+    "destinations.public",
+    "destinations.artifact_evaluation",
+    "smoke_tests",
+    "metadata.readme",
+    "expected_outputs.artifact",
+    "expected_outputs.manuscript",
+    "review.status",
+    "review.source_map_checked",
+    "review.checksums_checked"
   ]
 };
 
@@ -794,6 +848,20 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "paper_frames/templates/outline.md",
     "paper_frames/templates/reviews",
     "paper_frames/templates/decision.md",
+    "paper_releases/release-ledger.csv",
+    "paper_releases/templates/release.yaml",
+    "paper_releases/templates/source-map.csv",
+    "paper_releases/templates/release-plan.lock",
+    "paper_releases/templates/checksums.txt",
+    "paper_releases/templates/artifact",
+    "paper_releases/templates/manuscript",
+    "paper_releases/templates/supplement",
+    "paper_releases/templates/data",
+    "paper_releases/templates/models",
+    "paper_releases/templates/metadata/README.md",
+    "paper_releases/templates/reviews",
+    "paper_releases/templates/archive",
+    "scripts/release-paper/README.md",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -1555,6 +1623,76 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "managed",
       content: await templateText("paper_frames/templates/decision.md")
     },
+    {
+      path: "paper_releases/release-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("paper_releases/release-ledger.csv")
+    },
+    {
+      path: "paper_releases/templates/release.yaml",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/release.yaml")
+    },
+    {
+      path: "paper_releases/templates/source-map.csv",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/source-map.csv")
+    },
+    {
+      path: "paper_releases/templates/release-plan.lock",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/release-plan.lock")
+    },
+    {
+      path: "paper_releases/templates/checksums.txt",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/checksums.txt")
+    },
+    {
+      path: "paper_releases/templates/artifact/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/artifact/.gitkeep")
+    },
+    {
+      path: "paper_releases/templates/manuscript/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/manuscript/.gitkeep")
+    },
+    {
+      path: "paper_releases/templates/supplement/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/supplement/.gitkeep")
+    },
+    {
+      path: "paper_releases/templates/data/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/data/.gitkeep")
+    },
+    {
+      path: "paper_releases/templates/models/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/models/.gitkeep")
+    },
+    {
+      path: "paper_releases/templates/metadata/README.md",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/metadata/README.md")
+    },
+    {
+      path: "paper_releases/templates/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/reviews/.gitkeep")
+    },
+    {
+      path: "paper_releases/templates/archive/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_releases/templates/archive/.gitkeep")
+    },
+    {
+      path: "scripts/release-paper/README.md",
+      policy: "managed",
+      content: await templateText("scripts/release-paper/README.md")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -1630,6 +1768,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "workflow:contribution": `${command} workflow contribution`,
     "workflow:analysis": `${command} workflow analysis`,
     "workflow:frame": `${command} workflow frame`,
+    "workflow:release": `${command} workflow release`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,

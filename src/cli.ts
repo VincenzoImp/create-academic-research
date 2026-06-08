@@ -692,6 +692,7 @@ async function workflowCommand(argv: string[]): Promise<number> {
   if (subcommand === "contribution") return workflowContributionCommand(parsed);
   if (subcommand === "analysis") return workflowAnalysisCommand(parsed);
   if (subcommand === "frame") return workflowFrameCommand(parsed);
+  if (subcommand === "release") return workflowReleaseCommand(parsed);
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
@@ -878,6 +879,35 @@ async function workflowFrameCommand(parsed: ParsedArgs): Promise<number> {
   console.log("next_skill\tbadge-compliance-profiles");
   console.log("");
   console.log("Rule\tmanuscript and release workflows start only from an accepted frame with selected contributions, evidence, venue fit, badge fit, and release implications.");
+  return 0;
+}
+
+async function workflowReleaseCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow release");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Paper Release Workflow");
+  console.log(`root\t${root}`);
+  console.log("ledger\tpaper_releases/release-ledger.csv");
+  console.log("manifest\tpaper_releases/templates/release.yaml");
+  console.log("source_map\tpaper_releases/templates/source-map.csv");
+  console.log("lock\tpaper_releases/templates/release-plan.lock");
+  console.log("checksums\tpaper_releases/templates/checksums.txt");
+  console.log("script\tscripts/release-paper/README.md");
+  console.log("input\tpaper_frames/frame-ledger.csv");
+  console.log("input\tpaper_frames/<frame_id>/decision.md");
+  console.log("input\tpaper_frames/<frame_id>/release-plan.yaml");
+  console.log("input\tcontributions/<contribution_id>/");
+  console.log("staging\tpaper_releases/<release_id>/artifact/");
+  console.log("staging\tpaper_releases/<release_id>/manuscript/");
+  console.log("staging\tpaper_releases/<release_id>/supplement/");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tpaper-release");
+  console.log("next_skill\tartifact-open-science");
+  console.log("next_skill\tresearch-repo-reproduction");
+  console.log("next_skill\tbadge-compliance-profiles");
+  console.log("");
+  console.log("Rule\trelease staging is generated from manifest, source map, lock, and checksums; do not hand-edit staging as canonical evidence.");
   return 0;
 }
 
@@ -1248,7 +1278,7 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis|frame> [options]",
+      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis|frame|release> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
@@ -1259,6 +1289,7 @@ function printWorkflowHelp(): void {
       "  contribution              Route reviewed agenda opportunities into contribution packages and reports.",
       "  analysis                  Route contribution-local analyses through strict preflight, reports, and publication assets.",
       "  frame                     Route reviewed contribution packages into venue-aware paper frames.",
+      "  release                   Route accepted frames into manifest-driven paper release packages.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",

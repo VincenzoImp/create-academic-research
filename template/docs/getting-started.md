@@ -140,6 +140,16 @@ Use `paper_frames/templates/` to create a candidate frame, select
 contributions, check venue fit, check badge/compliance fit, and record whether
 the frame is accepted, rejected, or held.
 
+For paper-specific release planning, run:
+
+```bash
+npm run workflow:release
+```
+
+Use `paper_releases/templates/` to define `release.yaml`, `source-map.csv`,
+`release-plan.lock`, and `checksums.txt`. Release staging is generated from
+those files and canonical project paths.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

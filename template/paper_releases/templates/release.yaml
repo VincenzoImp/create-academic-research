@@ -1,0 +1,33 @@
+version: 1
+release:
+  id: release-example
+  status: planned
+  type: public | artifact-evaluation | supplement | camera-ready | anonymous-review
+frame_id: frame-example
+source_frame_decision: paper_frames/templates/decision.md
+included_contributions: []
+included_analyses: []
+included_paths: []
+excluded_paths: []
+active_profiles: []
+anonymization_mode: undecided
+destinations:
+  public: undecided
+  artifact_evaluation: undecided
+  archival: undecided
+smoke_tests: []
+metadata:
+  readme: paper_releases/templates/metadata/README.md
+  license: undecided
+  citation: undecided
+expected_outputs:
+  artifact: paper_releases/templates/artifact/
+  manuscript: paper_releases/templates/manuscript/
+  supplement: paper_releases/templates/supplement/
+  data: paper_releases/templates/data/
+  models: paper_releases/templates/models/
+review:
+  status: not-reviewed
+  source_map_checked: false
+  checksums_checked: false
+  clean_copy_gate: not-started
