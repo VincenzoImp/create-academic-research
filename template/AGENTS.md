@@ -69,6 +69,7 @@ source ingestion -> SOTA -> survey -> research agenda -> contribution -> analysi
 - Zotero imports go in `sources/zotero/`; reconcile every Zotero item to `sources/source-ledger.csv`, `sources/bib/references.bib`, citation audit, and SOTA linkage before using it as evidence.
 - SOTA records go in `sota/`.
 - Survey contracts, claim ledgers, section plans, drafts, final survey artifacts, compliance notes, and reviews go in `survey/`.
+- Agenda opportunities, direction records, final agenda artifacts, and reviews go in `research_agenda/`.
 - Core/supporting paper syntheses go in `sota/paper-syntheses/`.
 - Full-text reading progress goes in `sota/reading-log.csv`.
 - Citation graph expansion goes in `sota/citation-chasing-log.csv`.

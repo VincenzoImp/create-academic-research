@@ -688,6 +688,7 @@ async function workflowCommand(argv: string[]): Promise<number> {
   }
   if (subcommand === "literature") return workflowLiteratureCommand(parsed);
   if (subcommand === "survey") return workflowSurveyCommand(parsed);
+  if (subcommand === "agenda") return workflowAgendaCommand(parsed);
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
@@ -754,6 +755,31 @@ async function workflowSurveyCommand(parsed: ParsedArgs): Promise<number> {
   console.log("next_skill\tadversarial-peer-review");
   console.log("");
   console.log("Rule\tplan, draft, review, fix, and re-review one survey section at a time before final integration.");
+  return 0;
+}
+
+async function workflowAgendaCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow agenda");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Agenda Workflow");
+  console.log(`root\t${root}`);
+  console.log("contract\tresearch_agenda/agenda-contract.md");
+  console.log("opportunity_ledger\tresearch_agenda/opportunity-ledger.csv");
+  console.log("input\tsota/gaps.md");
+  console.log("input\tsota/sota-claim-ledger.csv");
+  console.log("input\tsurvey/survey-claim-ledger.csv");
+  console.log("input\tsurvey/final/");
+  console.log("directions\tresearch_agenda/directions/");
+  console.log("final\tresearch_agenda/final/");
+  console.log("reviews\tresearch_agenda/reviews/");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tresearch-agenda");
+  console.log("next_skill\tresearch-design-positioning");
+  console.log("next_skill\tcs-methodology-evaluation");
+  console.log("next_skill\tadversarial-peer-review");
+  console.log("");
+  console.log("Rule\treview novelty, feasibility, evidence, publishability, and ethical/release constraints before contribution work.");
   return 0;
 }
 
@@ -1124,13 +1150,14 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature|survey> [options]",
+      "Usage: academic-research workflow <literature|survey|agenda> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
       "Workflows:",
       "  literature                Configure the practical SOTA stack for arXiv, DBLP, Semantic Scholar citation graph, and OpenAlex graph search.",
       "  survey                    Route SOTA claims into a section-by-section reviewed survey workflow.",
+      "  agenda                    Route SOTA gaps and survey claims into reviewed research opportunities.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",

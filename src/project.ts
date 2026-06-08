@@ -275,6 +275,29 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "downstream_status",
     "notes"
   ],
+  "research_agenda/opportunity-ledger.csv": [
+    "opportunity_id",
+    "title",
+    "evidence_summary",
+    "source_gap_ids",
+    "sota_claim_ids",
+    "survey_claim_ids",
+    "nearest_prior_work",
+    "method_or_experiment_idea",
+    "feasibility",
+    "expected_contribution",
+    "failure_condition",
+    "risks",
+    "cost",
+    "priority",
+    "publishability",
+    "ethical_or_release_constraints",
+    "decision",
+    "decision_rationale",
+    "review_status",
+    "next_step",
+    "notes"
+  ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
     "source_id",
@@ -515,6 +538,11 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "survey/reviews",
     "survey/compliance/README.md",
     "survey/survey-claim-ledger.csv",
+    "research_agenda/agenda-contract.md",
+    "research_agenda/opportunity-ledger.csv",
+    "research_agenda/directions",
+    "research_agenda/final",
+    "research_agenda/reviews",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -980,6 +1008,31 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "user-owned",
       content: await templateText("survey/survey-claim-ledger.csv")
     },
+    {
+      path: "research_agenda/agenda-contract.md",
+      policy: "managed",
+      content: await templateText("research_agenda/agenda-contract.md")
+    },
+    {
+      path: "research_agenda/opportunity-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("research_agenda/opportunity-ledger.csv")
+    },
+    {
+      path: "research_agenda/directions/.gitkeep",
+      policy: "managed",
+      content: await templateText("research_agenda/directions/.gitkeep")
+    },
+    {
+      path: "research_agenda/final/.gitkeep",
+      policy: "managed",
+      content: await templateText("research_agenda/final/.gitkeep")
+    },
+    {
+      path: "research_agenda/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("research_agenda/reviews/.gitkeep")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -1051,6 +1104,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     setup: `${command} setup`,
     "workflow:literature": `${command} workflow literature`,
     "workflow:survey": `${command} workflow survey`,
+    "workflow:agenda": `${command} workflow agenda`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,

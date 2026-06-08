@@ -8,6 +8,7 @@
     "setup": "npm exec --yes --package=create-academic-research@latest -- academic-research setup",
     "workflow:literature": "npm exec --yes --package=create-academic-research@latest -- academic-research workflow literature",
     "workflow:survey": "npm exec --yes --package=create-academic-research@latest -- academic-research workflow survey",
+    "workflow:agenda": "npm exec --yes --package=create-academic-research@latest -- academic-research workflow agenda",
     "rename": "npm exec --yes --package=create-academic-research@latest -- academic-research rename",
     "agents:list": "npm exec --yes --package=create-academic-research@latest -- academic-research agents list",
     "skills:install": "npm exec --yes --package=create-academic-research@latest -- academic-research skills install",

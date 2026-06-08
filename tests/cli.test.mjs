@@ -83,9 +83,10 @@ test("create-academic-research help exits successfully and explains framing", ()
     encoding: "utf8"
   });
   assert.equal(workflowHelp.status, 0, workflowHelp.stderr + workflowHelp.stdout);
-  assert.match(workflowHelp.stdout, /workflow <literature\|survey>/);
+  assert.match(workflowHelp.stdout, /workflow <literature\|survey\|agenda>/);
   assert.match(workflowHelp.stdout, /citation graph/);
   assert.match(workflowHelp.stdout, /survey/);
+  assert.match(workflowHelp.stdout, /agenda/);
 });
 
 test("create-academic-research version flags report package version", () => {
@@ -322,6 +323,33 @@ test("academic-research workflow survey prints survey workflow routing", async (
   assert.match(workflow.stdout, /next_skill\tsurvey-synthesis/);
   assert.match(workflow.stdout, /next_skill\tsystematic-review-prisma/);
   assert.match(workflow.stdout, /next_skill\tcitation-claim-audit/);
+  assert.match(workflow.stdout, /next_skill\tadversarial-peer-review/);
+});
+
+test("academic-research workflow agenda prints agenda workflow routing", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-workflow-agenda-"));
+  const target = join(temp, "cli-workflow-agenda-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const workflow = spawnSync(process.execPath, ["dist/bin/academic-research.js", "workflow", "agenda", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
+  assert.match(workflow.stdout, /Agenda Workflow/);
+  assert.match(workflow.stdout, /contract\tresearch_agenda\/agenda-contract\.md/);
+  assert.match(workflow.stdout, /input\tsota\/gaps\.md/);
+  assert.match(workflow.stdout, /input\tsota\/sota-claim-ledger\.csv/);
+  assert.match(workflow.stdout, /input\tsurvey\/survey-claim-ledger\.csv/);
+  assert.match(workflow.stdout, /input\tsurvey\/final\//);
+  assert.match(workflow.stdout, /next_skill\tresearch-agenda/);
+  assert.match(workflow.stdout, /next_skill\tresearch-design-positioning/);
+  assert.match(workflow.stdout, /next_skill\tcs-methodology-evaluation/);
   assert.match(workflow.stdout, /next_skill\tadversarial-peer-review/);
 });
 

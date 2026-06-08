@@ -30,6 +30,7 @@ from exploratory work to trusted project evidence.
 - `survey/`: survey contracts, outlines, section plans, claims, drafts, final survey artifacts, and reviews.
 - `survey/survey-claim-ledger.csv`: survey claims linked to SOTA claims, sections, evidence strength, allowed wording, review status, and downstream status.
 - `research_agenda/`: opportunity ledgers, direction records, final agenda artifacts, and reviews.
+- `research_agenda/opportunity-ledger.csv`: reviewed research opportunities with evidence, nearest prior work, feasibility, expected contribution, risks, cost, priority, and decision.
 - `contributions/`: contribution packages, claim maps, component outputs, badge plans, compliance files, reports, and reviews.
 - `paper_frames/`: frame contracts, selected contributions, evidence maps, venue fit, badge fit, compliance fit, release plans, outlines, and decisions.
 - `paper_releases/`: materialized paper-specific release packages, source maps, locks, checksums, metadata, and release reviews.

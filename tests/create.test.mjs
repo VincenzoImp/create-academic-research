@@ -131,6 +131,11 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "survey/reviews/.gitkeep"));
   await stat(join(target, "survey/compliance/README.md"));
   await stat(join(target, "survey/survey-claim-ledger.csv"));
+  await stat(join(target, "research_agenda/agenda-contract.md"));
+  await stat(join(target, "research_agenda/opportunity-ledger.csv"));
+  await stat(join(target, "research_agenda/directions/.gitkeep"));
+  await stat(join(target, "research_agenda/final/.gitkeep"));
+  await stat(join(target, "research_agenda/reviews/.gitkeep"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -184,6 +189,14 @@ test("createProject generates a personalized research project without global sid
   assert.match(surveyContract, /Survey Mode/);
   assert.match(surveyContract, /narrative \| systematic \| scoping \| meta-analysis \| mixed/);
   assert.match(surveyContract, /Section-By-Section Drafting/);
+  const opportunityLedger = await readFile(join(target, "research_agenda/opportunity-ledger.csv"), "utf8");
+  assert.match(
+    opportunityLedger,
+    /^opportunity_id,title,evidence_summary,source_gap_ids,sota_claim_ids,survey_claim_ids,nearest_prior_work,method_or_experiment_idea,feasibility,expected_contribution,failure_condition,risks,cost,priority,publishability,ethical_or_release_constraints,decision,decision_rationale,review_status,next_step,notes/m
+  );
+  const agendaContract = await readFile(join(target, "research_agenda/agenda-contract.md"), "utf8");
+  assert.match(agendaContract, /Agenda Review Gate/);
+  assert.match(agendaContract, /novelty, feasibility, evidence, publishability, and ethical\/release constraints/);
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -581,6 +594,8 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "sota/sota-claim-ledger.csv"), "claim_id,claim_text\n", "utf8");
   await mkdir(join(target, "survey"), { recursive: true });
   await writeFile(join(target, "survey/survey-claim-ledger.csv"), "survey_claim_id,claim_text\n", "utf8");
+  await mkdir(join(target, "research_agenda"), { recursive: true });
+  await writeFile(join(target, "research_agenda/opportunity-ledger.csv"), "opportunity_id,title\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -596,6 +611,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("sources/zotero/import-log.csv missing column imported_on")));
   assert.ok(result.errors.some((error) => error.includes("sota/sota-claim-ledger.csv missing column source_ids")));
   assert.ok(result.errors.some((error) => error.includes("survey/survey-claim-ledger.csv missing column sota_claim_ids")));
+  assert.ok(result.errors.some((error) => error.includes("research_agenda/opportunity-ledger.csv missing column evidence_summary")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -955,6 +971,30 @@ test("updateProject adds survey workflow files", async () => {
   await stat(join(target, "survey/survey-contract.md"));
   await stat(join(target, "survey/survey-claim-ledger.csv"));
   await stat(join(target, "survey/compliance/README.md"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds research agenda workflow files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-agenda-workflow-"));
+  const target = join(root, "update-agenda-workflow-project");
+  await createProject({
+    target,
+    title: "Update Agenda Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "research_agenda"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "research_agenda/agenda-contract.md" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "research_agenda/opportunity-ledger.csv" && change.action === "create"));
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "research_agenda/agenda-contract.md"));
+  await stat(join(target, "research_agenda/opportunity-ledger.csv"));
   assert.equal(doctor.ok, true);
 });
 

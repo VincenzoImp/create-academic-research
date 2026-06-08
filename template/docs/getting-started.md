@@ -102,6 +102,14 @@ npm run workflow:survey
 
 Use `survey/survey-contract.md` to declare the survey mode before writing sections.
 
+For research agenda work after survey/SOTA synthesis, run:
+
+```bash
+npm run workflow:agenda
+```
+
+Use `research_agenda/opportunity-ledger.csv` for durable opportunity decisions.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

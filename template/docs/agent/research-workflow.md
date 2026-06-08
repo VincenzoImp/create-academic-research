@@ -20,6 +20,8 @@ SOTA claims must use `sota/sota-claim-ledger.csv` before promotion. The ledger c
 
 Survey claims must use `survey/survey-claim-ledger.csv` and link back to SOTA claim IDs. Survey sections are planned, drafted, reviewed, fixed, and re-reviewed one section at a time.
 
+Research agenda opportunities must use `research_agenda/opportunity-ledger.csv`. Opportunity review checks novelty, feasibility, evidence, publishability, and ethical/release constraints before contribution work begins.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.
