@@ -284,6 +284,10 @@ test("academic-research workflow literature configures a practical SOTA stack", 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Literature Workflow/);
   assert.match(workflow.stdout, /mcp_selected\tarxiv,dblp,semantic-scholar,openalex/);
+  assert.match(
+    workflow.stdout,
+    /optional_zotero\tlocal-library enrichment; reconcile through sources\/zotero\/import-log\.csv and sources\/source-ledger\.csv/
+  );
   assert.match(workflow.stdout, /npm run mcp:status/);
   assert.match(workflow.stdout, /Use \$sota-literature-review/);
 

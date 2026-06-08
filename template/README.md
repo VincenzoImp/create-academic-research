@@ -37,6 +37,7 @@ npm run update
 ## Core Folders
 
 - `sources/`: curated papers, reports, metadata, BibTeX, and conversion ledgers.
+- `sources/zotero/`: optional Zotero import, collection, attachment, BibTeX, and source-ID reconciliation ledgers.
 - `sota/`: search strategy, screening, literature matrix, synthesis, and gaps.
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.

@@ -20,6 +20,10 @@ Do not introduce a claim directly in a late-stage artifact if it has not been gr
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.
 
+## Zotero
+
+Zotero is optional local-library enrichment. Zotero discoveries, attachments, and BibTeX exports must be reconciled through `sources/zotero/import-log.csv`, `sources/source-ledger.csv`, `sources/bib/references.bib`, `sources/bib/citation-audit.csv`, and SOTA linkage before they become durable evidence.
+
 ## Submission And Response
 
 Cover letters, decision letters, reviewer comments, rebuttals, response letters, and revision plans are communication artifacts. Reviewer-requested new scientific work belongs in contribution packages and analysis bundles, then is linked from the response package.

@@ -153,7 +153,11 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "evidence_level",
     "quality_notes",
     "added_on",
-    "last_checked"
+    "last_checked",
+    "discovery_source",
+    "zotero_item_key",
+    "zotero_attachment_path",
+    "notes"
   ],
   "sources/conversion-ledger.csv": [
     "source_id",
@@ -173,7 +177,35 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "source_id",
     "claim_or_location",
     "expected_fix",
-    "checked_on"
+    "checked_on",
+    "zotero_item_key",
+    "zotero_exported_bib_key",
+    "reconciliation_status",
+    "notes"
+  ],
+  "sources/zotero/import-log.csv": [
+    "import_id",
+    "imported_on",
+    "zotero_collection_key",
+    "zotero_collection_name",
+    "zotero_item_key",
+    "zotero_item_type",
+    "title",
+    "attachment_path",
+    "exported_bib_key",
+    "source_id",
+    "reconciliation_status",
+    "notes"
+  ],
+  "sources/zotero/collection-map.csv": [
+    "collection_key",
+    "collection_name",
+    "zotero_parent_key",
+    "scope",
+    "source_set",
+    "status",
+    "last_imported_on",
+    "notes"
   ],
   "artifacts/badge-evidence-ledger.csv": [
     "badge_target",
@@ -379,6 +411,7 @@ export async function updateProject(root: string, options: UpdateProjectOptions 
   const changes: ProjectFileChange[] = [];
   const manifest = await readManagedFileManifest(target);
   await updateProjectConfigDefaults(target, { apply: options.apply === true, changes });
+  await updateProjectDelimitedHeaders(target, { apply: options.apply === true, changes });
   const specs = await managedFileSpecs(target);
   const nextManifest = await stageManagedFiles(target, specs, manifest, {
     apply: options.apply === true,
@@ -428,6 +461,9 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "repro_outputs/status.json",
     "sources/markdown-linear",
     "sources/source-ledger.csv",
+    "sources/zotero/README.md",
+    "sources/zotero/import-log.csv",
+    "sources/zotero/collection-map.csv",
     "sota/reading-log.csv",
     "sota/citation-chasing-log.csv",
     "sota/literature-matrix.csv",
@@ -679,6 +715,50 @@ async function updateProjectConfigDefaults(
   await writeFile(path, next, "utf8");
 }
 
+async function updateProjectDelimitedHeaders(
+  root: string,
+  options: { apply: boolean; changes: ProjectFileChange[] }
+): Promise<void> {
+  for (const [relativePath, requiredColumns] of Object.entries(REQUIRED_CSV_COLUMNS)) {
+    await updateProjectDelimitedHeader(root, relativePath, requiredColumns, ",", options);
+  }
+  for (const [relativePath, requiredColumns] of Object.entries(REQUIRED_TSV_COLUMNS)) {
+    await updateProjectDelimitedHeader(root, relativePath, requiredColumns, "\t", options);
+  }
+}
+
+async function updateProjectDelimitedHeader(
+  root: string,
+  relativePath: string,
+  requiredColumns: string[],
+  delimiter: string,
+  options: { apply: boolean; changes: ProjectFileChange[] }
+): Promise<void> {
+  const path = join(root, relativePath);
+  if (!(await exists(path))) return;
+  const current = await readFile(path, "utf8");
+  const next = withRequiredDelimitedColumns(current, requiredColumns, delimiter);
+  if (next === current) return;
+  options.changes.push({ path: relativePath, action: "update" });
+  if (!options.apply) return;
+  await writeFile(path, next, "utf8");
+}
+
+function withRequiredDelimitedColumns(content: string, requiredColumns: string[], delimiter: string): string {
+  const newline = content.includes("\r\n") ? "\r\n" : "\n";
+  const lines = content.split(/\r?\n/);
+  const headerColumns = (lines[0] ?? "").split(delimiter).map((column) => column.trim()).filter(Boolean);
+  const present = new Set(headerColumns);
+  const missing = requiredColumns.filter((column) => !present.has(column));
+  if (missing.length === 0) return content;
+  lines[0] = [...headerColumns, ...missing].join(delimiter);
+  const emptyCells = delimiter.repeat(missing.length);
+  for (let index = 1; index < lines.length; index += 1) {
+    if (lines[index] !== "") lines[index] += emptyCells;
+  }
+  return lines.join(newline);
+}
+
 async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
   const config = await readProjectConfig(root);
   const packageJson = await readJson<GeneratedPackageJson>(join(root, "package.json"));
@@ -771,6 +851,21 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       path: "analysis_outputs/claim-audit.md",
       policy: "user-owned",
       content: await templateText("analysis_outputs/claim-audit.md")
+    },
+    {
+      path: "sources/zotero/README.md",
+      policy: "user-owned",
+      content: await templateText("sources/zotero/README.md")
+    },
+    {
+      path: "sources/zotero/import-log.csv",
+      policy: "user-owned",
+      content: await templateText("sources/zotero/import-log.csv")
+    },
+    {
+      path: "sources/zotero/collection-map.csv",
+      policy: "user-owned",
+      content: await templateText("sources/zotero/collection-map.csv")
     },
     {
       path: "sources/markdown-linear/.gitkeep",

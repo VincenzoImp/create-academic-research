@@ -104,10 +104,15 @@ sources/markdown/   derived Markdown
 sources/markdown-linear/ cover-to-cover reading copies
 sources/metadata/   downloaded metadata or query exports
 sources/bib/        BibTeX and citation audits
+sources/zotero/     optional Zotero import and collection reconciliation
 ```
 
 Update `sources/source-ledger.csv` whenever a paper, report, dataset, or web
 source becomes evidence for the project.
+
+Zotero can enrich this step if a local library is available. Record imports in
+`sources/zotero/import-log.csv`, then reconcile every item to the source ledger,
+project BibTeX, citation audit, and SOTA records before citing it.
 
 ## 6. Build The First SOTA Pass
 

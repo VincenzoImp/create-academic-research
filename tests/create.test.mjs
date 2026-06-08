@@ -115,6 +115,9 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "repro_outputs/PATCHES.md"));
   await stat(join(target, "repro_outputs/status.json"));
   await stat(join(target, "sources/markdown-linear/.gitkeep"));
+  await stat(join(target, "sources/zotero/README.md"));
+  await stat(join(target, "sources/zotero/import-log.csv"));
+  await stat(join(target, "sources/zotero/collection-map.csv"));
   await stat(join(target, "sota/paper-syntheses/.gitkeep"));
   await stat(join(target, "sota/reading-log.csv"));
   await stat(join(target, "sota/citation-chasing-log.csv"));
@@ -151,6 +154,24 @@ test("createProject generates a personalized research project without global sid
   assert.match(literatureMatrix, /reading_status/);
   assert.match(literatureMatrix, /synthesis_path/);
   assert.match(literatureMatrix, /bib_key/);
+  const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
+  assert.match(sourceLedger, /discovery_source/);
+  assert.match(sourceLedger, /zotero_item_key/);
+  assert.match(sourceLedger, /zotero_attachment_path/);
+  const citationAudit = await readFile(join(target, "sources/bib/citation-audit.csv"), "utf8");
+  assert.match(citationAudit, /zotero_item_key/);
+  assert.match(citationAudit, /zotero_exported_bib_key/);
+  assert.match(citationAudit, /reconciliation_status/);
+  const zoteroImportLog = await readFile(join(target, "sources/zotero/import-log.csv"), "utf8");
+  assert.match(
+    zoteroImportLog,
+    /^import_id,imported_on,zotero_collection_key,zotero_collection_name,zotero_item_key,zotero_item_type,title,attachment_path,exported_bib_key,source_id,reconciliation_status,notes/m
+  );
+  const zoteroCollectionMap = await readFile(join(target, "sources/zotero/collection-map.csv"), "utf8");
+  assert.match(
+    zoteroCollectionMap,
+    /^collection_key,collection_name,zotero_parent_key,scope,source_set,status,last_imported_on,notes/m
+  );
   const artifactChecklist = await readFile(join(target, "artifacts/artifact-checklist.md"), "utf8");
   assert.match(artifactChecklist, /ACM Artifact Review And Badging/);
   assert.match(artifactChecklist, /Artifacts Available/);
@@ -525,6 +546,8 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "configs/default.yaml"), "project: [\n", "utf8");
   await writeFile(join(target, "configs/capabilities.yaml"), "agent: [\n", "utf8");
   await writeFile(join(target, "sources/source-ledger.csv"), "source_id,title\n", "utf8");
+  await mkdir(join(target, "sources/zotero"), { recursive: true });
+  await writeFile(join(target, "sources/zotero/import-log.csv"), "import_id,zotero_item_key\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -537,6 +560,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("invalid configs/default.yaml")));
   assert.ok(result.errors.some((error) => error.includes("invalid configs/capabilities.yaml")));
   assert.ok(result.errors.some((error) => error.includes("sources/source-ledger.csv missing column type")));
+  assert.ok(result.errors.some((error) => error.includes("sources/zotero/import-log.csv missing column imported_on")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -789,6 +813,52 @@ test("updateProject adds missing workflow defaults to user-owned config without 
   assert.equal(updated.paths.paper_submissions, "paper_submissions");
   assert.equal(updated.workflow.active_stage, "source-ingestion");
   assert.ok(updated.workflow.available_stages.includes("response"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds missing Zotero ledgers and appends missing bibliography columns conservatively", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-zotero-contract-"));
+  const target = join(root, "update-zotero-contract-project");
+  await createProject({
+    target,
+    title: "Update Zotero Contract Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "sources/zotero"), { recursive: true, force: true });
+  await writeFile(
+    join(target, "sources/source-ledger.csv"),
+    "source_id,type,title\ns1,paper,Existing Source\n",
+    "utf8"
+  );
+  await writeFile(
+    join(target, "sources/bib/citation-audit.csv"),
+    "citation_key,status,issue\nsmith2024,ok,\n",
+    "utf8"
+  );
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "sources/zotero/import-log.csv" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "sources/source-ledger.csv" && change.action === "update"));
+
+  await updateProject(target, { apply: true });
+  const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
+  const citationAudit = await readFile(join(target, "sources/bib/citation-audit.csv"), "utf8");
+  const doctor = await doctorProject(target);
+
+  assert.match(
+    sourceLedger,
+    /^source_id,type,title,authors,year,venue,identifiers,raw_path,derived_path,bib_path,status,relevance,evidence_level,quality_notes,added_on,last_checked,discovery_source,zotero_item_key,zotero_attachment_path,notes/m
+  );
+  assert.match(sourceLedger, /^s1,paper,Existing Source,/m);
+  assert.match(
+    citationAudit,
+    /^citation_key,status,issue,source_id,claim_or_location,expected_fix,checked_on,zotero_item_key,zotero_exported_bib_key,reconciliation_status,notes/m
+  );
+  assert.match(citationAudit, /^smith2024,ok,/m);
+  await stat(join(target, "sources/zotero/import-log.csv"));
+  await stat(join(target, "sources/zotero/collection-map.csv"));
   assert.equal(doctor.ok, true);
 });
 

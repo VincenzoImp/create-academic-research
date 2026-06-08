@@ -711,6 +711,7 @@ async function workflowCommand(argv: string[]): Promise<number> {
   console.log(`root\t${root}`);
   console.log("preset\tliterature");
   console.log(`mcp_selected\t${literatureServers.join(",")}`);
+  console.log("optional_zotero\tlocal-library enrichment; reconcile through sources/zotero/import-log.csv and sources/source-ledger.csv");
   for (const item of selected) {
     console.log(`mcp\t${item.id}\t${item.mode}\t${item.state}\t${friendlyNext(item.next)}`);
   }

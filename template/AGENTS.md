@@ -66,6 +66,7 @@ source ingestion -> SOTA -> survey -> research agenda -> contribution -> analysi
 - Metadata goes in `sources/metadata/`.
 - Bibliography records go in `sources/bib/references.bib`.
 - Citation issues go in `sources/bib/citation-audit.csv`.
+- Zotero imports go in `sources/zotero/`; reconcile every Zotero item to `sources/source-ledger.csv`, `sources/bib/references.bib`, citation audit, and SOTA linkage before using it as evidence.
 - SOTA records go in `sota/`.
 - Core/supporting paper syntheses go in `sota/paper-syntheses/`.
 - Full-text reading progress goes in `sota/reading-log.csv`.
