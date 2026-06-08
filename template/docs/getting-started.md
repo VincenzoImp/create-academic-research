@@ -94,6 +94,14 @@ This selects arXiv, DBLP, Semantic Scholar, and OpenAlex remote graph search.
 Use `$sota-literature-review` with a declared scale: `quick-scan`,
 `focused-sota`, or `full-survey`.
 
+For survey writing after SOTA promotion, run:
+
+```bash
+npm run workflow:survey
+```
+
+Use `survey/survey-contract.md` to declare the survey mode before writing sections.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

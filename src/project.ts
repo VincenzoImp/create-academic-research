@@ -260,6 +260,21 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "last_checked",
     "notes"
   ],
+  "survey/survey-claim-ledger.csv": [
+    "survey_claim_id",
+    "sota_claim_ids",
+    "section_id",
+    "claim_text",
+    "source_ids",
+    "evidence_strength",
+    "synthesis_role",
+    "allowed_wording",
+    "limitations",
+    "contradictions",
+    "review_status",
+    "downstream_status",
+    "notes"
+  ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
     "source_id",
@@ -492,6 +507,14 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "sota/sota-claim-ledger.csv",
     "sota/promotion-rules.md",
     "sota/paper-syntheses",
+    "survey/survey-contract.md",
+    "survey/outline.md",
+    "survey/section-plans",
+    "survey/drafts",
+    "survey/final",
+    "survey/reviews",
+    "survey/compliance/README.md",
+    "survey/survey-claim-ledger.csv",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -917,6 +940,46 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "managed",
       content: await templateText("sota/paper-syntheses/.gitkeep")
     },
+    {
+      path: "survey/survey-contract.md",
+      policy: "managed",
+      content: await templateText("survey/survey-contract.md")
+    },
+    {
+      path: "survey/outline.md",
+      policy: "managed",
+      content: await templateText("survey/outline.md")
+    },
+    {
+      path: "survey/section-plans/.gitkeep",
+      policy: "managed",
+      content: await templateText("survey/section-plans/.gitkeep")
+    },
+    {
+      path: "survey/drafts/.gitkeep",
+      policy: "managed",
+      content: await templateText("survey/drafts/.gitkeep")
+    },
+    {
+      path: "survey/final/.gitkeep",
+      policy: "managed",
+      content: await templateText("survey/final/.gitkeep")
+    },
+    {
+      path: "survey/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("survey/reviews/.gitkeep")
+    },
+    {
+      path: "survey/compliance/README.md",
+      policy: "managed",
+      content: await templateText("survey/compliance/README.md")
+    },
+    {
+      path: "survey/survey-claim-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("survey/survey-claim-ledger.csv")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -987,6 +1050,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     update: `${latestCommand} update`,
     setup: `${command} setup`,
     "workflow:literature": `${command} workflow literature`,
+    "workflow:survey": `${command} workflow survey`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,

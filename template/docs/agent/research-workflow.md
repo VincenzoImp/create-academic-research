@@ -18,6 +18,8 @@ Do not introduce a claim directly in a late-stage artifact if it has not been gr
 
 SOTA claims must use `sota/sota-claim-ledger.csv` before promotion. The ledger controls evidence strength, allowed wording, forbidden stronger wording, downstream status, and unresolved risks.
 
+Survey claims must use `survey/survey-claim-ledger.csv` and link back to SOTA claim IDs. Survey sections are planned, drafted, reviewed, fixed, and re-reviewed one section at a time.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

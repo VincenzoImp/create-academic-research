@@ -28,6 +28,7 @@ from exploratory work to trusted project evidence.
 - `reports/paper/sota-survey.tex`: survey-scale LaTeX draft when the task asks for a SOTA chapter or survey.
 - `artifacts/badge-evidence-ledger.csv`: badge evidence paths, linked claims/results, procedures, and validation status.
 - `survey/`: survey contracts, outlines, section plans, claims, drafts, final survey artifacts, and reviews.
+- `survey/survey-claim-ledger.csv`: survey claims linked to SOTA claims, sections, evidence strength, allowed wording, review status, and downstream status.
 - `research_agenda/`: opportunity ledgers, direction records, final agenda artifacts, and reviews.
 - `contributions/`: contribution packages, claim maps, component outputs, badge plans, compliance files, reports, and reviews.
 - `paper_frames/`: frame contracts, selected contributions, evidence maps, venue fit, badge fit, compliance fit, release plans, outlines, and decisions.

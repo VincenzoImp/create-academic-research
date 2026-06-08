@@ -686,7 +686,12 @@ async function workflowCommand(argv: string[]): Promise<number> {
     printWorkflowHelp();
     return 0;
   }
-  if (subcommand !== "literature") throw new Error(`unknown workflow command: ${subcommand}`);
+  if (subcommand === "literature") return workflowLiteratureCommand(parsed);
+  if (subcommand === "survey") return workflowSurveyCommand(parsed);
+  throw new Error(`unknown workflow command: ${subcommand}`);
+}
+
+async function workflowLiteratureCommand(parsed: ParsedArgs): Promise<number> {
   assertNoArguments(parsed.positionals, "workflow literature");
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   const state = await readCapabilities(root);
@@ -721,6 +726,34 @@ async function workflowCommand(argv: string[]): Promise<number> {
   console.log("npm run mcp:status");
   console.log("npm run mcp:smoke -- --env-file .env.local");
   console.log("Use $sota-literature-review with a declared scale, seed set, and citation-chasing budget.");
+  return 0;
+}
+
+async function workflowSurveyCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow survey");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Survey Workflow");
+  console.log(`root\t${root}`);
+  console.log("contract\tsurvey/survey-contract.md");
+  console.log("outline\tsurvey/outline.md");
+  console.log("claim_ledger\tsurvey/survey-claim-ledger.csv");
+  console.log("input\tsota/sota-claim-ledger.csv");
+  console.log("input\tsota/gaps.md");
+  console.log("input\tsota/synthesis.md");
+  console.log("input\tsota/literature-matrix.csv");
+  console.log("section_plans\tsurvey/section-plans/");
+  console.log("drafts\tsurvey/drafts/");
+  console.log("final\tsurvey/final/");
+  console.log("reviews\tsurvey/reviews/");
+  console.log("compliance\tsurvey/compliance/");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tsurvey-synthesis");
+  console.log("next_skill\tsystematic-review-prisma");
+  console.log("next_skill\tcitation-claim-audit");
+  console.log("next_skill\tadversarial-peer-review");
+  console.log("");
+  console.log("Rule\tplan, draft, review, fix, and re-review one survey section at a time before final integration.");
   return 0;
 }
 
@@ -1091,12 +1124,13 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature> [options]",
+      "Usage: academic-research workflow <literature|survey> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
       "Workflows:",
       "  literature                Configure the practical SOTA stack for arXiv, DBLP, Semantic Scholar citation graph, and OpenAlex graph search.",
+      "  survey                    Route SOTA claims into a section-by-section reviewed survey workflow.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",

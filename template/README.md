@@ -39,6 +39,7 @@ npm run update
 - `sources/`: curated papers, reports, metadata, BibTeX, and conversion ledgers.
 - `sources/zotero/`: optional Zotero import, collection, attachment, BibTeX, and source-ID reconciliation ledgers.
 - `sota/`: search strategy, screening, literature matrix, synthesis, and gaps.
+- `survey/`: SOTA-derived survey contract, outline, claim ledger, section plans, drafts, final artifacts, compliance notes, and reviews.
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
 - `docs/agent/project-quality.md`: cross-project quality, hygiene, and badge-readiness contract.
@@ -53,7 +54,7 @@ npm run update
 - `artifacts/`: open science and artifact evaluation preparation.
 - `src/`: reusable project code.
 
-Future workflow layers, including `survey/`, `research_agenda/`,
+Future workflow layers, including `research_agenda/`,
 `contributions/`, `paper_frames/`, `paper_releases/`, and
 `paper_submissions/`, are governed by `docs/agent/research-workflow.md`.
 
@@ -72,6 +73,7 @@ npm run skills:status
 npm run update
 npm run setup
 npm run workflow:literature
+npm run workflow:survey
 npm run mcp:dotenv
 npm run mcp:list
 npm run mcp:modes

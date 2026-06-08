@@ -83,8 +83,9 @@ test("create-academic-research help exits successfully and explains framing", ()
     encoding: "utf8"
   });
   assert.equal(workflowHelp.status, 0, workflowHelp.stderr + workflowHelp.stdout);
-  assert.match(workflowHelp.stdout, /workflow <literature>/);
+  assert.match(workflowHelp.stdout, /workflow <literature\|survey>/);
   assert.match(workflowHelp.stdout, /citation graph/);
+  assert.match(workflowHelp.stdout, /survey/);
 });
 
 test("create-academic-research version flags report package version", () => {
@@ -298,6 +299,30 @@ test("academic-research workflow literature configures a practical SOTA stack", 
   const snippet = JSON.parse(await readFile(join(target, "docs/agent/generated/mcp.json"), "utf8"));
   assert.deepEqual(Object.keys(snippet.mcpServers).sort(), ["arxiv", "dblp", "openalex", "semantic-scholar"]);
   assert.equal(snippet.mcpServers.openalex.url, "https://openalex.caseyjhand.com/mcp");
+});
+
+test("academic-research workflow survey prints survey workflow routing", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-workflow-survey-"));
+  const target = join(temp, "cli-workflow-survey-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const workflow = spawnSync(process.execPath, ["dist/bin/academic-research.js", "workflow", "survey", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
+  assert.match(workflow.stdout, /Survey Workflow/);
+  assert.match(workflow.stdout, /contract\tsurvey\/survey-contract\.md/);
+  assert.match(workflow.stdout, /input\tsota\/sota-claim-ledger\.csv/);
+  assert.match(workflow.stdout, /next_skill\tsurvey-synthesis/);
+  assert.match(workflow.stdout, /next_skill\tsystematic-review-prisma/);
+  assert.match(workflow.stdout, /next_skill\tcitation-claim-audit/);
+  assert.match(workflow.stdout, /next_skill\tadversarial-peer-review/);
 });
 
 test("academic-research setup prints Overleaf client registration only after setup is ready", async () => {

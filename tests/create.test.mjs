@@ -123,6 +123,14 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "sota/citation-chasing-log.csv"));
   await stat(join(target, "sota/sota-claim-ledger.csv"));
   await stat(join(target, "sota/promotion-rules.md"));
+  await stat(join(target, "survey/survey-contract.md"));
+  await stat(join(target, "survey/outline.md"));
+  await stat(join(target, "survey/section-plans/.gitkeep"));
+  await stat(join(target, "survey/drafts/.gitkeep"));
+  await stat(join(target, "survey/final/.gitkeep"));
+  await stat(join(target, "survey/reviews/.gitkeep"));
+  await stat(join(target, "survey/compliance/README.md"));
+  await stat(join(target, "survey/survey-claim-ledger.csv"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -167,6 +175,15 @@ test("createProject generates a personalized research project without global sid
   const promotionRules = await readFile(join(target, "sota/promotion-rules.md"), "utf8");
   assert.match(promotionRules, /Claim Promotion Gate/);
   assert.match(promotionRules, /allowed wording/);
+  const surveyClaimLedger = await readFile(join(target, "survey/survey-claim-ledger.csv"), "utf8");
+  assert.match(
+    surveyClaimLedger,
+    /^survey_claim_id,sota_claim_ids,section_id,claim_text,source_ids,evidence_strength,synthesis_role,allowed_wording,limitations,contradictions,review_status,downstream_status,notes/m
+  );
+  const surveyContract = await readFile(join(target, "survey/survey-contract.md"), "utf8");
+  assert.match(surveyContract, /Survey Mode/);
+  assert.match(surveyContract, /narrative \| systematic \| scoping \| meta-analysis \| mixed/);
+  assert.match(surveyContract, /Section-By-Section Drafting/);
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -562,6 +579,8 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await mkdir(join(target, "sources/zotero"), { recursive: true });
   await writeFile(join(target, "sources/zotero/import-log.csv"), "import_id,zotero_item_key\n", "utf8");
   await writeFile(join(target, "sota/sota-claim-ledger.csv"), "claim_id,claim_text\n", "utf8");
+  await mkdir(join(target, "survey"), { recursive: true });
+  await writeFile(join(target, "survey/survey-claim-ledger.csv"), "survey_claim_id,claim_text\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -576,6 +595,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("sources/source-ledger.csv missing column type")));
   assert.ok(result.errors.some((error) => error.includes("sources/zotero/import-log.csv missing column imported_on")));
   assert.ok(result.errors.some((error) => error.includes("sota/sota-claim-ledger.csv missing column source_ids")));
+  assert.ok(result.errors.some((error) => error.includes("survey/survey-claim-ledger.csv missing column sota_claim_ids")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -910,6 +930,31 @@ test("updateProject adds SOTA promotion files and appends missing literature mat
   assert.match(literatureMatrix, /^s1,smith2024,core,Existing Matrix Row,/m);
   await stat(join(target, "sota/sota-claim-ledger.csv"));
   await stat(join(target, "sota/promotion-rules.md"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds survey workflow files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-survey-workflow-"));
+  const target = join(root, "update-survey-workflow-project");
+  await createProject({
+    target,
+    title: "Update Survey Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "survey"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "survey/survey-contract.md" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "survey/survey-claim-ledger.csv" && change.action === "create"));
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "survey/survey-contract.md"));
+  await stat(join(target, "survey/survey-claim-ledger.csv"));
+  await stat(join(target, "survey/compliance/README.md"));
   assert.equal(doctor.ok, true);
 });
 
