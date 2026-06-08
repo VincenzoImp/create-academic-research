@@ -219,6 +219,8 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
   ],
   "sota/literature-matrix.csv": [
     "source_id",
+    "bib_key",
+    "role",
     "title",
     "authors",
     "year",
@@ -235,8 +237,28 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "synthesis_path",
     "citation_count_or_signal",
     "identifiers",
-    "bib_key",
-    "role"
+    "claim_ids",
+    "evidence_strength",
+    "downstream_status",
+    "notes"
+  ],
+  "sota/sota-claim-ledger.csv": [
+    "claim_id",
+    "claim_text",
+    "source_ids",
+    "bib_keys",
+    "evidence_strength",
+    "allowed_wording",
+    "forbidden_stronger_wording",
+    "method_context",
+    "limitations",
+    "contradictions",
+    "downstream_status",
+    "downstream_targets",
+    "unresolved_risks",
+    "review_status",
+    "last_checked",
+    "notes"
   ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
@@ -467,6 +489,8 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "sota/reading-log.csv",
     "sota/citation-chasing-log.csv",
     "sota/literature-matrix.csv",
+    "sota/sota-claim-ledger.csv",
+    "sota/promotion-rules.md",
     "sota/paper-syntheses",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
@@ -877,6 +901,16 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       path: "sota/citation-chasing-log.csv",
       policy: "managed",
       content: await templateText("sota/citation-chasing-log.csv")
+    },
+    {
+      path: "sota/sota-claim-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("sota/sota-claim-ledger.csv")
+    },
+    {
+      path: "sota/promotion-rules.md",
+      policy: "managed",
+      content: await templateText("sota/promotion-rules.md")
     },
     {
       path: "sota/paper-syntheses/.gitkeep",

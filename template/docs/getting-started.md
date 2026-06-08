@@ -123,6 +123,10 @@ citation expansion in `sota/citation-chasing-log.csv`. Put screened sources in
 `sota/paper-syntheses/`, then summarize stable conclusions in
 `sota/synthesis.md`.
 
+Promote durable SOTA claims through `sota/sota-claim-ledger.csv`. Downstream
+survey, agenda, contribution, and manuscript work should use the ledger's
+allowed wording, evidence strength, downstream status, and unresolved risks.
+
 Do not treat MCP output as final evidence until the relevant source has been
 ingested, deduplicated, read in full when core/supporting, and tied to a source
 record and bibliography key.

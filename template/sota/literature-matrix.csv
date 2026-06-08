@@ -1,1 +1,1 @@
-source_id,bib_key,role,title,authors,year,venue,method,dataset_or_sample,task_or_problem,key_claim,metric_or_result,limitations,relevance,full_text_status,reading_status,synthesis_path,citation_count_or_signal,identifiers,notes
+source_id,bib_key,role,title,authors,year,venue,method,dataset_or_sample,task_or_problem,key_claim,metric_or_result,limitations,relevance,full_text_status,reading_status,synthesis_path,citation_count_or_signal,identifiers,claim_ids,evidence_strength,downstream_status,notes

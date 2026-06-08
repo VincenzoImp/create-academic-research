@@ -121,6 +121,8 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "sota/paper-syntheses/.gitkeep"));
   await stat(join(target, "sota/reading-log.csv"));
   await stat(join(target, "sota/citation-chasing-log.csv"));
+  await stat(join(target, "sota/sota-claim-ledger.csv"));
+  await stat(join(target, "sota/promotion-rules.md"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -154,6 +156,17 @@ test("createProject generates a personalized research project without global sid
   assert.match(literatureMatrix, /reading_status/);
   assert.match(literatureMatrix, /synthesis_path/);
   assert.match(literatureMatrix, /bib_key/);
+  assert.match(literatureMatrix, /claim_ids/);
+  assert.match(literatureMatrix, /evidence_strength/);
+  assert.match(literatureMatrix, /downstream_status/);
+  const sotaClaimLedger = await readFile(join(target, "sota/sota-claim-ledger.csv"), "utf8");
+  assert.match(
+    sotaClaimLedger,
+    /^claim_id,claim_text,source_ids,bib_keys,evidence_strength,allowed_wording,forbidden_stronger_wording,method_context,limitations,contradictions,downstream_status,downstream_targets,unresolved_risks,review_status,last_checked,notes/m
+  );
+  const promotionRules = await readFile(join(target, "sota/promotion-rules.md"), "utf8");
+  assert.match(promotionRules, /Claim Promotion Gate/);
+  assert.match(promotionRules, /allowed wording/);
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -548,6 +561,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "sources/source-ledger.csv"), "source_id,title\n", "utf8");
   await mkdir(join(target, "sources/zotero"), { recursive: true });
   await writeFile(join(target, "sources/zotero/import-log.csv"), "import_id,zotero_item_key\n", "utf8");
+  await writeFile(join(target, "sota/sota-claim-ledger.csv"), "claim_id,claim_text\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -561,6 +575,7 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("invalid configs/capabilities.yaml")));
   assert.ok(result.errors.some((error) => error.includes("sources/source-ledger.csv missing column type")));
   assert.ok(result.errors.some((error) => error.includes("sources/zotero/import-log.csv missing column imported_on")));
+  assert.ok(result.errors.some((error) => error.includes("sota/sota-claim-ledger.csv missing column source_ids")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -859,6 +874,42 @@ test("updateProject adds missing Zotero ledgers and appends missing bibliography
   assert.match(citationAudit, /^smith2024,ok,/m);
   await stat(join(target, "sources/zotero/import-log.csv"));
   await stat(join(target, "sources/zotero/collection-map.csv"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds SOTA promotion files and appends missing literature matrix columns", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-sota-promotion-"));
+  const target = join(root, "update-sota-promotion-project");
+  await createProject({
+    target,
+    title: "Update SOTA Promotion Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "sota/sota-claim-ledger.csv"), { force: true });
+  await rm(join(target, "sota/promotion-rules.md"), { force: true });
+  await writeFile(
+    join(target, "sota/literature-matrix.csv"),
+    "source_id,bib_key,role,title\ns1,smith2024,core,Existing Matrix Row\n",
+    "utf8"
+  );
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "sota/sota-claim-ledger.csv" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "sota/promotion-rules.md" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "sota/literature-matrix.csv" && change.action === "update"));
+
+  await updateProject(target, { apply: true });
+  const literatureMatrix = await readFile(join(target, "sota/literature-matrix.csv"), "utf8");
+  const doctor = await doctorProject(target);
+
+  assert.match(literatureMatrix, /claim_ids/);
+  assert.match(literatureMatrix, /evidence_strength/);
+  assert.match(literatureMatrix, /downstream_status/);
+  assert.match(literatureMatrix, /^s1,smith2024,core,Existing Matrix Row,/m);
+  await stat(join(target, "sota/sota-claim-ledger.csv"));
+  await stat(join(target, "sota/promotion-rules.md"));
   assert.equal(doctor.ok, true);
 });
 

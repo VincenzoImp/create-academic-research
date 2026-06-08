@@ -21,6 +21,7 @@ from exploratory work to trusted project evidence.
 - `sota/paper-syntheses/`: structured full-text syntheses for core/supporting papers.
 - `sota/reading-log.csv`: full-text reading progress.
 - `sota/citation-chasing-log.csv`: backward/forward citation expansion rounds.
+- `sota/sota-claim-ledger.csv`: promotable SOTA claims, evidence strength, allowed wording, downstream status, and unresolved risks.
 - `experiments/`: curated experiment registry and human-readable run records.
 - `experiments/campaigns/`: autonomous or overnight campaign plans and frontier ledgers.
 - `experiments/campaigns/frontier-results.tsv`: machine-readable frontier ledger for `keep`, `discard`, and `crash` campaign outcomes.

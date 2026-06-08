@@ -2,8 +2,10 @@
 
 ## Open Gaps
 
-<fill: concrete gaps with source IDs or evidence notes>
+| Gap ID | Linked Claim IDs | Source IDs | Gap | Evidence Strength | Survey Need | Agenda Potential | Risk |
+|---|---|---|---|---|---|---|---|
 
 ## Candidate Contributions
 
-<fill: possible contribution claims and failure conditions>
+| Candidate ID | Linked Gap IDs | Possible Contribution | Failure Conditions | Needed Evidence | Downstream Status |
+|---|---|---|---|---|---|

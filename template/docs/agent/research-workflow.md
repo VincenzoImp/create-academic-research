@@ -16,6 +16,8 @@ Claims move through source evidence, SOTA claim ledgers, survey claims, agenda o
 
 Do not introduce a claim directly in a late-stage artifact if it has not been grounded in the earlier evidence layers.
 
+SOTA claims must use `sota/sota-claim-ledger.csv` before promotion. The ledger controls evidence strength, allowed wording, forbidden stronger wording, downstream status, and unresolved risks.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

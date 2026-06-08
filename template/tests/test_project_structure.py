@@ -39,6 +39,8 @@ def test_core_research_structure_exists() -> None:
         "sota/reading-log.csv",
         "sota/citation-chasing-log.csv",
         "sota/literature-matrix.csv",
+        "sota/sota-claim-ledger.csv",
+        "sota/promotion-rules.md",
         "sota/paper-syntheses",
         "reports/paper/sota-survey.tex",
         "wiki/index.md",
