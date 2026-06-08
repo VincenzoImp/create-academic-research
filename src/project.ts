@@ -951,6 +951,17 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "docs/agent/research-workflow.md",
     "docs/agent/review-loop.md",
     "docs/agent/workflow-prompts/README.md",
+    "docs/agent/workflow-prompts/literature.md",
+    "docs/agent/workflow-prompts/survey.md",
+    "docs/agent/workflow-prompts/agenda.md",
+    "docs/agent/workflow-prompts/contribution.md",
+    "docs/agent/workflow-prompts/analysis.md",
+    "docs/agent/workflow-prompts/frame.md",
+    "docs/agent/workflow-prompts/release.md",
+    "docs/agent/workflow-prompts/manuscript.md",
+    "docs/agent/workflow-prompts/submission.md",
+    "docs/agent/workflow-prompts/response.md",
+    "docs/agent/workflow-prompts/full-research-loop.md",
     "docs/agent/repo-migration-playbook.md",
     "compliance/profiles.yaml",
     "compliance/README.md",
@@ -1459,6 +1470,61 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       path: "docs/agent/workflow-prompts/README.md",
       policy: "managed",
       content: await templateText("docs/agent/workflow-prompts/README.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/literature.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/literature.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/survey.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/survey.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/agenda.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/agenda.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/contribution.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/contribution.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/analysis.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/analysis.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/frame.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/frame.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/release.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/release.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/manuscript.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/manuscript.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/submission.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/submission.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/response.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/response.md")
+    },
+    {
+      path: "docs/agent/workflow-prompts/full-research-loop.md",
+      policy: "managed",
+      content: await templateText("docs/agent/workflow-prompts/full-research-loop.md")
     },
     {
       path: "compliance/profiles.yaml",

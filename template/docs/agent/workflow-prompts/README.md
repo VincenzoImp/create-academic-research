@@ -8,7 +8,7 @@ Prompt-level workflow commands are the agent-facing entrypoints. They are Markdo
 
 The prompt file tells the agent how to perform the stage using skills, ledgers, review loops, and handoff gates.
 
-## Planned Prompt Files
+## Active Prompt Files
 
 - `literature.md`
 - `survey.md`
@@ -25,3 +25,7 @@ The prompt file tells the agent how to perform the stage using skills, ledgers, 
 ## Rule
 
 The portable Markdown prompt is the source of truth. Agent-specific slash commands may wrap these files but must not diverge from them.
+
+Each prompt requires the agent to run the npm preflight, use the listed skills,
+update the correct ledgers, iterate through review and fixes, and hand off only
+clean reviewed outputs.

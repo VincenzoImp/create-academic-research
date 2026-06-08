@@ -63,6 +63,10 @@ npm run update
 Future workflow layers, including `paper_submissions/`, are governed by
 `docs/agent/research-workflow.md`.
 
+Prompt-level workflow playbooks live in `docs/agent/workflow-prompts/`. Run the
+matching `npm run workflow:<stage>` command first, then follow the prompt for
+skills, ledgers, review loops, and handoff gates.
+
 ## Agent Capabilities
 
 Project-local skills and MCP records are managed with:

@@ -9,6 +9,11 @@ import YAML from "yaml";
 const root = new URL("..", import.meta.url).pathname;
 const packageVersion = JSON.parse(await readFile(join(root, "package.json"), "utf8")).version;
 
+function assertWorkflowRoute(stdout, stage) {
+  assert.match(stdout, new RegExp(`stage\\t${stage}`));
+  assert.match(stdout, new RegExp(`prompt\\tdocs/agent/workflow-prompts/${stage}\\.md`));
+}
+
 test("interactive create guide explains presets, agent targets, and MCP installer behavior", async () => {
   const { formatInteractiveCreateGuide } = await import("../dist/src/cli.js");
   const guide = formatInteractiveCreateGuide();
@@ -295,6 +300,7 @@ test("academic-research workflow literature configures a practical SOTA stack", 
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Literature Workflow/);
+  assertWorkflowRoute(workflow.stdout, "literature");
   assert.match(workflow.stdout, /mcp_selected\tarxiv,dblp,semantic-scholar,openalex/);
   assert.match(
     workflow.stdout,
@@ -328,6 +334,7 @@ test("academic-research workflow survey prints survey workflow routing", async (
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Survey Workflow/);
+  assertWorkflowRoute(workflow.stdout, "survey");
   assert.match(workflow.stdout, /contract\tsurvey\/survey-contract\.md/);
   assert.match(workflow.stdout, /input\tsota\/sota-claim-ledger\.csv/);
   assert.match(workflow.stdout, /next_skill\tsurvey-synthesis/);
@@ -352,6 +359,7 @@ test("academic-research workflow agenda prints agenda workflow routing", async (
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Agenda Workflow/);
+  assertWorkflowRoute(workflow.stdout, "agenda");
   assert.match(workflow.stdout, /contract\tresearch_agenda\/agenda-contract\.md/);
   assert.match(workflow.stdout, /input\tsota\/gaps\.md/);
   assert.match(workflow.stdout, /input\tsota\/sota-claim-ledger\.csv/);
@@ -383,6 +391,7 @@ test("academic-research workflow contribution prints contribution workflow routi
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Contribution Workflow/);
+  assertWorkflowRoute(workflow.stdout, "contribution");
   assert.match(workflow.stdout, /ledger\tcontributions\/contribution-ledger\.csv/);
   assert.match(workflow.stdout, /template\tcontributions\/templates\/contribution\.yaml/);
   assert.match(workflow.stdout, /template\tcontributions\/templates\/report\.md/);
@@ -411,6 +420,7 @@ test("academic-research workflow analysis prints strict analysis workflow routin
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Analysis Workflow/);
+  assertWorkflowRoute(workflow.stdout, "analysis");
   assert.match(workflow.stdout, /template\tcontributions\/templates\/analyses\/templates\/analysis\.yaml/);
   assert.match(workflow.stdout, /blocker\tcontributions\/templates\/analyses\/templates\/blocker-summary\.md/);
   assert.match(workflow.stdout, /preflight\tprimary_question/);
@@ -442,6 +452,7 @@ test("academic-research workflow frame prints paper framing workflow routing", a
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Paper Frame Workflow/);
+  assertWorkflowRoute(workflow.stdout, "frame");
   assert.match(workflow.stdout, /ledger\tpaper_frames\/frame-ledger\.csv/);
   assert.match(workflow.stdout, /template\tpaper_frames\/templates\/frame-contract\.md/);
   assert.match(workflow.stdout, /input\tcontributions\/contribution-ledger\.csv/);
@@ -469,6 +480,7 @@ test("academic-research workflow release prints paper release workflow routing",
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Paper Release Workflow/);
+  assertWorkflowRoute(workflow.stdout, "release");
   assert.match(workflow.stdout, /ledger\tpaper_releases\/release-ledger\.csv/);
   assert.match(workflow.stdout, /manifest\tpaper_releases\/templates\/release\.yaml/);
   assert.match(workflow.stdout, /source_map\tpaper_releases\/templates\/source-map\.csv/);
@@ -497,6 +509,7 @@ test("academic-research workflow manuscript prints manuscript workflow routing",
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Manuscript Workflow/);
+  assertWorkflowRoute(workflow.stdout, "manuscript");
   assert.match(workflow.stdout, /ledger\treports\/paper\/manuscript-ledger\.csv/);
   assert.match(workflow.stdout, /manifest\treports\/paper\/templates\/manuscript\.yaml/);
   assert.match(workflow.stdout, /main_tex\treports\/paper\/templates\/main\.tex/);
@@ -528,6 +541,7 @@ test("academic-research workflow submission prints submission workflow routing",
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Submission Workflow/);
+  assertWorkflowRoute(workflow.stdout, "submission");
   assert.match(workflow.stdout, /ledger\tpaper_submissions\/submission-ledger\.csv/);
   assert.match(workflow.stdout, /manifest\tpaper_submissions\/templates\/submission\.yaml/);
   assert.match(workflow.stdout, /cover_letter\tpaper_submissions\/templates\/cover-letter\.md/);
@@ -557,6 +571,7 @@ test("academic-research workflow response prints rebuttal and revision workflow 
 
   assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
   assert.match(workflow.stdout, /Response Workflow/);
+  assertWorkflowRoute(workflow.stdout, "response");
   assert.match(workflow.stdout, /decision\tpaper_submissions\/templates\/review-rounds\/r1\/decision-letter\.md/);
   assert.match(workflow.stdout, /comments\tpaper_submissions\/templates\/review-rounds\/r1\/reviewer-comments\.md/);
   assert.match(workflow.stdout, /concern_map\tpaper_submissions\/templates\/review-rounds\/r1\/concern-map\.csv/);

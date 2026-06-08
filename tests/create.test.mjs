@@ -108,6 +108,22 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "docs/agent/research-workflow.md"));
   await stat(join(target, "docs/agent/review-loop.md"));
   await stat(join(target, "docs/agent/workflow-prompts/README.md"));
+  const promptStages = [
+    "literature",
+    "survey",
+    "agenda",
+    "contribution",
+    "analysis",
+    "frame",
+    "release",
+    "manuscript",
+    "submission",
+    "response",
+    "full-research-loop"
+  ];
+  for (const stage of promptStages) {
+    await stat(join(target, "docs/agent/workflow-prompts", `${stage}.md`));
+  }
   await stat(join(target, "compliance/profiles.yaml"));
   await stat(join(target, "compliance/README.md"));
   await stat(join(target, "compliance/acm-artifact-review.md"));
@@ -432,6 +448,15 @@ test("createProject generates a personalized research project without global sid
   assert.match(projectQuality, /Universal Review Loop/);
   assert.match(projectQuality, /Final Clean-Copy Gate/);
   assert.match(projectQuality, /paper_submissions\//);
+  const literaturePrompt = await readFile(join(target, "docs/agent/workflow-prompts/literature.md"), "utf8");
+  assert.match(literaturePrompt, /npm run workflow:literature/);
+  assert.match(literaturePrompt, /Required Skills/);
+  assert.match(literaturePrompt, /Review Loop/);
+  assert.match(literaturePrompt, /Ledger/);
+  assert.match(literaturePrompt, /Handoff/);
+  const fullLoopPrompt = await readFile(join(target, "docs/agent/workflow-prompts/full-research-loop.md"), "utf8");
+  assert.match(fullLoopPrompt, /source ingestion -> SOTA -> survey -> research agenda/);
+  assert.match(fullLoopPrompt, /clean reviewed handoff/);
   const outputContracts = await readFile(join(target, "docs/agent/output-contracts.md"), "utf8");
   assert.match(outputContracts, /Trust Levels/);
   assert.match(outputContracts, /Promotion Rules/);

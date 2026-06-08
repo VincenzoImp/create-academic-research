@@ -699,6 +699,11 @@ async function workflowCommand(argv: string[]): Promise<number> {
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
+function printWorkflowPromptRoute(stage: string): void {
+  console.log(`stage\t${stage}`);
+  console.log(`prompt\tdocs/agent/workflow-prompts/${stage}.md`);
+}
+
 async function workflowLiteratureCommand(parsed: ParsedArgs): Promise<number> {
   assertNoArguments(parsed.positionals, "workflow literature");
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
@@ -722,6 +727,7 @@ async function workflowLiteratureCommand(parsed: ParsedArgs): Promise<number> {
 
   console.log("Literature Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("literature");
   console.log("preset\tliterature");
   console.log(`mcp_selected\t${literatureServers.join(",")}`);
   console.log("optional_zotero\tlocal-library enrichment; reconcile through sources/zotero/import-log.csv and sources/source-ledger.csv");
@@ -742,6 +748,7 @@ async function workflowSurveyCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Survey Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("survey");
   console.log("contract\tsurvey/survey-contract.md");
   console.log("outline\tsurvey/outline.md");
   console.log("claim_ledger\tsurvey/survey-claim-ledger.csv");
@@ -770,6 +777,7 @@ async function workflowAgendaCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Agenda Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("agenda");
   console.log("contract\tresearch_agenda/agenda-contract.md");
   console.log("opportunity_ledger\tresearch_agenda/opportunity-ledger.csv");
   console.log("input\tsota/gaps.md");
@@ -795,6 +803,7 @@ async function workflowContributionCommand(parsed: ParsedArgs): Promise<number> 
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Contribution Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("contribution");
   console.log("ledger\tcontributions/contribution-ledger.csv");
   console.log("template\tcontributions/templates/contribution.yaml");
   console.log("template\tcontributions/templates/claim-map.md");
@@ -827,6 +836,7 @@ async function workflowAnalysisCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Analysis Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("analysis");
   console.log("template\tcontributions/templates/analyses/templates/analysis.yaml");
   console.log("template\tcontributions/templates/analyses/templates/report.md");
   console.log("template\tcontributions/templates/analyses/templates/stats-appendix.md");
@@ -859,6 +869,7 @@ async function workflowFrameCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Paper Frame Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("frame");
   console.log("ledger\tpaper_frames/frame-ledger.csv");
   console.log("template\tpaper_frames/templates/frame-contract.md");
   console.log("template\tpaper_frames/templates/selected-contributions.yaml");
@@ -890,6 +901,7 @@ async function workflowReleaseCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Paper Release Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("release");
   console.log("ledger\tpaper_releases/release-ledger.csv");
   console.log("manifest\tpaper_releases/templates/release.yaml");
   console.log("source_map\tpaper_releases/templates/source-map.csv");
@@ -919,6 +931,7 @@ async function workflowManuscriptCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Manuscript Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("manuscript");
   console.log("ledger\treports/paper/manuscript-ledger.csv");
   console.log("manifest\treports/paper/templates/manuscript.yaml");
   console.log("main_tex\treports/paper/templates/main.tex");
@@ -952,6 +965,7 @@ async function workflowSubmissionCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Submission Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("submission");
   console.log("ledger\tpaper_submissions/submission-ledger.csv");
   console.log("manifest\tpaper_submissions/templates/submission.yaml");
   console.log("cover_letter\tpaper_submissions/templates/cover-letter.md");
@@ -984,6 +998,7 @@ async function workflowResponseCommand(parsed: ParsedArgs): Promise<number> {
   const root = resolve(flagString(parsed.flags, "root") ?? ".");
   console.log("Response Workflow");
   console.log(`root\t${root}`);
+  printWorkflowPromptRoute("response");
   console.log("decision\tpaper_submissions/templates/review-rounds/r1/decision-letter.md");
   console.log("comments\tpaper_submissions/templates/review-rounds/r1/reviewer-comments.md");
   console.log("concern_map\tpaper_submissions/templates/review-rounds/r1/concern-map.csv");

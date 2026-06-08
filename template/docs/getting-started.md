@@ -173,6 +173,10 @@ response letters, rebuttals, and revision plans. New scientific work requested
 by reviewers returns to contributions, analyses, citations, or artifacts before
 it is cited in response text.
 
+Each `npm run workflow:<stage>` command points to a matching prompt in
+`docs/agent/workflow-prompts/`. Use that prompt as the agent-facing procedure
+for skills, ledgers, review loops, and clean handoff.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.
