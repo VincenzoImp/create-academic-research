@@ -40,6 +40,8 @@ from exploratory work to trusted project evidence.
 - `paper_frames/frame-ledger.csv`: index of candidate, accepted, rejected, or held paper frames with venue, selected contributions, badge targets, compliance profiles, release plan, review state, and next step.
 - `paper_releases/`: materialized paper-specific release packages, source maps, locks, checksums, metadata, and release reviews.
 - `paper_releases/release-ledger.csv`: index of paper-specific release manifests, source maps, locks, checksums, active profiles, destinations, smoke tests, metadata, review state, and next step.
+- `reports/paper/`: manuscript manifests, LaTeX sections, paper claim maps, citation maps, asset maps, and writing reviews assembled from accepted frames and canonical evidence.
+- `reports/paper/manuscript-ledger.csv`: index of paper manuscripts with frame, venue, manifest, LaTeX, claim map, citation map, asset map, release, central BibTeX, review state, clean-copy state, and next step.
 - `paper_submissions/`: cover letters, submitted snapshots, decision letters, reviewer comments, response letters, rebuttals, revision plans, and private correspondence.
 - `compliance/`: project-level compliance profile registry and evidence files.
 - `compliance/profiles.yaml`: supported badge/compliance profiles, active-profile field schema, source URLs, and evidence file map.

@@ -45,6 +45,12 @@ Paper releases live in `paper_releases/`. Release staging is generated from a
 manifest, source map, lock, and checksums. Staged release files are not a
 second source of truth and should not be edited by hand.
 
+Manuscripts live in `reports/paper/`. Drafts are assembled section by section
+from an accepted frame, reviewed contribution reports, analysis paper exports,
+central BibTeX, paper claim maps, citation maps, and asset maps. Final review
+must reject stale tables, stale figures, unsupported claims, unreconciled
+citations, and draft residue.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

@@ -13,6 +13,7 @@
     "workflow:analysis": "npm exec --yes --package=create-academic-research@latest -- academic-research workflow analysis",
     "workflow:frame": "npm exec --yes --package=create-academic-research@latest -- academic-research workflow frame",
     "workflow:release": "npm exec --yes --package=create-academic-research@latest -- academic-research workflow release",
+    "workflow:manuscript": "npm exec --yes --package=create-academic-research@latest -- academic-research workflow manuscript",
     "rename": "npm exec --yes --package=create-academic-research@latest -- academic-research rename",
     "agents:list": "npm exec --yes --package=create-academic-research@latest -- academic-research agents list",
     "skills:install": "npm exec --yes --package=create-academic-research@latest -- academic-research skills install",

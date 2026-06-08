@@ -150,6 +150,16 @@ Use `paper_releases/templates/` to define `release.yaml`, `source-map.csv`,
 `release-plan.lock`, and `checksums.txt`. Release staging is generated from
 those files and canonical project paths.
 
+For manuscript assembly after an accepted frame, run:
+
+```bash
+npm run workflow:manuscript
+```
+
+Use `reports/paper/templates/` to assemble section-by-section LaTeX drafts from
+the accepted frame, reviewed contribution reports, analysis exports, central
+BibTeX, claim map, citation map, and asset map.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

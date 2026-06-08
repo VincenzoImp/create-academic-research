@@ -693,6 +693,7 @@ async function workflowCommand(argv: string[]): Promise<number> {
   if (subcommand === "analysis") return workflowAnalysisCommand(parsed);
   if (subcommand === "frame") return workflowFrameCommand(parsed);
   if (subcommand === "release") return workflowReleaseCommand(parsed);
+  if (subcommand === "manuscript") return workflowManuscriptCommand(parsed);
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
@@ -908,6 +909,39 @@ async function workflowReleaseCommand(parsed: ParsedArgs): Promise<number> {
   console.log("next_skill\tbadge-compliance-profiles");
   console.log("");
   console.log("Rule\trelease staging is generated from manifest, source map, lock, and checksums; do not hand-edit staging as canonical evidence.");
+  return 0;
+}
+
+async function workflowManuscriptCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow manuscript");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Manuscript Workflow");
+  console.log(`root\t${root}`);
+  console.log("ledger\treports/paper/manuscript-ledger.csv");
+  console.log("manifest\treports/paper/templates/manuscript.yaml");
+  console.log("main_tex\treports/paper/templates/main.tex");
+  console.log("claim_map\treports/paper/templates/paper-claim-map.csv");
+  console.log("citation_map\treports/paper/templates/citation-map.csv");
+  console.log("asset_map\treports/paper/templates/asset-map.csv");
+  console.log("bib\tsources/bib/references.bib");
+  console.log("input\tpaper_frames/frame-ledger.csv");
+  console.log("input\tpaper_frames/<frame_id>/decision.md");
+  console.log("input\tpaper_frames/<frame_id>/outline.md");
+  console.log("input\tpaper_frames/<frame_id>/evidence-map.md");
+  console.log("input\tcontributions/<contribution_id>/report.md");
+  console.log("input\tcontributions/<contribution_id>/paper-export/");
+  console.log("input\tpaper_releases/release-ledger.csv");
+  console.log("section\treports/paper/templates/sections/");
+  console.log("review\treports/paper/templates/reviews/");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tpaper-writing");
+  console.log("next_skill\tcitation-claim-audit");
+  console.log("next_skill\tpublication-figures-tables");
+  console.log("next_skill\tadversarial-peer-review");
+  console.log("next_skill\tbadge-compliance-profiles");
+  console.log("");
+  console.log("Rule\twrite section-by-section from an accepted frame; final review must pass claim support, citation reconciliation, asset freshness, venue fit, and clean-copy gates.");
   return 0;
 }
 
@@ -1278,7 +1312,7 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis|frame|release> [options]",
+      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis|frame|release|manuscript> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
@@ -1290,6 +1324,7 @@ function printWorkflowHelp(): void {
       "  analysis                  Route contribution-local analyses through strict preflight, reports, and publication assets.",
       "  frame                     Route reviewed contribution packages into venue-aware paper frames.",
       "  release                   Route accepted frames into manifest-driven paper release packages.",
+      "  manuscript                Route accepted frames into claim-audited, citation-audited, asset-mapped paper drafts.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",

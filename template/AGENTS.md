@@ -74,6 +74,7 @@ source ingestion -> SOTA -> survey -> research agenda -> contribution -> analysi
 - Strict analysis bundles for contribution-local analyses go in `contributions/<contribution_id>/analyses/<analysis_id>/`.
 - Paper frame ledgers, selected contribution maps, venue fit, badge fit, release plans, outlines, reviews, and decisions go in `paper_frames/`.
 - Paper-specific release manifests, source maps, locks, checksums, staged outputs, metadata, reviews, and archives go in `paper_releases/`.
+- Manuscript ledgers, LaTeX files, claim maps, citation maps, asset maps, and writing reviews go in `reports/paper/`.
 - Core/supporting paper syntheses go in `sota/paper-syntheses/`.
 - Full-text reading progress goes in `sota/reading-log.csv`.
 - Citation graph expansion goes in `sota/citation-chasing-log.csv`.

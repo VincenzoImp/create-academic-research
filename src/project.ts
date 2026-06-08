@@ -387,6 +387,66 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "profile_ids",
     "notes"
   ],
+  "reports/paper/manuscript-ledger.csv": [
+    "manuscript_id",
+    "frame_id",
+    "status",
+    "target_venue",
+    "track",
+    "source_frame_decision",
+    "manifest_path",
+    "main_tex_path",
+    "claim_map_path",
+    "citation_map_path",
+    "asset_map_path",
+    "release_id",
+    "central_bib_path",
+    "section_paths",
+    "review_status",
+    "clean_copy_status",
+    "next_step",
+    "notes"
+  ],
+  "reports/paper/templates/paper-claim-map.csv": [
+    "paper_claim_id",
+    "section_id",
+    "paragraph_or_line",
+    "claim_text",
+    "upstream_claim_ids",
+    "source_ids",
+    "bib_keys",
+    "evidence_strength",
+    "allowed_wording",
+    "limitations",
+    "contradictions",
+    "review_status",
+    "notes"
+  ],
+  "reports/paper/templates/citation-map.csv": [
+    "citation_key",
+    "section_id",
+    "claim_ids",
+    "source_id",
+    "bib_path",
+    "citation_role",
+    "verified_in_citation_audit",
+    "review_status",
+    "notes"
+  ],
+  "reports/paper/templates/asset-map.csv": [
+    "asset_id",
+    "section_id",
+    "asset_type",
+    "canonical_source_path",
+    "rendered_path",
+    "include_command",
+    "source_data_path",
+    "source_analysis_id",
+    "source_contribution_id",
+    "checksum",
+    "review_status",
+    "notes"
+  ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
     "source_id",
@@ -573,6 +633,38 @@ const REQUIRED_YAML_PATHS: Record<string, string[]> = {
     "review.status",
     "review.source_map_checked",
     "review.checksums_checked"
+  ],
+  "reports/paper/templates/manuscript.yaml": [
+    "version",
+    "manuscript.id",
+    "manuscript.status",
+    "manuscript.type",
+    "frame_id",
+    "source_frame_decision",
+    "target.venue",
+    "target.track",
+    "target.year",
+    "bibliography.primary_bib",
+    "inputs.frame_contract",
+    "inputs.selected_contributions",
+    "inputs.argument_map",
+    "inputs.evidence_map",
+    "inputs.release_plan",
+    "inputs.contribution_reports",
+    "inputs.analysis_exports",
+    "maps.claim_map",
+    "maps.citation_map",
+    "maps.asset_map",
+    "latex.main",
+    "latex.sections",
+    "asset_policy.numeric_truth_source",
+    "asset_policy.tables_from_files",
+    "asset_policy.figures_from_files",
+    "review.status",
+    "review.claims_checked",
+    "review.citations_checked",
+    "review.assets_checked",
+    "review.clean_copy_gate"
   ]
 };
 
@@ -862,6 +954,24 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "paper_releases/templates/reviews",
     "paper_releases/templates/archive",
     "scripts/release-paper/README.md",
+    "reports/paper/manuscript-ledger.csv",
+    "reports/paper/templates/manuscript.yaml",
+    "reports/paper/templates/paper-claim-map.csv",
+    "reports/paper/templates/citation-map.csv",
+    "reports/paper/templates/asset-map.csv",
+    "reports/paper/templates/main.tex",
+    "reports/paper/templates/sections/abstract.tex",
+    "reports/paper/templates/sections/introduction.tex",
+    "reports/paper/templates/sections/related-work.tex",
+    "reports/paper/templates/sections/method.tex",
+    "reports/paper/templates/sections/results.tex",
+    "reports/paper/templates/sections/discussion.tex",
+    "reports/paper/templates/sections/limitations.tex",
+    "reports/paper/templates/sections/ethics-and-availability.tex",
+    "reports/paper/templates/sections/conclusion.tex",
+    "reports/paper/templates/reviews",
+    "reports/paper/templates/archive",
+    "scripts/write-paper/README.md",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -1693,6 +1803,96 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "managed",
       content: await templateText("scripts/release-paper/README.md")
     },
+    {
+      path: "reports/paper/manuscript-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("reports/paper/manuscript-ledger.csv")
+    },
+    {
+      path: "reports/paper/templates/manuscript.yaml",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/manuscript.yaml")
+    },
+    {
+      path: "reports/paper/templates/paper-claim-map.csv",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/paper-claim-map.csv")
+    },
+    {
+      path: "reports/paper/templates/citation-map.csv",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/citation-map.csv")
+    },
+    {
+      path: "reports/paper/templates/asset-map.csv",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/asset-map.csv")
+    },
+    {
+      path: "reports/paper/templates/main.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/main.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/abstract.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/abstract.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/introduction.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/introduction.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/related-work.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/related-work.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/method.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/method.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/results.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/results.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/discussion.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/discussion.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/limitations.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/limitations.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/ethics-and-availability.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/ethics-and-availability.tex")
+    },
+    {
+      path: "reports/paper/templates/sections/conclusion.tex",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/sections/conclusion.tex")
+    },
+    {
+      path: "reports/paper/templates/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/reviews/.gitkeep")
+    },
+    {
+      path: "reports/paper/templates/archive/.gitkeep",
+      policy: "managed",
+      content: await templateText("reports/paper/templates/archive/.gitkeep")
+    },
+    {
+      path: "scripts/write-paper/README.md",
+      policy: "managed",
+      content: await templateText("scripts/write-paper/README.md")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -1769,6 +1969,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "workflow:analysis": `${command} workflow analysis`,
     "workflow:frame": `${command} workflow frame`,
     "workflow:release": `${command} workflow release`,
+    "workflow:manuscript": `${command} workflow manuscript`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,

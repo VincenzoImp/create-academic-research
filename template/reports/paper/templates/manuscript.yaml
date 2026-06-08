@@ -1,0 +1,47 @@
+version: 1
+manuscript:
+  id: manuscript-example
+  status: planned
+  type: research-paper
+frame_id: frame-example
+source_frame_decision: paper_frames/templates/decision.md
+target:
+  venue: venue-example
+  track: research
+  year: 2026
+bibliography:
+  primary_bib: sources/bib/references.bib
+inputs:
+  frame_contract: paper_frames/templates/frame-contract.md
+  selected_contributions: paper_frames/templates/selected-contributions.yaml
+  argument_map: paper_frames/templates/argument-map.md
+  evidence_map: paper_frames/templates/evidence-map.md
+  release_plan: paper_frames/templates/release-plan.yaml
+  contribution_reports: []
+  analysis_exports: []
+maps:
+  claim_map: reports/paper/templates/paper-claim-map.csv
+  citation_map: reports/paper/templates/citation-map.csv
+  asset_map: reports/paper/templates/asset-map.csv
+latex:
+  main: reports/paper/templates/main.tex
+  sections:
+    - reports/paper/templates/sections/abstract.tex
+    - reports/paper/templates/sections/introduction.tex
+    - reports/paper/templates/sections/related-work.tex
+    - reports/paper/templates/sections/method.tex
+    - reports/paper/templates/sections/results.tex
+    - reports/paper/templates/sections/discussion.tex
+    - reports/paper/templates/sections/limitations.tex
+    - reports/paper/templates/sections/ethics-and-availability.tex
+    - reports/paper/templates/sections/conclusion.tex
+asset_policy:
+  numeric_truth_source: upstream-generated-files
+  tables_from_files: true
+  figures_from_files: true
+review:
+  status: planned
+  claims_checked: false
+  citations_checked: false
+  assets_checked: false
+  clean_copy_gate: false

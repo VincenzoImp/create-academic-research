@@ -72,6 +72,7 @@ test("createProject generates a personalized research project without global sid
     packageJson.scripts.doctor,
     new RegExp(`--package=create-academic-research@${escapeRegExp(packageVersion)} -- academic-research doctor$`)
   );
+  assert.match(packageJson.scripts["workflow:manuscript"], /workflow manuscript$/);
   assert.match(pyproject, /name = "paper-project"/);
   assert.match(readme, /^# Paper Project/);
   await stat(join(target, "src/paper_project/__init__.py"));
@@ -205,6 +206,24 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "paper_releases/templates/reviews/.gitkeep"));
   await stat(join(target, "paper_releases/templates/archive/.gitkeep"));
   await stat(join(target, "scripts/release-paper/README.md"));
+  await stat(join(target, "reports/paper/manuscript-ledger.csv"));
+  await stat(join(target, "reports/paper/templates/manuscript.yaml"));
+  await stat(join(target, "reports/paper/templates/paper-claim-map.csv"));
+  await stat(join(target, "reports/paper/templates/citation-map.csv"));
+  await stat(join(target, "reports/paper/templates/asset-map.csv"));
+  await stat(join(target, "reports/paper/templates/main.tex"));
+  await stat(join(target, "reports/paper/templates/sections/abstract.tex"));
+  await stat(join(target, "reports/paper/templates/sections/introduction.tex"));
+  await stat(join(target, "reports/paper/templates/sections/related-work.tex"));
+  await stat(join(target, "reports/paper/templates/sections/method.tex"));
+  await stat(join(target, "reports/paper/templates/sections/results.tex"));
+  await stat(join(target, "reports/paper/templates/sections/discussion.tex"));
+  await stat(join(target, "reports/paper/templates/sections/limitations.tex"));
+  await stat(join(target, "reports/paper/templates/sections/ethics-and-availability.tex"));
+  await stat(join(target, "reports/paper/templates/sections/conclusion.tex"));
+  await stat(join(target, "reports/paper/templates/reviews/.gitkeep"));
+  await stat(join(target, "reports/paper/templates/archive/.gitkeep"));
+  await stat(join(target, "scripts/write-paper/README.md"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -308,6 +327,33 @@ test("createProject generates a personalized research project without global sid
   assert.equal(releaseManifest.frame_id, "frame-example");
   const sourceMap = await readFile(join(target, "paper_releases/templates/source-map.csv"), "utf8");
   assert.match(sourceMap, /^release_id,released_path,canonical_source_path,source_type,include_mode,checksum,profile_ids,notes/m);
+  const manuscriptLedger = await readFile(join(target, "reports/paper/manuscript-ledger.csv"), "utf8");
+  assert.match(
+    manuscriptLedger,
+    /^manuscript_id,frame_id,status,target_venue,track,source_frame_decision,manifest_path,main_tex_path,claim_map_path,citation_map_path,asset_map_path,release_id,central_bib_path,section_paths,review_status,clean_copy_status,next_step,notes/m
+  );
+  const manuscriptManifest = YAML.parse(await readFile(join(target, "reports/paper/templates/manuscript.yaml"), "utf8"));
+  assert.equal(manuscriptManifest.manuscript.status, "planned");
+  assert.equal(manuscriptManifest.frame_id, "frame-example");
+  assert.equal(manuscriptManifest.bibliography.primary_bib, "sources/bib/references.bib");
+  const paperClaimMap = await readFile(join(target, "reports/paper/templates/paper-claim-map.csv"), "utf8");
+  assert.match(
+    paperClaimMap,
+    /^paper_claim_id,section_id,paragraph_or_line,claim_text,upstream_claim_ids,source_ids,bib_keys,evidence_strength,allowed_wording,limitations,contradictions,review_status,notes/m
+  );
+  const citationMap = await readFile(join(target, "reports/paper/templates/citation-map.csv"), "utf8");
+  assert.match(
+    citationMap,
+    /^citation_key,section_id,claim_ids,source_id,bib_path,citation_role,verified_in_citation_audit,review_status,notes/m
+  );
+  const assetMap = await readFile(join(target, "reports/paper/templates/asset-map.csv"), "utf8");
+  assert.match(
+    assetMap,
+    /^asset_id,section_id,asset_type,canonical_source_path,rendered_path,include_command,source_data_path,source_analysis_id,source_contribution_id,checksum,review_status,notes/m
+  );
+  const manuscriptMain = await readFile(join(target, "reports/paper/templates/main.tex"), "utf8");
+  assert.match(manuscriptMain, /\\input\{sections\/introduction\}/);
+  assert.match(manuscriptMain, /\\bibliography\{\.\.\/\.\.\/\.\.\/sources\/bib\/references\}/);
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -741,6 +787,12 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "paper_releases/release-ledger.csv"), "release_id,frame_id\n", "utf8");
   await writeFile(join(target, "paper_releases/templates/source-map.csv"), "release_id,released_path\n", "utf8");
   await writeFile(join(target, "paper_releases/templates/release.yaml"), "release: [\n", "utf8");
+  await mkdir(join(target, "reports/paper/templates"), { recursive: true });
+  await writeFile(join(target, "reports/paper/manuscript-ledger.csv"), "manuscript_id,frame_id\n", "utf8");
+  await writeFile(join(target, "reports/paper/templates/paper-claim-map.csv"), "paper_claim_id,section_id\n", "utf8");
+  await writeFile(join(target, "reports/paper/templates/citation-map.csv"), "citation_key,section_id\n", "utf8");
+  await writeFile(join(target, "reports/paper/templates/asset-map.csv"), "asset_id,section_id\n", "utf8");
+  await writeFile(join(target, "reports/paper/templates/manuscript.yaml"), "manuscript: [\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -770,6 +822,11 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("paper_releases/release-ledger.csv missing column status")));
   assert.ok(result.errors.some((error) => error.includes("paper_releases/templates/source-map.csv missing column canonical_source_path")));
   assert.ok(result.errors.some((error) => error.includes("invalid paper_releases/templates/release.yaml")));
+  assert.ok(result.errors.some((error) => error.includes("reports/paper/manuscript-ledger.csv missing column status")));
+  assert.ok(result.errors.some((error) => error.includes("reports/paper/templates/paper-claim-map.csv missing column claim_text")));
+  assert.ok(result.errors.some((error) => error.includes("reports/paper/templates/citation-map.csv missing column source_id")));
+  assert.ok(result.errors.some((error) => error.includes("reports/paper/templates/asset-map.csv missing column canonical_source_path")));
+  assert.ok(result.errors.some((error) => error.includes("invalid reports/paper/templates/manuscript.yaml")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -1318,6 +1375,36 @@ test("updateProject adds paper release workflow files", async () => {
   await stat(join(target, "paper_releases/release-ledger.csv"));
   await stat(join(target, "paper_releases/templates/source-map.csv"));
   await stat(join(target, "scripts/release-paper/README.md"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds manuscript workflow files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-manuscript-workflow-"));
+  const target = join(root, "update-manuscript-workflow-project");
+  await createProject({
+    target,
+    title: "Update Manuscript Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "reports/paper/templates"), { recursive: true, force: true });
+  await rm(join(target, "reports/paper/manuscript-ledger.csv"), { force: true });
+  await rm(join(target, "scripts/write-paper"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "reports/paper/manuscript-ledger.csv" && change.action === "create"));
+  assert.ok(
+    dryRun.changes.some((change) => change.path === "reports/paper/templates/manuscript.yaml" && change.action === "create")
+  );
+  assert.ok(dryRun.changes.some((change) => change.path === "scripts/write-paper/README.md" && change.action === "create"));
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "reports/paper/manuscript-ledger.csv"));
+  await stat(join(target, "reports/paper/templates/manuscript.yaml"));
+  await stat(join(target, "scripts/write-paper/README.md"));
   assert.equal(doctor.ok, true);
 });
 
