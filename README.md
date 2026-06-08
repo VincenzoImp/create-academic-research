@@ -40,6 +40,10 @@ npx --yes github:VincenzoImp/create-academic-research my-project
 |---|---|
 | Sources | PDFs, derived Markdown, metadata, BibTeX, conversion ledger, source ledger. |
 | Literature Review | Search strategy, screening decisions, literature matrix, SOTA synthesis, gaps, PRISMA flow. |
+| Survey And Agenda | SOTA-derived survey contracts, survey claim ledgers, section plans, opportunity ledgers, and reviewed research agenda outputs. |
+| Contributions And Analyses | Contribution packages, strict analysis manifests, generated output folders, claim maps, badge plans, reports, reviews, and paper exports. |
+| Paper Lifecycle | Paper frames, release packages, manuscript templates, submission state, cover letters, response/rebuttal records, and camera-ready state. |
+| Compliance | Badge profiles, artifact checklists, venue checklists, method/reporting profiles, release evidence ledgers, and open-science notes. |
 | Agent Memory | `AGENTS.md`, capability profile, MCP setup docs, generated MCP snippets, wiki index/log/templates. |
 | Reproducibility | Python package scaffold, tests, experiment registry, autonomous campaign ledgers, output folders, artifact checklist. |
 | Skills | Project-local installation flow for `VincenzoImp/academic-research-skills`. |
@@ -118,6 +122,15 @@ npm run update
 npm run update -- --apply
 npm run setup -- --env-file .env.local
 npm run workflow:literature
+npm run workflow:survey
+npm run workflow:agenda
+npm run workflow:contribution
+npm run workflow:analysis
+npm run workflow:frame
+npm run workflow:release
+npm run workflow:manuscript
+npm run workflow:submission
+npm run workflow:response
 npm run rename -- --title "New Title" --slug new-title --package new_title
 npm run agents:list
 npm run skills:presets
@@ -234,20 +247,35 @@ MCP commands are split by side-effect:
 | `mcp doctor` | Validate enabled MCP records, generated snippets, required env vars, and documented manual prerequisites. Pass `--env-file .env.local` to read explicit local secrets. |
 | `mcp probe` | Opt-in runtime check. Local stdio servers get a JSON-RPC handshake; remote endpoints are reported as configured without a network probe. |
 
-Workflow commands are scenario-level shortcuts over skills and MCP records.
-Use `npm run workflow:literature` when starting a serious SOTA, survey, or
-related-work pass: it selects a practical literature stack with arXiv, DBLP,
-Semantic Scholar, and OpenAlex remote graph search, then prints the next checks.
+Workflow commands are scenario-level preflight and routing shortcuts over
+skills, MCP records, ledgers, prompt playbooks, and review gates. They do not
+generate a full research artifact in one pass; they print the contract for the
+current stage and route the agent to the right project files and skills.
+
+| Command | Stage |
+|---|---|
+| `npm run workflow:literature` | Configure the practical SOTA stack and route source evidence into SOTA ledgers. |
+| `npm run workflow:survey` | Route SOTA claims into a section-by-section reviewed survey workflow. |
+| `npm run workflow:agenda` | Route SOTA gaps and survey claims into reviewed research opportunities. |
+| `npm run workflow:contribution` | Route agenda opportunities into contribution packages and reports. |
+| `npm run workflow:analysis` | Route contribution-local analyses through strict preflight, output folders, and paper exports. |
+| `npm run workflow:frame` | Route reviewed contributions into venue-aware paper framings. |
+| `npm run workflow:release` | Route accepted frames into manifest-driven paper release packages. |
+| `npm run workflow:manuscript` | Route accepted frames into claim-audited, citation-audited, asset-mapped manuscripts. |
+| `npm run workflow:submission` | Route manuscript and release state into submission packages. |
+| `npm run workflow:response` | Route reviewer comments into concern maps, rebuttals, response letters, and revision plans. |
 
 ## Companion Skills
 
-The generated project works best with:
+The intended end-to-end agentic research workflow requires the companion
+academic research skill package. The create wizard installs it project-locally
+by default; `--no-install-skills` is for CI, offline scaffolding, or manual
+installation later.
 
 ```bash
 npx -y skills add VincenzoImp/academic-research-skills --skill '*' --copy -y
 ```
 
-The create wizard can install that project-local package automatically.
 Those skills are portable `SKILL.md` instructions, but they require an
 agent/runtime that can load skills or include the relevant instructions in
 context. They are not automatic capabilities of every raw model API.

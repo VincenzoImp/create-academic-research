@@ -6,6 +6,8 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import YAML from "yaml";
 
+import { AGENT_STACK } from "../dist/src/stack.js";
+
 const root = new URL("..", import.meta.url).pathname;
 const packageVersion = JSON.parse(await readFile(join(root, "package.json"), "utf8")).version;
 
@@ -519,7 +521,7 @@ test("academic-research workflow manuscript prints manuscript workflow routing",
   assert.match(workflow.stdout, /bib\tsources\/bib\/references\.bib/);
   assert.match(workflow.stdout, /input\tpaper_frames\/frame-ledger\.csv/);
   assert.match(workflow.stdout, /input\tpaper_releases\/release-ledger\.csv/);
-  assert.match(workflow.stdout, /next_skill\tpaper-writing/);
+  assert.match(workflow.stdout, /next_skill\tpaper-writing-review/);
   assert.match(workflow.stdout, /next_skill\tcitation-claim-audit/);
   assert.match(workflow.stdout, /next_skill\tpublication-figures-tables/);
   assert.match(workflow.stdout, /next_skill\tadversarial-peer-review/);
@@ -585,6 +587,43 @@ test("academic-research workflow response prints rebuttal and revision workflow 
   assert.match(workflow.stdout, /next_skill\tpaper-writing-review/);
   assert.match(workflow.stdout, /next_skill\tcontribution-package/);
   assert.match(workflow.stdout, /next_skill\tresearch-data-analysis/);
+});
+
+test("academic-research workflow next_skill entries resolve to known skills", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-workflow-skills-"));
+  const target = join(temp, "cli-workflow-skills-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const knownSkills = new Set(Object.values(AGENT_STACK.skill_sources).flatMap((source) => source.skills));
+  const workflows = [
+    "survey",
+    "agenda",
+    "contribution",
+    "analysis",
+    "frame",
+    "release",
+    "manuscript",
+    "submission",
+    "response"
+  ];
+
+  for (const workflowName of workflows) {
+    const workflow = spawnSync(
+      process.execPath,
+      ["dist/bin/academic-research.js", "workflow", workflowName, "--root", target],
+      { cwd: root, encoding: "utf8" }
+    );
+    assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
+    const nextSkills = [...workflow.stdout.matchAll(/^next_skill\t(.+)$/gm)].map((match) => match[1]);
+    assert.ok(nextSkills.length > 0, workflowName);
+    for (const skill of nextSkills) {
+      assert.ok(knownSkills.has(skill), `${workflowName}: ${skill}`);
+    }
+  }
 });
 
 test("academic-research setup prints Overleaf client registration only after setup is ready", async () => {

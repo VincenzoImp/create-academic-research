@@ -950,7 +950,7 @@ async function workflowManuscriptCommand(parsed: ParsedArgs): Promise<number> {
   console.log("review\treports/paper/templates/reviews/");
   console.log("");
   console.log("Next Skills");
-  console.log("next_skill\tpaper-writing");
+  console.log("next_skill\tpaper-writing-review");
   console.log("next_skill\tcitation-claim-audit");
   console.log("next_skill\tpublication-figures-tables");
   console.log("next_skill\tadversarial-peer-review");

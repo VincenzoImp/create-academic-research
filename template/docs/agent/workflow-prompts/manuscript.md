@@ -14,7 +14,7 @@ decision, contribution reports, release ledger, and reviews.
 
 ## Required Skills
 
-Use paper-writing, citation-claim-audit, publication-figures-tables,
+Use paper-writing-review, citation-claim-audit, publication-figures-tables,
 adversarial-peer-review, and badge-compliance-profiles skills.
 
 ## Ledger

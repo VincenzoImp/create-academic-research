@@ -99,6 +99,37 @@ test("enhanced preset includes complementary external skill bundles explicitly",
   assert.ok(commands.every((command) => command.includes("--copy")));
 });
 
+test("academic research source tracks all workflow stage skills", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-skills-workflow-stage-"));
+  const target = join(root, "skills-workflow-stage-project");
+  await createProject({ target, title: "Skills Workflow Stage Project", preset: "default", installSkills: false });
+
+  const required = [
+    "survey-synthesis",
+    "research-agenda",
+    "contribution-package",
+    "research-results-reporting",
+    "publication-figures-tables",
+    "paper-framing",
+    "paper-release",
+    "paper-submission-lifecycle",
+    "badge-compliance-profiles"
+  ];
+
+  for (const skill of required) {
+    assert.ok(AGENT_STACK.skill_sources.academic_research.skills.includes(skill), skill);
+  }
+
+  const commands = await buildExplicitSkillInstallCommands(target, required, { agent: "codex" });
+  const rendered = commands.map((command) => command.join(" ")).join("\n");
+
+  assert.equal(commands.length, 1);
+  assert.match(rendered, /VincenzoImp\/academic-research-skills --agent codex --skill/);
+  for (const skill of required) {
+    assert.match(rendered, new RegExp(`\\b${skill}\\b`));
+  }
+});
+
 test("explicit skill installs map ids to canonical skill sources", async () => {
   const root = await mkdtemp(join(tmpdir(), "academic-skills-explicit-"));
   const target = join(root, "skills-explicit-project");
