@@ -130,6 +130,16 @@ Copy `contributions/templates/analyses/templates/` to
 `contributions/<contribution_id>/analyses/<analysis_id>/`. If strict preflight
 fails, write only `blocker-summary.md` until the missing fields are resolved.
 
+For paper framing before manuscript or release work, run:
+
+```bash
+npm run workflow:frame
+```
+
+Use `paper_frames/templates/` to create a candidate frame, select
+contributions, check venue fit, check badge/compliance fit, and record whether
+the frame is accepted, rejected, or held.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

@@ -179,6 +179,18 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "contributions/templates/analyses/templates/paper-export/README.md"));
   await stat(join(target, "contributions/templates/analyses/templates/reviews/.gitkeep"));
   await stat(join(target, "contributions/templates/analyses/templates/archive/.gitkeep"));
+  await stat(join(target, "paper_frames/frame-ledger.csv"));
+  await stat(join(target, "paper_frames/templates/frame-contract.md"));
+  await stat(join(target, "paper_frames/templates/selected-contributions.yaml"));
+  await stat(join(target, "paper_frames/templates/argument-map.md"));
+  await stat(join(target, "paper_frames/templates/evidence-map.md"));
+  await stat(join(target, "paper_frames/templates/badge-fit.md"));
+  await stat(join(target, "paper_frames/templates/compliance-fit.md"));
+  await stat(join(target, "paper_frames/templates/venue-fit.md"));
+  await stat(join(target, "paper_frames/templates/release-plan.yaml"));
+  await stat(join(target, "paper_frames/templates/outline.md"));
+  await stat(join(target, "paper_frames/templates/reviews/.gitkeep"));
+  await stat(join(target, "paper_frames/templates/decision.md"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -262,6 +274,16 @@ test("createProject generates a personalized research project without global sid
   assert.match(figureCatalog, /source_data_path/);
   const analysisReport = await readFile(join(target, "contributions/templates/analyses/templates/report.md"), "utf8");
   assert.match(analysisReport, /Reference generated outputs directly/);
+  const frameLedger = await readFile(join(target, "paper_frames/frame-ledger.csv"), "utf8");
+  assert.match(
+    frameLedger,
+    /^frame_id,title,status,target_venue,track,year,audience,frame_type,selected_contribution_ids,selected_analysis_ids,badge_targets,compliance_profiles,release_plan_path,argument_map_path,evidence_map_path,outline_path,decision_path,review_status,next_step,notes/m
+  );
+  const selectedContributions = YAML.parse(await readFile(join(target, "paper_frames/templates/selected-contributions.yaml"), "utf8"));
+  assert.equal(selectedContributions.frame.status, "candidate");
+  assert.deepEqual(selectedContributions.selected_contributions, []);
+  const frameReleasePlan = YAML.parse(await readFile(join(target, "paper_frames/templates/release-plan.yaml"), "utf8"));
+  assert.equal(frameReleasePlan.frame_id, "frame-example");
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -688,6 +710,9 @@ test("doctorProject reports broken configs and research ledger headers", async (
     "| figure_id | purpose |\n| --- | --- |\n",
     "utf8"
   );
+  await mkdir(join(target, "paper_frames/templates"), { recursive: true });
+  await writeFile(join(target, "paper_frames/frame-ledger.csv"), "frame_id,title\n", "utf8");
+  await writeFile(join(target, "paper_frames/templates/selected-contributions.yaml"), "frame: [\n", "utf8");
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -712,6 +737,8 @@ test("doctorProject reports broken configs and research ledger headers", async (
       error.includes("contributions/templates/analyses/templates/figure-catalog.md missing table column source_data_path")
     )
   );
+  assert.ok(result.errors.some((error) => error.includes("paper_frames/frame-ledger.csv missing column status")));
+  assert.ok(result.errors.some((error) => error.includes("invalid paper_frames/templates/selected-contributions.yaml")));
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -1205,6 +1232,34 @@ test("updateProject adds compliance profile docs and badge evidence columns", as
   await stat(join(target, "compliance/open-practice-badges.md"));
   assert.match(badgeEvidence, /profile_id/);
   assert.match(badgeEvidence, /^Artifacts Available,ev1,artifacts\/releases\/v1,/m);
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds paper framing workflow files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-frame-workflow-"));
+  const target = join(root, "update-frame-workflow-project");
+  await createProject({
+    target,
+    title: "Update Frame Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "paper_frames"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "paper_frames/frame-ledger.csv" && change.action === "create"));
+  assert.ok(
+    dryRun.changes.some(
+      (change) => change.path === "paper_frames/templates/selected-contributions.yaml" && change.action === "create"
+    )
+  );
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "paper_frames/frame-ledger.csv"));
+  await stat(join(target, "paper_frames/templates/selected-contributions.yaml"));
   assert.equal(doctor.ok, true);
 });
 

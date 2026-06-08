@@ -691,6 +691,7 @@ async function workflowCommand(argv: string[]): Promise<number> {
   if (subcommand === "agenda") return workflowAgendaCommand(parsed);
   if (subcommand === "contribution") return workflowContributionCommand(parsed);
   if (subcommand === "analysis") return workflowAnalysisCommand(parsed);
+  if (subcommand === "frame") return workflowFrameCommand(parsed);
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
@@ -846,6 +847,37 @@ async function workflowAnalysisCommand(parsed: ParsedArgs): Promise<number> {
   console.log("next_skill\tadversarial-peer-review");
   console.log("");
   console.log("Rule\tif strict preflight fails, write only blocker-summary.md; polished conclusions require manifest paths, generated outputs, QA, and final review.");
+  return 0;
+}
+
+async function workflowFrameCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow frame");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Paper Frame Workflow");
+  console.log(`root\t${root}`);
+  console.log("ledger\tpaper_frames/frame-ledger.csv");
+  console.log("template\tpaper_frames/templates/frame-contract.md");
+  console.log("template\tpaper_frames/templates/selected-contributions.yaml");
+  console.log("template\tpaper_frames/templates/argument-map.md");
+  console.log("template\tpaper_frames/templates/evidence-map.md");
+  console.log("template\tpaper_frames/templates/badge-fit.md");
+  console.log("template\tpaper_frames/templates/compliance-fit.md");
+  console.log("template\tpaper_frames/templates/venue-fit.md");
+  console.log("template\tpaper_frames/templates/release-plan.yaml");
+  console.log("input\tcontributions/contribution-ledger.csv");
+  console.log("input\tcontributions/<contribution_id>/claim-map.md");
+  console.log("input\tcontributions/<contribution_id>/report.md");
+  console.log("input\tcompliance/profiles.yaml");
+  console.log("target\tvenue,track,year,audience");
+  console.log("decision\tcandidate|accepted|rejected|held");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tpaper-framing");
+  console.log("next_skill\tcs-venue-strategy");
+  console.log("next_skill\tadversarial-peer-review");
+  console.log("next_skill\tbadge-compliance-profiles");
+  console.log("");
+  console.log("Rule\tmanuscript and release workflows start only from an accepted frame with selected contributions, evidence, venue fit, badge fit, and release implications.");
   return 0;
 }
 
@@ -1216,7 +1248,7 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis> [options]",
+      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis|frame> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
@@ -1226,6 +1258,7 @@ function printWorkflowHelp(): void {
       "  agenda                    Route SOTA gaps and survey claims into reviewed research opportunities.",
       "  contribution              Route reviewed agenda opportunities into contribution packages and reports.",
       "  analysis                  Route contribution-local analyses through strict preflight, reports, and publication assets.",
+      "  frame                     Route reviewed contribution packages into venue-aware paper frames.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",

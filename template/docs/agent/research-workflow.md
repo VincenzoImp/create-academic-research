@@ -36,6 +36,11 @@ Badge and compliance work starts from `compliance/profiles.yaml`. Projects may
 support many badge families, but each paper frame, contribution, or release
 activates only the profiles it can evidence.
 
+Paper frames live in `paper_frames/`. A frame selects a target venue, track,
+year, audience, contribution packages, analysis bundles, badge targets,
+compliance profiles, and release implications. Manuscript and release work
+start only after a frame decision is accepted.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

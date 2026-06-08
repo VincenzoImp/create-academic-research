@@ -1,0 +1,17 @@
+version: 1
+frame:
+  id: frame-example
+  status: candidate
+  target_venue: example venue
+  track: example track
+  year: 1970
+  audience: example audience
+selected_contributions: []
+selected_analyses: []
+excluded_contributions: []
+claim_constraints:
+  allowed_claim_ids: []
+  forbidden_claims: []
+badge_targets: []
+compliance_profiles: []
+release_implications: []

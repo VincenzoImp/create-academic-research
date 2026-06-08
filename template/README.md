@@ -42,6 +42,7 @@ npm run update
 - `survey/`: SOTA-derived survey contract, outline, claim ledger, section plans, drafts, final artifacts, compliance notes, and reviews.
 - `research_agenda/`: reviewed opportunity ledger, direction records, final agenda synthesis, and agenda reviews.
 - `contributions/`: contribution packages, strict analysis templates, claim maps, badge plans, component outputs, reports, paper exports, reviews, and archives.
+- `paper_frames/`: paper frame ledger, selected contributions, argument/evidence maps, venue fit, badge fit, release plan, outline, reviews, and decisions.
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
 - `docs/agent/project-quality.md`: cross-project quality, hygiene, and badge-readiness contract.
@@ -56,8 +57,8 @@ npm run update
 - `artifacts/`: open science and artifact evaluation preparation.
 - `src/`: reusable project code.
 
-Future workflow layers, including `paper_frames/`, `paper_releases/`, and
-`paper_submissions/`, are governed by `docs/agent/research-workflow.md`.
+Future workflow layers, including `paper_releases/` and `paper_submissions/`,
+are governed by `docs/agent/research-workflow.md`.
 
 ## Agent Capabilities
 
@@ -78,6 +79,7 @@ npm run workflow:survey
 npm run workflow:agenda
 npm run workflow:contribution
 npm run workflow:analysis
+npm run workflow:frame
 npm run mcp:dotenv
 npm run mcp:list
 npm run mcp:modes

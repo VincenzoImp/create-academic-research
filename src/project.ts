@@ -334,6 +334,28 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "next_step",
     "notes"
   ],
+  "paper_frames/frame-ledger.csv": [
+    "frame_id",
+    "title",
+    "status",
+    "target_venue",
+    "track",
+    "year",
+    "audience",
+    "frame_type",
+    "selected_contribution_ids",
+    "selected_analysis_ids",
+    "badge_targets",
+    "compliance_profiles",
+    "release_plan_path",
+    "argument_map_path",
+    "evidence_map_path",
+    "outline_path",
+    "decision_path",
+    "review_status",
+    "next_step",
+    "notes"
+  ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
     "source_id",
@@ -469,6 +491,34 @@ const REQUIRED_YAML_PATHS: Record<string, string[]> = {
     "review.status",
     "review.clean_copy_gate",
     "supersession.status"
+  ],
+  "paper_frames/templates/selected-contributions.yaml": [
+    "version",
+    "frame.id",
+    "frame.status",
+    "frame.target_venue",
+    "frame.track",
+    "frame.year",
+    "frame.audience",
+    "selected_contributions",
+    "selected_analyses",
+    "badge_targets",
+    "compliance_profiles",
+    "release_implications"
+  ],
+  "paper_frames/templates/release-plan.yaml": [
+    "version",
+    "frame_id",
+    "release_modes",
+    "included_contributions",
+    "included_analyses",
+    "active_profiles",
+    "anonymization_mode",
+    "public_destination",
+    "required_release_outputs",
+    "smoke_tests",
+    "metadata_requirements",
+    "known_release_risks"
   ]
 };
 
@@ -732,6 +782,18 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "contributions/templates/analyses/templates/paper-export/README.md",
     "contributions/templates/analyses/templates/reviews",
     "contributions/templates/analyses/templates/archive",
+    "paper_frames/frame-ledger.csv",
+    "paper_frames/templates/frame-contract.md",
+    "paper_frames/templates/selected-contributions.yaml",
+    "paper_frames/templates/argument-map.md",
+    "paper_frames/templates/evidence-map.md",
+    "paper_frames/templates/badge-fit.md",
+    "paper_frames/templates/compliance-fit.md",
+    "paper_frames/templates/venue-fit.md",
+    "paper_frames/templates/release-plan.yaml",
+    "paper_frames/templates/outline.md",
+    "paper_frames/templates/reviews",
+    "paper_frames/templates/decision.md",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -1433,6 +1495,66 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "managed",
       content: await templateText("contributions/templates/analyses/templates/archive/.gitkeep")
     },
+    {
+      path: "paper_frames/frame-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("paper_frames/frame-ledger.csv")
+    },
+    {
+      path: "paper_frames/templates/frame-contract.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/frame-contract.md")
+    },
+    {
+      path: "paper_frames/templates/selected-contributions.yaml",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/selected-contributions.yaml")
+    },
+    {
+      path: "paper_frames/templates/argument-map.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/argument-map.md")
+    },
+    {
+      path: "paper_frames/templates/evidence-map.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/evidence-map.md")
+    },
+    {
+      path: "paper_frames/templates/badge-fit.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/badge-fit.md")
+    },
+    {
+      path: "paper_frames/templates/compliance-fit.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/compliance-fit.md")
+    },
+    {
+      path: "paper_frames/templates/venue-fit.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/venue-fit.md")
+    },
+    {
+      path: "paper_frames/templates/release-plan.yaml",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/release-plan.yaml")
+    },
+    {
+      path: "paper_frames/templates/outline.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/outline.md")
+    },
+    {
+      path: "paper_frames/templates/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/reviews/.gitkeep")
+    },
+    {
+      path: "paper_frames/templates/decision.md",
+      policy: "managed",
+      content: await templateText("paper_frames/templates/decision.md")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -1507,6 +1629,7 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "workflow:agenda": `${command} workflow agenda`,
     "workflow:contribution": `${command} workflow contribution`,
     "workflow:analysis": `${command} workflow analysis`,
+    "workflow:frame": `${command} workflow frame`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,
