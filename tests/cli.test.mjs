@@ -83,7 +83,10 @@ test("create-academic-research help exits successfully and explains framing", ()
     encoding: "utf8"
   });
   assert.equal(workflowHelp.status, 0, workflowHelp.stderr + workflowHelp.stdout);
-  assert.match(workflowHelp.stdout, /workflow <literature\|survey\|agenda\|contribution\|analysis\|frame\|release\|manuscript>/);
+  assert.match(
+    workflowHelp.stdout,
+    /workflow <literature\|survey\|agenda\|contribution\|analysis\|frame\|release\|manuscript\|submission\|response>/
+  );
   assert.match(workflowHelp.stdout, /citation graph/);
   assert.match(workflowHelp.stdout, /survey/);
   assert.match(workflowHelp.stdout, /agenda/);
@@ -92,6 +95,8 @@ test("create-academic-research help exits successfully and explains framing", ()
   assert.match(workflowHelp.stdout, /frame/);
   assert.match(workflowHelp.stdout, /release/);
   assert.match(workflowHelp.stdout, /manuscript/);
+  assert.match(workflowHelp.stdout, /submission/);
+  assert.match(workflowHelp.stdout, /response/);
 });
 
 test("create-academic-research version flags report package version", () => {
@@ -505,6 +510,66 @@ test("academic-research workflow manuscript prints manuscript workflow routing",
   assert.match(workflow.stdout, /next_skill\tcitation-claim-audit/);
   assert.match(workflow.stdout, /next_skill\tpublication-figures-tables/);
   assert.match(workflow.stdout, /next_skill\tadversarial-peer-review/);
+});
+
+test("academic-research workflow submission prints submission workflow routing", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-workflow-submission-"));
+  const target = join(temp, "cli-workflow-submission-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const workflow = spawnSync(process.execPath, ["dist/bin/academic-research.js", "workflow", "submission", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
+  assert.match(workflow.stdout, /Submission Workflow/);
+  assert.match(workflow.stdout, /ledger\tpaper_submissions\/submission-ledger\.csv/);
+  assert.match(workflow.stdout, /manifest\tpaper_submissions\/templates\/submission\.yaml/);
+  assert.match(workflow.stdout, /cover_letter\tpaper_submissions\/templates\/cover-letter\.md/);
+  assert.match(workflow.stdout, /checklist\tpaper_submissions\/templates\/submission-checklist\.md/);
+  assert.match(workflow.stdout, /lock\tpaper_submissions\/templates\/submitted-version\.lock/);
+  assert.match(workflow.stdout, /input\treports\/paper\/manuscript-ledger\.csv/);
+  assert.match(workflow.stdout, /input\tpaper_releases\/release-ledger\.csv/);
+  assert.match(workflow.stdout, /next_skill\tpaper-submission-lifecycle/);
+  assert.match(workflow.stdout, /next_skill\tpaper-writing-review/);
+  assert.match(workflow.stdout, /next_skill\tcitation-claim-audit/);
+  assert.match(workflow.stdout, /next_skill\tcs-venue-strategy/);
+});
+
+test("academic-research workflow response prints rebuttal and revision workflow routing", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "academic-cli-workflow-response-"));
+  const target = join(temp, "cli-workflow-response-project");
+  spawnSync(
+    process.execPath,
+    ["dist/bin/create-academic-research.js", target, "--yes", "--preset", "minimal", "--no-install-skills"],
+    { cwd: root, encoding: "utf8" }
+  );
+
+  const workflow = spawnSync(process.execPath, ["dist/bin/academic-research.js", "workflow", "response", "--root", target], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  assert.equal(workflow.status, 0, workflow.stderr + workflow.stdout);
+  assert.match(workflow.stdout, /Response Workflow/);
+  assert.match(workflow.stdout, /decision\tpaper_submissions\/templates\/review-rounds\/r1\/decision-letter\.md/);
+  assert.match(workflow.stdout, /comments\tpaper_submissions\/templates\/review-rounds\/r1\/reviewer-comments\.md/);
+  assert.match(workflow.stdout, /concern_map\tpaper_submissions\/templates\/review-rounds\/r1\/concern-map\.csv/);
+  assert.match(workflow.stdout, /linked_work\tpaper_submissions\/templates\/review-rounds\/r1\/linked-work\.csv/);
+  assert.match(workflow.stdout, /change_map\tpaper_submissions\/templates\/review-rounds\/r1\/manuscript-change-map\.csv/);
+  assert.match(workflow.stdout, /response_letter\tpaper_submissions\/templates\/review-rounds\/r1\/response-letter\.md/);
+  assert.match(workflow.stdout, /rebuttal\tpaper_submissions\/templates\/review-rounds\/r1\/rebuttal\.md/);
+  assert.match(workflow.stdout, /next_skill\trebuttal-revision-strategy/);
+  assert.match(workflow.stdout, /next_skill\tpaper-submission-lifecycle/);
+  assert.match(workflow.stdout, /next_skill\tcitation-claim-audit/);
+  assert.match(workflow.stdout, /next_skill\tpaper-writing-review/);
+  assert.match(workflow.stdout, /next_skill\tcontribution-package/);
+  assert.match(workflow.stdout, /next_skill\tresearch-data-analysis/);
 });
 
 test("academic-research setup prints Overleaf client registration only after setup is ready", async () => {

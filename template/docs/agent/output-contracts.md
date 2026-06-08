@@ -43,6 +43,8 @@ from exploratory work to trusted project evidence.
 - `reports/paper/`: manuscript manifests, LaTeX sections, paper claim maps, citation maps, asset maps, and writing reviews assembled from accepted frames and canonical evidence.
 - `reports/paper/manuscript-ledger.csv`: index of paper manuscripts with frame, venue, manifest, LaTeX, claim map, citation map, asset map, release, central BibTeX, review state, clean-copy state, and next step.
 - `paper_submissions/`: cover letters, submitted snapshots, decision letters, reviewer comments, response letters, rebuttals, revision plans, and private correspondence.
+- `paper_submissions/submission-ledger.csv`: index of paper submissions with frame, manuscript, release, venue, submission system, anonymity, cover letter, checklist, submitted lock, decision, review round, camera-ready path, review state, and next step.
+- `paper_submissions/<submission_id>/review-rounds/<round>/linked-work.csv`: reviewer-requested work map. New scientific work belongs in contribution, analysis, citation, or artifact workflows before response text cites it.
 - `compliance/`: project-level compliance profile registry and evidence files.
 - `compliance/profiles.yaml`: supported badge/compliance profiles, active-profile field schema, source URLs, and evidence file map.
 

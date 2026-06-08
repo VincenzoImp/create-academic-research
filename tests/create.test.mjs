@@ -224,6 +224,26 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "reports/paper/templates/reviews/.gitkeep"));
   await stat(join(target, "reports/paper/templates/archive/.gitkeep"));
   await stat(join(target, "scripts/write-paper/README.md"));
+  await stat(join(target, "paper_submissions/submission-ledger.csv"));
+  await stat(join(target, "paper_submissions/templates/submission.yaml"));
+  await stat(join(target, "paper_submissions/templates/cover-letter.md"));
+  await stat(join(target, "paper_submissions/templates/submission-checklist.md"));
+  await stat(join(target, "paper_submissions/templates/submitted-version.lock"));
+  await stat(join(target, "paper_submissions/templates/venue-system-notes.md"));
+  await stat(join(target, "paper_submissions/templates/correspondence/.gitkeep"));
+  await stat(join(target, "paper_submissions/templates/decisions/.gitkeep"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/decision-letter.md"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/reviewer-comments.md"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/concern-map.csv"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/response-strategy.md"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/revision-plan.md"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/linked-work.csv"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/response-letter.md"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/rebuttal.md"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/reviews/.gitkeep"));
+  await stat(join(target, "paper_submissions/templates/camera-ready/.gitkeep"));
+  await stat(join(target, "paper_submissions/templates/archive/.gitkeep"));
   await stat(join(target, "reports/paper/sota-survey.tex"));
   await stat(join(target, "artifacts/badge-evidence-ledger.csv"));
   await stat(join(target, "experiments/campaigns/autonomous-campaign-template.md"));
@@ -354,6 +374,31 @@ test("createProject generates a personalized research project without global sid
   const manuscriptMain = await readFile(join(target, "reports/paper/templates/main.tex"), "utf8");
   assert.match(manuscriptMain, /\\input\{sections\/introduction\}/);
   assert.match(manuscriptMain, /\\bibliography\{\.\.\/\.\.\/\.\.\/sources\/bib\/references\}/);
+  const submissionLedger = await readFile(join(target, "paper_submissions/submission-ledger.csv"), "utf8");
+  assert.match(
+    submissionLedger,
+    /^submission_id,frame_id,manuscript_id,release_id,status,target_venue,track,year,submission_system,anonymity_mode,submission_yaml_path,cover_letter_path,checklist_path,submitted_lock_path,current_decision,current_round,correspondence_path,review_rounds_path,camera_ready_path,review_status,next_step,notes/m
+  );
+  const submissionManifest = YAML.parse(await readFile(join(target, "paper_submissions/templates/submission.yaml"), "utf8"));
+  assert.equal(submissionManifest.submission.status, "planned");
+  assert.equal(submissionManifest.frame_id, "frame-example");
+  assert.equal(submissionManifest.manuscript_id, "manuscript-example");
+  assert.equal(submissionManifest.release_id, "release-example");
+  const concernMap = await readFile(join(target, "paper_submissions/templates/review-rounds/r1/concern-map.csv"), "utf8");
+  assert.match(
+    concernMap,
+    /^concern_id,round_id,reviewer_id,comment_location,concern_text,severity,category,requested_action,response_status,evidence_anchor,manuscript_location,linked_work_required,linked_work_id,owner,next_step,notes/m
+  );
+  const linkedWork = await readFile(join(target, "paper_submissions/templates/review-rounds/r1/linked-work.csv"), "utf8");
+  assert.match(
+    linkedWork,
+    /^linked_work_id,round_id,concern_ids,work_type,target_path,status,contribution_id,analysis_id,artifact_path,citation_key,source_id,blocking_status,review_status,notes/m
+  );
+  const manuscriptChangeMap = await readFile(join(target, "paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv"), "utf8");
+  assert.match(
+    manuscriptChangeMap,
+    /^change_id,round_id,concern_ids,manuscript_path,section_id,location_before,location_after,change_summary,evidence_anchor,response_text_anchor,verified,review_status,notes/m
+  );
   const sourceLedger = await readFile(join(target, "sources/source-ledger.csv"), "utf8");
   assert.match(sourceLedger, /discovery_source/);
   assert.match(sourceLedger, /zotero_item_key/);
@@ -793,6 +838,16 @@ test("doctorProject reports broken configs and research ledger headers", async (
   await writeFile(join(target, "reports/paper/templates/citation-map.csv"), "citation_key,section_id\n", "utf8");
   await writeFile(join(target, "reports/paper/templates/asset-map.csv"), "asset_id,section_id\n", "utf8");
   await writeFile(join(target, "reports/paper/templates/manuscript.yaml"), "manuscript: [\n", "utf8");
+  await mkdir(join(target, "paper_submissions/templates/review-rounds/r1"), { recursive: true });
+  await writeFile(join(target, "paper_submissions/submission-ledger.csv"), "submission_id,frame_id\n", "utf8");
+  await writeFile(join(target, "paper_submissions/templates/submission.yaml"), "submission: [\n", "utf8");
+  await writeFile(join(target, "paper_submissions/templates/review-rounds/r1/concern-map.csv"), "concern_id,round_id\n", "utf8");
+  await writeFile(join(target, "paper_submissions/templates/review-rounds/r1/linked-work.csv"), "linked_work_id,round_id\n", "utf8");
+  await writeFile(
+    join(target, "paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv"),
+    "change_id,round_id\n",
+    "utf8"
+  );
   await writeFile(join(target, "experiments/campaigns/frontier-results.tsv"), "run_id\tstatus\n", "utf8");
   await rm(join(target, "wiki/templates/source-page.md"));
   await rm(join(target, ".env.example"));
@@ -827,6 +882,23 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("reports/paper/templates/citation-map.csv missing column source_id")));
   assert.ok(result.errors.some((error) => error.includes("reports/paper/templates/asset-map.csv missing column canonical_source_path")));
   assert.ok(result.errors.some((error) => error.includes("invalid reports/paper/templates/manuscript.yaml")));
+  assert.ok(result.errors.some((error) => error.includes("paper_submissions/submission-ledger.csv missing column manuscript_id")));
+  assert.ok(result.errors.some((error) => error.includes("invalid paper_submissions/templates/submission.yaml")));
+  assert.ok(
+    result.errors.some((error) =>
+      error.includes("paper_submissions/templates/review-rounds/r1/concern-map.csv missing column reviewer_id")
+    )
+  );
+  assert.ok(
+    result.errors.some((error) =>
+      error.includes("paper_submissions/templates/review-rounds/r1/linked-work.csv missing column work_type")
+    )
+  );
+  assert.ok(
+    result.errors.some((error) =>
+      error.includes("paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv missing column manuscript_path")
+    )
+  );
   assert.ok(result.errors.some((error) => error.includes("experiments/campaigns/frontier-results.tsv missing column git_commit")));
   assert.ok(result.errors.some((error) => error.includes("missing wiki/templates/source-page.md")));
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
@@ -1405,6 +1477,38 @@ test("updateProject adds manuscript workflow files", async () => {
   await stat(join(target, "reports/paper/manuscript-ledger.csv"));
   await stat(join(target, "reports/paper/templates/manuscript.yaml"));
   await stat(join(target, "scripts/write-paper/README.md"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds submission and response workflow files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-submission-workflow-"));
+  const target = join(root, "update-submission-workflow-project");
+  await createProject({
+    target,
+    title: "Update Submission Workflow Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "paper_submissions"), { recursive: true, force: true });
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "paper_submissions/submission-ledger.csv" && change.action === "create"));
+  assert.ok(
+    dryRun.changes.some((change) => change.path === "paper_submissions/templates/submission.yaml" && change.action === "create")
+  );
+  assert.ok(
+    dryRun.changes.some(
+      (change) => change.path === "paper_submissions/templates/review-rounds/r1/concern-map.csv" && change.action === "create"
+    )
+  );
+
+  await updateProject(target, { apply: true });
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "paper_submissions/submission-ledger.csv"));
+  await stat(join(target, "paper_submissions/templates/submission.yaml"));
+  await stat(join(target, "paper_submissions/templates/review-rounds/r1/concern-map.csv"));
   assert.equal(doctor.ok, true);
 });
 

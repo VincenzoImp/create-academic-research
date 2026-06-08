@@ -694,6 +694,8 @@ async function workflowCommand(argv: string[]): Promise<number> {
   if (subcommand === "frame") return workflowFrameCommand(parsed);
   if (subcommand === "release") return workflowReleaseCommand(parsed);
   if (subcommand === "manuscript") return workflowManuscriptCommand(parsed);
+  if (subcommand === "submission") return workflowSubmissionCommand(parsed);
+  if (subcommand === "response") return workflowResponseCommand(parsed);
   throw new Error(`unknown workflow command: ${subcommand}`);
 }
 
@@ -942,6 +944,69 @@ async function workflowManuscriptCommand(parsed: ParsedArgs): Promise<number> {
   console.log("next_skill\tbadge-compliance-profiles");
   console.log("");
   console.log("Rule\twrite section-by-section from an accepted frame; final review must pass claim support, citation reconciliation, asset freshness, venue fit, and clean-copy gates.");
+  return 0;
+}
+
+async function workflowSubmissionCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow submission");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Submission Workflow");
+  console.log(`root\t${root}`);
+  console.log("ledger\tpaper_submissions/submission-ledger.csv");
+  console.log("manifest\tpaper_submissions/templates/submission.yaml");
+  console.log("cover_letter\tpaper_submissions/templates/cover-letter.md");
+  console.log("checklist\tpaper_submissions/templates/submission-checklist.md");
+  console.log("lock\tpaper_submissions/templates/submitted-version.lock");
+  console.log("venue_system\tpaper_submissions/templates/venue-system-notes.md");
+  console.log("input\tpaper_frames/frame-ledger.csv");
+  console.log("input\treports/paper/manuscript-ledger.csv");
+  console.log("input\treports/paper/templates/paper-claim-map.csv");
+  console.log("input\treports/paper/templates/citation-map.csv");
+  console.log("input\tpaper_releases/release-ledger.csv");
+  console.log("input\tcompliance/venue-checklist.md");
+  console.log("state\tpaper_submissions/templates/correspondence/");
+  console.log("state\tpaper_submissions/templates/decisions/");
+  console.log("state\tpaper_submissions/templates/review-rounds/r1/");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\tpaper-submission-lifecycle");
+  console.log("next_skill\tpaper-writing-review");
+  console.log("next_skill\tcitation-claim-audit");
+  console.log("next_skill\tcs-venue-strategy");
+  console.log("next_skill\tbadge-compliance-profiles");
+  console.log("");
+  console.log("Rule\tcover letters and submission metadata may reference evidence, but may not introduce claims absent from the manuscript claim map and citation audit.");
+  return 0;
+}
+
+async function workflowResponseCommand(parsed: ParsedArgs): Promise<number> {
+  assertNoArguments(parsed.positionals, "workflow response");
+  const root = resolve(flagString(parsed.flags, "root") ?? ".");
+  console.log("Response Workflow");
+  console.log(`root\t${root}`);
+  console.log("decision\tpaper_submissions/templates/review-rounds/r1/decision-letter.md");
+  console.log("comments\tpaper_submissions/templates/review-rounds/r1/reviewer-comments.md");
+  console.log("concern_map\tpaper_submissions/templates/review-rounds/r1/concern-map.csv");
+  console.log("linked_work\tpaper_submissions/templates/review-rounds/r1/linked-work.csv");
+  console.log("change_map\tpaper_submissions/templates/review-rounds/r1/manuscript-change-map.csv");
+  console.log("strategy\tpaper_submissions/templates/review-rounds/r1/response-strategy.md");
+  console.log("revision_plan\tpaper_submissions/templates/review-rounds/r1/revision-plan.md");
+  console.log("response_letter\tpaper_submissions/templates/review-rounds/r1/response-letter.md");
+  console.log("rebuttal\tpaper_submissions/templates/review-rounds/r1/rebuttal.md");
+  console.log("input\tpaper_submissions/submission-ledger.csv");
+  console.log("input\treports/paper/manuscript-ledger.csv");
+  console.log("input\tcontributions/contribution-ledger.csv");
+  console.log("input\tcontributions/<contribution_id>/analyses/<analysis_id>/");
+  console.log("");
+  console.log("Next Skills");
+  console.log("next_skill\trebuttal-revision-strategy");
+  console.log("next_skill\tpaper-submission-lifecycle");
+  console.log("next_skill\tcitation-claim-audit");
+  console.log("next_skill\tpaper-writing-review");
+  console.log("next_skill\tcontribution-package");
+  console.log("next_skill\tresearch-data-analysis");
+  console.log("");
+  console.log("Rule\treviewer-requested scientific work is routed to contribution, analysis, citation, or artifact workflows before it is cited in rebuttal or response text.");
   return 0;
 }
 
@@ -1312,7 +1377,7 @@ function printLifecycleHelp(): void {
 function printWorkflowHelp(): void {
   console.log(
     [
-      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis|frame|release|manuscript> [options]",
+      "Usage: academic-research workflow <literature|survey|agenda|contribution|analysis|frame|release|manuscript|submission|response> [options]",
       "",
       "Prepare scenario-level research workflows without manually stitching every skill and MCP command.",
       "",
@@ -1325,6 +1390,8 @@ function printWorkflowHelp(): void {
       "  frame                     Route reviewed contribution packages into venue-aware paper frames.",
       "  release                   Route accepted frames into manifest-driven paper release packages.",
       "  manuscript                Route accepted frames into claim-audited, citation-audited, asset-mapped paper drafts.",
+      "  submission                Route manuscripts and releases into venue submission packages.",
+      "  response                  Route reviewer comments into concern maps, linked work, rebuttals, and revision plans.",
       "",
       "Options:",
       "  --root <path>             Project root. Default: current directory.",

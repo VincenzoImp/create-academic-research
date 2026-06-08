@@ -160,6 +160,19 @@ Use `reports/paper/templates/` to assemble section-by-section LaTeX drafts from
 the accepted frame, reviewed contribution reports, analysis exports, central
 BibTeX, claim map, citation map, and asset map.
 
+For submission packaging and response management, run:
+
+```bash
+npm run workflow:submission
+npm run workflow:response
+```
+
+Use `paper_submissions/templates/` for cover letters, submission checklists,
+submitted locks, venue-system notes, decision letters, reviewer concerns,
+response letters, rebuttals, and revision plans. New scientific work requested
+by reviewers returns to contributions, analyses, citations, or artifacts before
+it is cited in response text.
+
 ## 5. Start Source Work
 
 Put source originals and metadata in the source layer before synthesis.

@@ -44,6 +44,7 @@ npm run update
 - `contributions/`: contribution packages, strict analysis templates, claim maps, badge plans, component outputs, reports, paper exports, reviews, and archives.
 - `paper_frames/`: paper frame ledger, selected contributions, argument/evidence maps, venue fit, badge fit, release plan, outline, reviews, and decisions.
 - `paper_releases/`: paper-specific release manifests, source maps, locks, checksums, staged artifacts, metadata, reviews, and archives.
+- `paper_submissions/`: submission manifests, cover letters, submitted locks, decision letters, concern maps, response letters, rebuttals, revision plans, and camera-ready state.
 - `reports/paper/`: manuscript ledgers, LaTeX templates, claim maps, citation maps, asset maps, reviews, and paper reports.
 - `wiki/`: LLM-maintained durable research memory.
 - `docs/agent/`: active agent workflows, capability profile, and MCP setup.
@@ -84,6 +85,8 @@ npm run workflow:analysis
 npm run workflow:frame
 npm run workflow:release
 npm run workflow:manuscript
+npm run workflow:submission
+npm run workflow:response
 npm run mcp:dotenv
 npm run mcp:list
 npm run mcp:modes

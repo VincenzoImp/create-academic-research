@@ -61,4 +61,8 @@ Zotero is optional local-library enrichment. Zotero discoveries, attachments, an
 
 ## Submission And Response
 
-Cover letters, decision letters, reviewer comments, rebuttals, response letters, and revision plans are communication artifacts. Reviewer-requested new scientific work belongs in contribution packages and analysis bundles, then is linked from the response package.
+Cover letters, decision letters, reviewer comments, rebuttals, response letters,
+and revision plans live in `paper_submissions/` as communication artifacts.
+Reviewer-requested new scientific work belongs in contribution packages,
+analysis bundles, citation work, or artifact work, then is linked from the
+response package.

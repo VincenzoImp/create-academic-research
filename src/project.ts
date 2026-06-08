@@ -447,6 +447,79 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
     "review_status",
     "notes"
   ],
+  "paper_submissions/submission-ledger.csv": [
+    "submission_id",
+    "frame_id",
+    "manuscript_id",
+    "release_id",
+    "status",
+    "target_venue",
+    "track",
+    "year",
+    "submission_system",
+    "anonymity_mode",
+    "submission_yaml_path",
+    "cover_letter_path",
+    "checklist_path",
+    "submitted_lock_path",
+    "current_decision",
+    "current_round",
+    "correspondence_path",
+    "review_rounds_path",
+    "camera_ready_path",
+    "review_status",
+    "next_step",
+    "notes"
+  ],
+  "paper_submissions/templates/review-rounds/r1/concern-map.csv": [
+    "concern_id",
+    "round_id",
+    "reviewer_id",
+    "comment_location",
+    "concern_text",
+    "severity",
+    "category",
+    "requested_action",
+    "response_status",
+    "evidence_anchor",
+    "manuscript_location",
+    "linked_work_required",
+    "linked_work_id",
+    "owner",
+    "next_step",
+    "notes"
+  ],
+  "paper_submissions/templates/review-rounds/r1/linked-work.csv": [
+    "linked_work_id",
+    "round_id",
+    "concern_ids",
+    "work_type",
+    "target_path",
+    "status",
+    "contribution_id",
+    "analysis_id",
+    "artifact_path",
+    "citation_key",
+    "source_id",
+    "blocking_status",
+    "review_status",
+    "notes"
+  ],
+  "paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv": [
+    "change_id",
+    "round_id",
+    "concern_ids",
+    "manuscript_path",
+    "section_id",
+    "location_before",
+    "location_after",
+    "change_summary",
+    "evidence_anchor",
+    "response_text_anchor",
+    "verified",
+    "review_status",
+    "notes"
+  ],
   "sota/screening-decisions.csv": ["stage", "source_id", "title", "decision", "reason", "screened_by", "date"],
   "sota/reading-log.csv": [
     "source_id",
@@ -665,6 +738,36 @@ const REQUIRED_YAML_PATHS: Record<string, string[]> = {
     "review.citations_checked",
     "review.assets_checked",
     "review.clean_copy_gate"
+  ],
+  "paper_submissions/templates/submission.yaml": [
+    "version",
+    "submission.id",
+    "submission.status",
+    "submission.type",
+    "frame_id",
+    "manuscript_id",
+    "release_id",
+    "target.venue",
+    "target.track",
+    "target.year",
+    "submission_system.name",
+    "anonymity_mode",
+    "submitted_files.manuscript",
+    "submitted_files.artifact",
+    "submitted_files.supplement",
+    "cover_letter.path",
+    "cover_letter.status",
+    "checklist.path",
+    "submitted_version_lock",
+    "review_rounds.current",
+    "review_rounds.rounds",
+    "current_decision",
+    "linked_evidence.claim_map",
+    "linked_evidence.citation_map",
+    "linked_evidence.asset_map",
+    "review.status",
+    "review.unsupported_claims_checked",
+    "review.communication_only_checked"
   ]
 };
 
@@ -972,6 +1075,26 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "reports/paper/templates/reviews",
     "reports/paper/templates/archive",
     "scripts/write-paper/README.md",
+    "paper_submissions/submission-ledger.csv",
+    "paper_submissions/templates/submission.yaml",
+    "paper_submissions/templates/cover-letter.md",
+    "paper_submissions/templates/submission-checklist.md",
+    "paper_submissions/templates/submitted-version.lock",
+    "paper_submissions/templates/venue-system-notes.md",
+    "paper_submissions/templates/correspondence",
+    "paper_submissions/templates/decisions",
+    "paper_submissions/templates/review-rounds/r1/decision-letter.md",
+    "paper_submissions/templates/review-rounds/r1/reviewer-comments.md",
+    "paper_submissions/templates/review-rounds/r1/concern-map.csv",
+    "paper_submissions/templates/review-rounds/r1/response-strategy.md",
+    "paper_submissions/templates/review-rounds/r1/revision-plan.md",
+    "paper_submissions/templates/review-rounds/r1/linked-work.csv",
+    "paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv",
+    "paper_submissions/templates/review-rounds/r1/response-letter.md",
+    "paper_submissions/templates/review-rounds/r1/rebuttal.md",
+    "paper_submissions/templates/review-rounds/r1/reviews",
+    "paper_submissions/templates/camera-ready",
+    "paper_submissions/templates/archive",
     "reports/paper/sota-survey.tex",
     "wiki/index.md",
     "wiki/log.md",
@@ -1893,6 +2016,106 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       policy: "managed",
       content: await templateText("scripts/write-paper/README.md")
     },
+    {
+      path: "paper_submissions/submission-ledger.csv",
+      policy: "user-owned",
+      content: await templateText("paper_submissions/submission-ledger.csv")
+    },
+    {
+      path: "paper_submissions/templates/submission.yaml",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/submission.yaml")
+    },
+    {
+      path: "paper_submissions/templates/cover-letter.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/cover-letter.md")
+    },
+    {
+      path: "paper_submissions/templates/submission-checklist.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/submission-checklist.md")
+    },
+    {
+      path: "paper_submissions/templates/submitted-version.lock",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/submitted-version.lock")
+    },
+    {
+      path: "paper_submissions/templates/venue-system-notes.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/venue-system-notes.md")
+    },
+    {
+      path: "paper_submissions/templates/correspondence/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/correspondence/.gitkeep")
+    },
+    {
+      path: "paper_submissions/templates/decisions/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/decisions/.gitkeep")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/decision-letter.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/decision-letter.md")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/reviewer-comments.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/reviewer-comments.md")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/concern-map.csv",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/concern-map.csv")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/response-strategy.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/response-strategy.md")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/revision-plan.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/revision-plan.md")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/linked-work.csv",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/linked-work.csv")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/manuscript-change-map.csv")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/response-letter.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/response-letter.md")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/rebuttal.md",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/rebuttal.md")
+    },
+    {
+      path: "paper_submissions/templates/review-rounds/r1/reviews/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/review-rounds/r1/reviews/.gitkeep")
+    },
+    {
+      path: "paper_submissions/templates/camera-ready/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/camera-ready/.gitkeep")
+    },
+    {
+      path: "paper_submissions/templates/archive/.gitkeep",
+      policy: "managed",
+      content: await templateText("paper_submissions/templates/archive/.gitkeep")
+    },
     { path: "reports/paper/sota-survey.tex", policy: "managed", content: await templateText("reports/paper/sota-survey.tex") },
     { path: "artifacts/artifact-checklist.md", policy: "managed", content: await templateText("artifacts/artifact-checklist.md") },
     {
@@ -1970,6 +2193,8 @@ function generatedLifecycleScripts(packageSpec: string): Record<string, string> 
     "workflow:frame": `${command} workflow frame`,
     "workflow:release": `${command} workflow release`,
     "workflow:manuscript": `${command} workflow manuscript`,
+    "workflow:submission": `${command} workflow submission`,
+    "workflow:response": `${command} workflow response`,
     rename: `${command} rename`,
     "agents:list": `${command} agents list`,
     "skills:install": `${command} skills install`,

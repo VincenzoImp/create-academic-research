@@ -75,6 +75,7 @@ source ingestion -> SOTA -> survey -> research agenda -> contribution -> analysi
 - Paper frame ledgers, selected contribution maps, venue fit, badge fit, release plans, outlines, reviews, and decisions go in `paper_frames/`.
 - Paper-specific release manifests, source maps, locks, checksums, staged outputs, metadata, reviews, and archives go in `paper_releases/`.
 - Manuscript ledgers, LaTeX files, claim maps, citation maps, asset maps, and writing reviews go in `reports/paper/`.
+- Submission manifests, cover letters, submitted locks, decision letters, reviewer comments, concern maps, response letters, rebuttals, revision plans, and camera-ready state go in `paper_submissions/`.
 - Core/supporting paper syntheses go in `sota/paper-syntheses/`.
 - Full-text reading progress goes in `sota/reading-log.csv`.
 - Citation graph expansion goes in `sota/citation-chasing-log.csv`.
