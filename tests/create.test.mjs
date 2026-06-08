@@ -109,6 +109,14 @@ test("createProject generates a personalized research project without global sid
   await stat(join(target, "docs/agent/workflow-prompts/README.md"));
   await stat(join(target, "compliance/profiles.yaml"));
   await stat(join(target, "compliance/README.md"));
+  await stat(join(target, "compliance/acm-artifact-review.md"));
+  await stat(join(target, "compliance/open-practice-badges.md"));
+  await stat(join(target, "compliance/top-transparency.md"));
+  await stat(join(target, "compliance/venue-checklist.md"));
+  await stat(join(target, "compliance/method-reporting.md"));
+  await stat(join(target, "compliance/survey-reporting.md"));
+  await stat(join(target, "compliance/dataset-metadata.md"));
+  await stat(join(target, "compliance/ai-model-release.md"));
   await stat(join(target, "docs/reproducibility/commands.md"));
   await stat(join(target, "analysis_outputs/claim-audit.md"));
   await stat(join(target, "repro_outputs/SUMMARY.md"));
@@ -311,12 +319,29 @@ test("createProject generates a personalized research project without global sid
   assert.match(workflowPromptReadme, /npm run workflow:<stage>/);
   const complianceProfiles = YAML.parse(await readFile(join(target, "compliance/profiles.yaml"), "utf8"));
   assert.equal(complianceProfiles.version, 1);
+  assert.deepEqual(complianceProfiles.active_profile_fields, [
+    "profile_id",
+    "target",
+    "applicability",
+    "evidence_paths",
+    "missing_evidence",
+    "blocking_gaps",
+    "reviewer",
+    "checked_date",
+    "status"
+  ]);
   assert.equal(complianceProfiles.profiles["acm-artifact-review"].status, "available");
+  assert.equal(
+    complianceProfiles.profiles["acm-artifact-review"].source_url,
+    "https://www.acm.org/publications/policies/artifact-review-and-badging-current"
+  );
   assert.equal(complianceProfiles.profiles["survey-reporting"].status, "available");
+  assert.equal(complianceProfiles.profiles["dataset-metadata"].source_url, "https://schema.datacite.org/");
   const badgeEvidence = await readFile(join(target, "artifacts/badge-evidence-ledger.csv"), "utf8");
-  assert.match(badgeEvidence, /badge_target/);
-  assert.match(badgeEvidence, /evidence_path/);
-  assert.match(badgeEvidence, /claim_or_result_id/);
+  assert.match(
+    badgeEvidence,
+    /^badge_target,profile_id,profile_target,applicability,evidence_id,evidence_path,claim_or_result_id,artifact_component,command_or_procedure,validation_status,missing_evidence,blocking_gaps,reviewer,checked_date,checked_on,status,notes/m
+  );
   const campaignTemplate = await readFile(
     join(target, "experiments/campaigns/autonomous-campaign-template.md"),
     "utf8"
@@ -692,6 +717,27 @@ test("doctorProject reports broken configs and research ledger headers", async (
   assert.ok(result.errors.some((error) => error.includes("missing .env.example")));
   assert.ok(result.errors.some((error) => error.includes("missing docs/agent/research-workflow.md")));
   assert.ok(result.errors.some((error) => error.includes("missing compliance/profiles.yaml")));
+});
+
+test("doctorProject reports broken compliance profiles and badge evidence headers", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-doctor-compliance-broken-"));
+  const target = join(root, "doctor-compliance-broken-project");
+  await createProject({
+    target,
+    title: "Doctor Compliance Broken Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await writeFile(join(target, "compliance/profiles.yaml"), "version: 1\nactive_profiles: []\nprofiles: {}\n", "utf8");
+  await writeFile(join(target, "artifacts/badge-evidence-ledger.csv"), "badge_target,evidence_id\n", "utf8");
+
+  const result = await doctorProject(target);
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("compliance/profiles.yaml missing active_profile_fields")));
+  assert.ok(result.errors.some((error) => error.includes("compliance/profiles.yaml missing profiles.acm-artifact-review")));
+  assert.ok(result.errors.some((error) => error.includes("artifacts/badge-evidence-ledger.csv missing column profile_id")));
 });
 
 test("doctorProject reports incomplete workflow contract in default config", async () => {
@@ -1126,6 +1172,39 @@ test("updateProject adds analysis workflow templates", async () => {
 
   await stat(join(target, "contributions/templates/analyses/templates/analysis.yaml"));
   await stat(join(target, "contributions/templates/analyses/templates/figure-catalog.md"));
+  assert.equal(doctor.ok, true);
+});
+
+test("updateProject adds compliance profile docs and badge evidence columns", async () => {
+  const root = await mkdtemp(join(tmpdir(), "academic-update-compliance-profiles-"));
+  const target = join(root, "update-compliance-profiles-project");
+  await createProject({
+    target,
+    title: "Update Compliance Profiles Project",
+    preset: "minimal",
+    installSkills: false
+  });
+
+  await rm(join(target, "compliance/acm-artifact-review.md"), { force: true });
+  await rm(join(target, "compliance/open-practice-badges.md"), { force: true });
+  await writeFile(
+    join(target, "artifacts/badge-evidence-ledger.csv"),
+    "badge_target,evidence_id,evidence_path\nArtifacts Available,ev1,artifacts/releases/v1\n",
+    "utf8"
+  );
+
+  const dryRun = await updateProject(target, { apply: false });
+  assert.ok(dryRun.changes.some((change) => change.path === "compliance/acm-artifact-review.md" && change.action === "create"));
+  assert.ok(dryRun.changes.some((change) => change.path === "artifacts/badge-evidence-ledger.csv" && change.action === "update"));
+
+  await updateProject(target, { apply: true });
+  const badgeEvidence = await readFile(join(target, "artifacts/badge-evidence-ledger.csv"), "utf8");
+  const doctor = await doctorProject(target);
+
+  await stat(join(target, "compliance/acm-artifact-review.md"));
+  await stat(join(target, "compliance/open-practice-badges.md"));
+  assert.match(badgeEvidence, /profile_id/);
+  assert.match(badgeEvidence, /^Artifacts Available,ev1,artifacts\/releases\/v1,/m);
   assert.equal(doctor.ok, true);
 });
 

@@ -40,6 +40,7 @@ from exploratory work to trusted project evidence.
 - `paper_releases/`: materialized paper-specific release packages, source maps, locks, checksums, metadata, and release reviews.
 - `paper_submissions/`: cover letters, submitted snapshots, decision letters, reviewer comments, response letters, rebuttals, revision plans, and private correspondence.
 - `compliance/`: project-level compliance profile registry and evidence files.
+- `compliance/profiles.yaml`: supported badge/compliance profiles, active-profile field schema, source URLs, and evidence file map.
 
 `paper_submissions/` is private communication state. New reviewer-requested
 scientific work belongs in `contributions/` and analysis bundles, not in
@@ -68,3 +69,6 @@ reproduction, or replication, update both:
 
 - `artifacts/artifact-checklist.md`
 - `artifacts/badge-evidence-ledger.csv`
+
+Badge or compliance claims also require an active profile entry and current
+evidence paths in `compliance/profiles.yaml`.

@@ -1,47 +1,92 @@
 version: 1
+active_profile_fields:
+  - profile_id
+  - target
+  - applicability
+  - evidence_paths
+  - missing_evidence
+  - blocking_gaps
+  - reviewer
+  - checked_date
+  - status
 active_profiles: []
 profiles:
   acm-artifact-review:
     status: available
     applies_to: code, data, models, benchmarks, systems, reproducibility packages
+    source_url: https://www.acm.org/publications/policies/artifact-review-and-badging-current
     evidence_file: compliance/acm-artifact-review.md
+    badge_labels:
+      - Artifacts Available
+      - Artifacts Evaluated Functional
+      - Artifacts Evaluated Reusable
+      - Results Reproduced
+      - Results Replicated
   usenix-artifact-evaluation:
     status: available
     applies_to: venue-specific artifact evaluation
+    source_url: https://www.usenix.org/conference/nsdi26/call-for-artifacts
     evidence_file: compliance/acm-artifact-review.md
+    badge_labels:
+      - Artifacts Available
+      - Artifacts Functional
+      - Results Reproduced
   sigplan-acm-artifact-evaluation:
     status: available
     applies_to: SIGPLAN and ACM artifact evaluation variants
+    source_url: https://www.sigplan.org/Resources/Guidelines/ProChair/
     evidence_file: compliance/acm-artifact-review.md
+    badge_labels:
+      - Artifacts Available
+      - Artifacts Evaluated Functional
+      - Artifacts Evaluated Reusable
   cos-open-science-badges:
     status: available
     applies_to: open data, open materials, preregistration
+    source_url: https://www.cos.io/initiatives/badges
     evidence_file: compliance/open-practice-badges.md
+    badge_labels:
+      - Open Data
+      - Open Materials
+      - Preregistered
   osf-open-practice-resource-badges:
     status: available
     applies_to: data, analytic code, materials, papers, supplements
+    source_url: https://help.osf.io/article/453-post-submission-registration-files
     evidence_file: compliance/open-practice-badges.md
+    badge_labels:
+      - Open Data
+      - Open Analytic Code
+      - Open Materials
+      - Open Papers
+      - Open Supplements
   top-transparency:
     status: available
     applies_to: transparency and reproducibility standards
+    source_url: https://www.cos.io/initiatives/top-guidelines
     evidence_file: compliance/top-transparency.md
   venue-reproducibility-checklist:
     status: available
     applies_to: venue-year submission checklists
+    source_url: https://www.usenix.org/conference/usenixsecurity25/instructions-presenters
     evidence_file: compliance/venue-checklist.md
   method-reporting-standards:
     status: available
     applies_to: evaluation methods, threats to validity, statistical reporting
+    source_url: https://www.sigplan.org/Resources/EmpiricalEvaluation/
     evidence_file: compliance/method-reporting.md
   survey-reporting:
     status: available
     applies_to: systematic, scoping, or meta-analytic reviews
+    source_url: https://www.prisma-statement.org/prisma-2020-checklist
     evidence_file: compliance/survey-reporting.md
   dataset-metadata:
     status: available
     applies_to: dataset releases and FAIR metadata
+    source_url: https://schema.datacite.org/
     evidence_file: compliance/dataset-metadata.md
   ai-model-release:
     status: available
     applies_to: model, checkpoint, inference code, training code, and provenance releases
+    source_url: https://research.google/pubs/pub48120/
     evidence_file: compliance/ai-model-release.md

@@ -91,6 +91,10 @@ Analysis reports should be written only after strict preflight passes. Figure
 and table claims stay tied to generated source-data paths, stats appendix rows,
 figure-catalog rows, and paper-export snippets.
 
+Badge claims require a selected profile, evidence paths, missing-evidence
+state, blocking-gap state, reviewer, checked date, and status. Do not claim a
+badge because the repository has a folder or checklist.
+
 Map work to these targets:
 
 - Artifacts Available

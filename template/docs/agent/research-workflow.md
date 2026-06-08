@@ -32,6 +32,10 @@ comparison family are missing, the only valid analysis output is
 `blocker-summary.md`; polished reports and paper-facing figures/tables wait
 until the strict manifest and review gates pass.
 
+Badge and compliance work starts from `compliance/profiles.yaml`. Projects may
+support many badge families, but each paper frame, contribution, or release
+activates only the profiles it can evidence.
+
 ## New Sources
 
 New late-stage citations return to source ingestion, bibliography normalization, SOTA linkage, and claim audit before they enter manuscript or response text.

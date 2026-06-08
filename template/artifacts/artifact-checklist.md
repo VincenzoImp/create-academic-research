@@ -1,5 +1,9 @@
 # Artifact Checklist
 
+Use this checklist with `compliance/profiles.yaml` and
+`artifacts/badge-evidence-ledger.csv`. The checklist helps prepare evidence;
+it does not by itself justify a badge claim.
+
 # ACM Artifact Review And Badging
 
 Use this file to prepare for ACM artifact review and related open-science
@@ -57,3 +61,23 @@ evaluation, and result validation.
 - Sensitive data handling:
 - External dependency risks:
 - Credentials excluded from release:
+
+## Other Active Profiles
+
+- USENIX/SIGPLAN artifact evaluation variant:
+- COS/OSF open practice badges:
+- TOP transparency profile:
+- Venue-year checklist:
+- Method reporting profile:
+- Survey reporting profile:
+- Dataset metadata profile:
+- AI model release profile:
+
+## Final Badge Claim Gate
+
+- Active profile recorded in `compliance/profiles.yaml`:
+- Evidence row current in `artifacts/badge-evidence-ledger.csv`:
+- Missing evidence and blocking gaps empty or justified:
+- Reviewer:
+- Checked date:
+- Status:

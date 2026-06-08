@@ -209,13 +209,22 @@ const REQUIRED_CSV_COLUMNS: Record<string, string[]> = {
   ],
   "artifacts/badge-evidence-ledger.csv": [
     "badge_target",
+    "profile_id",
+    "profile_target",
+    "applicability",
     "evidence_id",
     "evidence_path",
     "claim_or_result_id",
     "artifact_component",
     "command_or_procedure",
     "validation_status",
-    "checked_on"
+    "missing_evidence",
+    "blocking_gaps",
+    "reviewer",
+    "checked_date",
+    "checked_on",
+    "status",
+    "notes"
   ],
   "sota/literature-matrix.csv": [
     "source_id",
@@ -379,6 +388,23 @@ const REQUIRED_TSV_COLUMNS: Record<string, string[]> = {
 };
 
 const REQUIRED_YAML_PATHS: Record<string, string[]> = {
+  "compliance/profiles.yaml": [
+    "version",
+    "active_profile_fields",
+    "active_profiles",
+    "profiles.acm-artifact-review",
+    "profiles.acm-artifact-review.source_url",
+    "profiles.usenix-artifact-evaluation",
+    "profiles.sigplan-acm-artifact-evaluation",
+    "profiles.cos-open-science-badges",
+    "profiles.osf-open-practice-resource-badges",
+    "profiles.top-transparency",
+    "profiles.venue-reproducibility-checklist",
+    "profiles.method-reporting-standards",
+    "profiles.survey-reporting",
+    "profiles.dataset-metadata",
+    "profiles.ai-model-release"
+  ],
   "contributions/templates/contribution.yaml": [
     "version",
     "contribution.id",
@@ -629,6 +655,14 @@ export async function doctorProject(root: string): Promise<DoctorResult> {
     "docs/agent/repo-migration-playbook.md",
     "compliance/profiles.yaml",
     "compliance/README.md",
+    "compliance/acm-artifact-review.md",
+    "compliance/open-practice-badges.md",
+    "compliance/top-transparency.md",
+    "compliance/venue-checklist.md",
+    "compliance/method-reporting.md",
+    "compliance/survey-reporting.md",
+    "compliance/dataset-metadata.md",
+    "compliance/ai-model-release.md",
     "docs/agent/generated",
     "docs/reproducibility/commands.md",
     "scripts/README.md",
@@ -1072,6 +1106,46 @@ async function managedFileSpecs(root: string): Promise<ManagedFileSpec[]> {
       path: "compliance/README.md",
       policy: "managed",
       content: await templateText("compliance/README.md")
+    },
+    {
+      path: "compliance/acm-artifact-review.md",
+      policy: "managed",
+      content: await templateText("compliance/acm-artifact-review.md")
+    },
+    {
+      path: "compliance/open-practice-badges.md",
+      policy: "managed",
+      content: await templateText("compliance/open-practice-badges.md")
+    },
+    {
+      path: "compliance/top-transparency.md",
+      policy: "managed",
+      content: await templateText("compliance/top-transparency.md")
+    },
+    {
+      path: "compliance/venue-checklist.md",
+      policy: "managed",
+      content: await templateText("compliance/venue-checklist.md")
+    },
+    {
+      path: "compliance/method-reporting.md",
+      policy: "managed",
+      content: await templateText("compliance/method-reporting.md")
+    },
+    {
+      path: "compliance/survey-reporting.md",
+      policy: "managed",
+      content: await templateText("compliance/survey-reporting.md")
+    },
+    {
+      path: "compliance/dataset-metadata.md",
+      policy: "managed",
+      content: await templateText("compliance/dataset-metadata.md")
+    },
+    {
+      path: "compliance/ai-model-release.md",
+      policy: "managed",
+      content: await templateText("compliance/ai-model-release.md")
     },
     {
       path: "docs/agent/repo-migration-playbook.md",

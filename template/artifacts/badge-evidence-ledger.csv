@@ -1,1 +1,1 @@
-badge_target,evidence_id,evidence_path,claim_or_result_id,artifact_component,command_or_procedure,validation_status,checked_on,notes
+badge_target,profile_id,profile_target,applicability,evidence_id,evidence_path,claim_or_result_id,artifact_component,command_or_procedure,validation_status,missing_evidence,blocking_gaps,reviewer,checked_date,checked_on,status,notes
