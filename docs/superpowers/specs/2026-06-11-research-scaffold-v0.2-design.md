@@ -202,6 +202,13 @@ make target before finishing.
 6. Limitations & assumptions
 7. Relevance to this project
 8. Connections (related citekeys in this SOTA, with one-line why)
+9. Safe claims / do-not-claim (what citing this paper can support, and what
+   wording would overclaim — carried from v0.1 per-source synthesis template)
+10. Citation leads (references/citers/terms/venues worth chasing — feeds
+    queue.md)
+
+Exact numbers and quotations in a synthesis must be verified against the
+native PDF.
 
 **`sota/papers/<citekey>/metadata.yaml`**:
 
@@ -231,9 +238,15 @@ cited_by:             # incoming citations (selected, relevant ones)
 **`sota/index.md`** — markdown table: citekey | title | year | venue | tags |
 status. One row per digested paper.
 
-**`sota/queue.md`** — markdown table of exploration candidates: title | id
-(DOI/arXiv) | found via (citation of X / keyword Y) | decision
-(pending / accepted / rejected: reason).
+**`sota/queue.md`** — opens with a **Scope block** (research question,
+keywords/synonyms/adjacent terms, inclusion and exclusion criteria, declared
+review scale, stopping rule), then a markdown table of exploration
+candidates: title | id (DOI/arXiv) | found via (citation of X / keyword Y) |
+decision (pending / accepted / rejected: reason). The scope block makes the
+exploration loop auditable and resumable across sessions; review scales are
+quick-scan (~8–15 papers), focused-sota (~20–40), full-survey (50+) —
+planning budgets, with stopping at saturation or documented blind spots,
+never by padding.
 
 **`survey/survey.tex`** — `\documentclass[11pt,a4paper]{article}`, onecolumn,
 `hyperref`, `\tableofcontents`, biblatex with
@@ -367,12 +380,89 @@ Formats are NOT duplicated into skills — skills point at the scaffold READMEs.
 | `manage-submission` | paper-submission-lifecycle, rebuttal-revision-strategy | Freeze archive rounds, track decisions, draft rebuttals/response letters from received reviews, integrate revisions into the current manuscript, camera-ready. |
 | `adversarial-review` | adversarial-peer-review, citation-claim-audit | Adversarial review of a survey, contribution, or paper draft: claim audit, methodology critique, venue-reviewer simulation; writes findings next to the artifact. |
 
+### Curated carry-overs from v0.1 (per-skill references)
+
+The v0.1 skills are mostly structure plumbing that dies with the old
+scaffold, but these battle-tested disciplines survive as small reference
+files inside the new skills (rewritten against the v0.2 structure, no
+ledger/wiki/npm-workflow residue):
+
+- `explore-sota` → citation-chasing discipline (one-hop frontier expansion,
+  deliberate seed promotion, saturation = a hop yields mostly
+  duplicates/out-of-scope, report unexpanded frontier as blind spot) and
+  anti-echo-chamber rules (seed diversification: project-specific + seminal
+  + recent frontier; adjacent-terminology queries learned from full
+  readings; negative/contrastive queries; sample excluded near-misses before
+  declaring saturation; flag author/venue/benchmark dominance); review
+  scales table (quick-scan / focused-sota / full-survey).
+- `digest-paper` → citation-key rules (stable readable keys, never changed
+  without updating references); preprint/published reconciliation (cite the
+  published version, keep the arXiv id as alias, never conflate when they
+  support different claims); exact numbers/quotes verified against the
+  native PDF.
+- `write-survey` → survey content checklist (established findings vs
+  contested claims; methodological families; datasets/benchmarks/metrics
+  comparison; limitations of the evidence base itself; implications for
+  this project).
+- `develop-contribution` → CS minimum evaluation standard (credible baseline
+  or stated reason none exists; metric justified by the question; dataset
+  provenance and split policy; seed/config/env/hardware recorded; negative
+  cases; threats to internal/external/construct/conclusion validity; never
+  tune on test data; exploratory ≠ confirmatory); statistical and figure
+  discipline (effect sizes/CIs, multiple-comparison flags, colorblind-safe,
+  no misleading axes, source data saved for final figures); experiment-log
+  and autonomous-campaign rules (per-run record: hypothesis, command, seed,
+  config, data version, metric, result, status; campaigns declare a
+  mutability envelope, frozen evaluation harness, baseline-first,
+  keep/discard/crash frontier policy, stop conditions needing human
+  approval; never silently change metric/split/harness); external-repo
+  reproduction mode (smallest trustworthy target: smoke → inference → eval →
+  training; run only documented commands; isolate patches from contribution
+  claims; a failed reproduction never silently becomes a refactor); ethics
+  red-flags (PII in derived files, scraping behind login, screenshots
+  exposing users, "publicly visible" ≠ redistributable, license/consent
+  before sharing).
+- `write-paper` → writing rules (hedging matches evidence strength; author
+  claims separated from cited claims; related work synthesizes themes, never
+  paper-by-paper lists; mark missing evidence instead of inventing
+  citations; never strengthen a claim while editing); venue-fit honesty
+  checks (does the venue value this contribution type; are baselines
+  credible for this venue; would a workshop/findings track/journal be more
+  honest; novelty bar vs main track).
+- `package-artifacts` → minimum artifact standard (one-command smoke test or
+  clear manual path; environment capture; data access/provenance; expected
+  outputs; result comparison against paper claims; license, citation file,
+  expected runtime and hardware; ethical constraints); manifest with
+  checksums; stage from canonical contribution folders and never hand-edit
+  staged files.
+- `manage-submission` → concern-map discipline (split reviews into atomic
+  concerns; classify: misunderstanding / valid limitation / missing
+  evidence / writing issue / incorrect claim / scope mismatch / unfixable;
+  action: concede / clarify / add-evidence / reframe / defend / defer;
+  response pattern: answer the exact concern, then evidence, then the
+  manuscript location that changes; never promise what cannot land in the
+  revision before the deadline; every response must be mirrorable in the
+  revised paper).
+- `adversarial-review` → review lanes (editor / methodology / domain /
+  adversarial / reproducibility-ethics, kept separate before synthesis so
+  findings cannot vanish); criticism standard (exact location, why it
+  matters, evidence, fix path, severity fatal/major/moderate/minor,
+  confidence); claim-audit verdict taxonomy (supported /
+  partially-supported / unsupported / contradicted / wrong-source /
+  needs-human / stale) with fix discipline (smallest safe change: weaken
+  wording, split broad claims, move speculation to limitations, remove when
+  unsupported — never strengthen during editing).
+
 Dropped without replacement: research-project-router (AGENTS.md routes),
-research-agenda (removed by design), repo-migration, research-repo-reproduction,
-research-ui-prototyping, skill-evaluation, ethics-data-governance (folded as a
-checklist item into develop-contribution and write-paper references),
-research-project-maintenance, research-results-reporting (folded into
-develop-contribution), research-design-positioning (folded into write-paper).
+research-agenda (removed by design), repo-migration,
+research-ui-prototyping, skill-evaluation, systematic-review-prisma as a
+formal process (its declared-criteria and controlled-exclusion-reason ideas
+fold into the queue.md scope block), research-project-maintenance,
+research-results-reporting (folded into develop-contribution),
+research-design-positioning (folded into write-paper framing and the
+develop-contribution claim/delta/falsifiability step),
+ethics-data-governance and research-repo-reproduction (both absorbed as
+develop-contribution references).
 
 Repo keeps: README, CHANGELOG, a slim skill-frontmatter validation script,
 validate + tag-driven release workflows. Drops: pyproject/egg-info, evals
