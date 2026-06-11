@@ -47,6 +47,10 @@ structure. Scaffold owns **structure and formats**; skills own **procedures**.
   bibliography from the root `.bib`.
 - Skills are **portable SKILL.md only**: no per-skill `openai.yaml`, no
   reference-sync machinery, installable project-locally via the `skills` CLI.
+- **Every `.tex` always has its generated PDF available**: built PDFs are
+  committed next to their sources; only aux files are gitignored.
+- **One root venv via uv workspace**: a single `.venv` for the whole project;
+  each Python contribution declares its own deps in a member `pyproject.toml`.
 
 ---
 
@@ -72,7 +76,8 @@ Behavior: copy template, substitute placeholders, write `.mcp.json` and
 TypeScript. Keep: typecheck, slim test suite, validate + tag-driven release
 workflows (npm publish).
 
-Generated projects have **zero Node dependency**: Makefile + latexmk + python3.
+Generated projects have **zero Node dependency**: Makefile + latexmk +
+python3, plus uv when contributions contain Python code.
 
 ### Generated project layout
 
@@ -84,8 +89,9 @@ my-project/
 ├── references.bib       # THE single bibliography for everything
 ├── .mcp.json            # enabled scholarly MCP servers
 ├── .env.example         # API key placeholders for opt-in MCPs
-├── .gitignore
-├── Makefile             # make survey | make contribution C=<slug> | make paper P=<slug> | make check
+├── .gitignore           # ignores .venv/, .build/ (LaTeX aux); built PDFs are committed
+├── pyproject.toml       # uv workspace root: empty member list, no deps initially
+├── Makefile             # make check | make pdfs | make survey | make contribution C=<slug> | make paper P=<slug>
 ├── scripts/check.py     # structure validator, Python stdlib only
 │
 ├── sota/
@@ -100,14 +106,15 @@ my-project/
 ├── survey/
 │   ├── README.md        # survey contract
 │   ├── survey.tex       # single-column article skeleton
+│   ├── survey.pdf       # committed, kept fresh via make survey
 │   └── coverage.md      # citekeys currently integrated — diff anchor
 │
 ├── contributions/
 │   ├── README.md        # badge-general contract
 │   ├── _template/
 │   │   ├── README.md    # badge checklist template
-│   │   └── report/report.tex
-│   └── <slug>/          # created by copying _template
+│   │   └── report/report.tex   # report.pdf committed next to it once built
+│   └── <slug>/          # created by copying _template; free-form inside
 │
 └── papers/
     ├── README.md        # paper lifecycle contract
@@ -127,6 +134,49 @@ Removed relative to v0.1: `research_agenda`, `wiki`, `compliance`, `sources`
 `paper_frames` + `paper_releases` + `paper_submissions` + `reports` (merged
 into `papers/<slug>/`), `configs`, `src` Python package, `tests`,
 `package.json` in the template, all CSV ledgers.
+
+### Code & environments (what replaces v0.1's global `src/`)
+
+There is no project-global `src/`, `tests/`, or notebook/data tree: **code is
+a property of the contribution that uses it**. Each `contributions/<slug>/`
+is a self-contained mini-project (free-form inside: `src/`, `data/`,
+`figures/`, `outputs/`, notebooks — whatever it needs). The scaffold enforces
+only the interface: `README.md` (filled badge checklist) +
+`report/report.tex` (+ built PDF).
+
+Environments use a **uv workspace with a single root venv**:
+
+- The root `pyproject.toml` is a uv workspace with an explicit (initially
+  empty) member list and no dependencies of its own.
+- When a contribution has Python code, it gets its own small
+  `pyproject.toml` declaring *its* dependencies and is added to the root
+  member list (done by the `develop-contribution` skill, or by hand).
+- `uv sync` at the root installs everything into one `.venv`. Users and
+  agents only ever deal with one environment.
+- Non-Python contributions simply aren't members.
+- Escape hatch: a contribution with genuinely conflicting dependencies is
+  removed from the workspace and gets a local venv, documented in its README.
+- Badge packaging stays trivial: the contribution folder already carries its
+  own dependency declaration, so `package-artifacts` ships it as-is.
+
+Shared code between contributions: duplicate small utilities, or promote
+substantial shared tooling to its own contribution (a software artifact with
+its own README/report) that others reference in their READMEs. There is no
+import mechanism between contributions.
+
+Tests: no global suite. A contribution with code carries its own
+verification/smoke command, documented in its README (the "exercisable"
+badge item). The only project-level check is `make check`.
+
+### PDF rule
+
+Every required `.tex` always has its generated PDF committed next to it:
+`survey/survey.pdf`, `contributions/<slug>/report/report.pdf`,
+`papers/<slug>/manuscript/main.pdf`, and frozen PDFs inside
+`papers/<slug>/archive/<round>/`. latexmk sends aux files to a gitignored
+`.build/` directory; PDFs land beside their sources. `make pdfs` rebuilds
+everything that changed. AGENTS.md rule: after editing any `.tex`, run its
+make target before finishing.
 
 ### Formats (defined in the scaffold, used by the skills)
 
@@ -207,14 +257,20 @@ letters), `archive/` (frozen snapshot per submitted round: `r1/`, `r2/`,
   whitelisted in the file header comment (e.g., tool citations);
 - `survey/coverage.md` citekeys all exist in the SOTA;
 - every `contributions/<slug>/` has `README.md` and `report/report.tex`;
-- every `papers/<slug>/` has `venue.md`, `framing.md`, `manuscript/`.
+- every `papers/<slug>/` has `venue.md`, `framing.md`, `manuscript/`;
+- every required `.tex` has its sibling `.pdf` (fail if missing; warn if the
+  `.tex` is newer than the `.pdf` — warn-only because git scrambles mtimes);
+- Python workspace coherence: every contribution with a `pyproject.toml` is
+  listed in the root workspace members (warn if not).
 
-`Makefile` targets: `check` (runs the validator), `survey`,
-`contribution C=<slug>`, `paper P=<slug>` (latexmk builds), `clean`.
+`Makefile` targets: `check` (runs the validator), `pdfs` (build every LaTeX
+target; latexmk skips up-to-date ones), `survey`, `contribution C=<slug>`,
+`paper P=<slug>`, `clean`.
 
 `AGENTS.md` is short: the four entities, the 1:1:1 invariant, "read the
 local README before touching a directory", "run make check before finishing",
-"use the project skills for every pipeline task", MCP usage notes.
+"after editing any .tex, rebuild its PDF", "use the project skills for every
+pipeline task", MCP usage notes.
 
 ### MCP catalog
 
@@ -244,7 +300,7 @@ Formats are NOT duplicated into skills — skills point at the scaffold READMEs.
 | `digest-paper` | source-ingestion, document-conversion, citation-bibliography-tooling | One paper end-to-end: resolve most authoritative version → fetch PDF → write synthesis.md per the standard format → add normalized entry to root references.bib → fetch in/out citations via MCP into metadata.yaml → append to index.md. Atomic; used standalone or as the unit step of explore-sota. |
 | `explore-sota` | sota-literature-review, systematic-review-prisma, academic-mcp-tooling | The loop: from an idea, keywords, seed papers, or the existing SOTA → MCP keyword search + bidirectional citation chasing → triage candidates into queue.md with reasons → digest accepted ones → iterate; explicit stopping criteria (saturation, scope bounds). Designed for long autonomous sessions and for targeted expansions. |
 | `write-survey` | survey-synthesis, parts of research-agenda | Hard gate: read ALL syntheses first. Design grouping (themes / concepts / methodologies), write the complete LaTeX survey with detailed per-group discussion of contributions and notable aspects, plus a gaps & research-directions section. Maintains coverage.md. Update mode: diff coverage.md vs index.md, integrate/remove exactly the delta, rebalance affected sections. |
-| `develop-contribution` | contribution-package, experiment-logbook, research-data-analysis, cs-methodology-evaluation | Create a new contribution from scratch or regularize an existing draft folder into badge-general compliance; write/refresh the detailed report.tex. |
+| `develop-contribution` | contribution-package, experiment-logbook, research-data-analysis, cs-methodology-evaluation | Create a new contribution from scratch or regularize an existing draft folder into badge-general compliance; for Python code, create the member pyproject.toml and register it in the root uv workspace; write/refresh the detailed report.tex and its PDF. |
 | `write-paper` | paper-framing, cs-venue-strategy, paper-writing-review, publication-figures-tables | Venue selection support, framing.md, contribution selection, full manuscript on the venue template, pulling related work from the survey and content from contribution reports; citations only from the root .bib. |
 | `package-artifacts` | paper-release, artifact-open-science, badge-compliance-profiles | Build papers/<slug>/artifacts/: everything promised in the paper plus the venue's specific badge/artifact requirements, self-contained and submission-ready. |
 | `manage-submission` | paper-submission-lifecycle, rebuttal-revision-strategy | Freeze archive rounds, track decisions, draft rebuttals/response letters from received reviews, integrate revisions into the current manuscript, camera-ready. |
