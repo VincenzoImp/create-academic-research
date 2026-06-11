@@ -78,17 +78,25 @@ Wizard prompts:
    pipeline-mandatory, not deselectable)
 4. Install companion skills? (default yes)
 
-Flags: `--yes` (accept defaults), `--no-install-skills`, `--no-git`.
+Flags: `--yes` (accept defaults — including the pre-checked openalex, whose
+server entry stays inert until `OPENALEX_API_KEY` is set),
+`--no-install-skills`, `--no-git`.
 
 Behavior: copy template, substitute placeholders, write `.mcp.json` and
 `.env.example` for the selected MCPs, run
-`npx skills add VincenzoImp/academic-research-skills` (project-local copy),
+`npx skills add VincenzoImp/academic-research-skills` (project-local copies
+placed where the detected agent loads them, e.g. `.claude/skills/` for
+Claude Code; the skills CLI pulls the skills repo's main branch, which is
+why the skills repo releases first),
 `git init` + initial commit. Nothing else. Target ~500–800 lines of
 TypeScript. Keep: typecheck, slim test suite, validate + tag-driven release
 workflows (npm publish).
 
-Generated projects have **zero Node dependency**: Makefile + latexmk +
-python3, plus uv when contributions contain Python code.
+Generated project toolchain: git, make, latexmk, python3, and **uv** (uvx
+runs the always-on MCP servers and manages the workspace venv — uv is
+required for the pipeline, not optional). Node is needed only to run the
+create wizard itself and, at runtime, only if the optional openalex server
+(npx runtime) is enabled.
 
 ### Generated project layout
 
@@ -99,7 +107,7 @@ my-project/
 ├── CLAUDE.md            # single line importing AGENTS.md
 ├── references.bib       # THE single bibliography for everything
 ├── .mcp.json            # enabled scholarly MCP servers
-├── .env.example         # API key placeholders for opt-in MCPs
+├── .env.example         # documents SEMANTIC_SCHOLAR_API_KEY + OPENALEX_API_KEY
 ├── .gitignore           # ignores .venv/, .build/ (LaTeX aux); built PDFs are committed
 ├── pyproject.toml       # uv workspace root: empty member list, no deps initially
 ├── Makefile             # make check | make pdfs | make survey | make contribution C=<slug> | make paper P=<slug>
@@ -221,7 +229,7 @@ venue: ...            # most authoritative published version
 doi: ...
 arxiv: ...            # optional
 pdf_source: <url>
-status: digested      # digested | excluded
+status: digested      # digested | excluded (soft removal — see below)
 tags: [consensus, distributed-systems]
 verified:             # mandatory lookup provenance — no verified block, no valid digest
   bib_source: dblp                      # MCP that produced the BibTeX entry
@@ -238,11 +246,22 @@ cited_by:             # incoming citations (selected, relevant ones)
 **`sota/index.md`** — markdown table: citekey | title | year | venue | tags |
 status. One row per digested paper.
 
+**Removing a paper from the SOTA is a soft exclusion**, so the 1:1:1
+invariant never breaks: set `status: excluded` in `metadata.yaml` and
+`index.md` — folder, bib entry, and index row all remain. Excluded keys must
+not appear in `survey/coverage.md` (checked), and write-survey update mode
+excises them from the survey text. Hard deletion of a folder + bib entry is
+allowed only when nothing cites the key: the procedure greps `\cite{...}`
+across `survey/`, `contributions/`, and `papers/*/manuscript/` (frozen
+`archive/` copies don't count — they are self-contained snapshots) and
+refuses while live citations exist.
+
 **`sota/queue.md`** — opens with a **Scope block** (research question,
 keywords/synonyms/adjacent terms, inclusion and exclusion criteria, declared
 review scale, stopping rule), then a markdown table of exploration
 candidates: title | id (DOI/arXiv) | found via (citation of X / keyword Y) |
-decision (pending / accepted / rejected: reason). The scope block makes the
+decision (pending / accepted / rejected: reason / unresolvable-via-mcp). The
+scope block makes the
 exploration loop auditable and resumable across sessions; review scales are
 quick-scan (~8–15 papers), focused-sota (~20–40), full-survey (50+) —
 planning budgets, with stopping at saturation or documented blind spots,
@@ -270,8 +289,11 @@ later paper integration without re-reading the code.
 **`papers/_template/`** — `venue.md` (venue, template source, formatting
 rules, deadlines, venue-specific badge/artifact requirements), `framing.md`
 (story, claims, selected contributions and what each provides), `manuscript/`
-(current version on the venue template, citing the root `.bib`; the packaging
-step produces the self-contained bundle), `artifacts/` (packaged
+(current version on the venue template; the entry point is always
+`manuscript/main.tex` — venue template files are renamed to this convention
+on import; the manuscript uses whatever bibliography system the venue class
+dictates, bibtex/natbib or biblatex, both reading the root `.bib`; the
+packaging step produces the self-contained bundle), `artifacts/` (packaged
 deliverables), `correspondence/` (received reviews, rebuttals, response
 letters), `archive/` (frozen snapshot per submitted round: `r1/`, `r2/`,
 `camera-ready/`).
@@ -285,16 +307,25 @@ letters), `archive/` (frozen snapshot per submitted round: `r1/`, `r2/`,
   in `sota/index.md` (1:1:1 invariant);
 - `references.bib` keys are unique; no bib entry without a SOTA folder unless
   whitelisted in the file header comment (e.g., tool citations);
-- `survey/coverage.md` citekeys all exist in the SOTA;
+- `survey/coverage.md` citekeys all exist in the SOTA with status
+  `digested` (excluded keys may not be covered);
 - every `contributions/<slug>/` has `README.md` and `report/report.tex`;
-- every `papers/<slug>/` has `venue.md`, `framing.md`, `manuscript/`;
+- every `papers/<slug>/` has `venue.md`, `framing.md`, and
+  `manuscript/main.tex`;
+- `_template/` directories are skipped by all checks;
 - every digested paper's `metadata.yaml` carries the `verified` provenance
   block with at least one resolvable identifier (DOI, arXiv id, or DBLP/S2
   record) — an unverified bib entry is structurally invalid;
 - every required `.tex` has its sibling `.pdf` (fail if missing; warn if the
   `.tex` is newer than the `.pdf` — warn-only because git scrambles mtimes);
 - Python workspace coherence: every contribution with a `pyproject.toml` is
-  listed in the root workspace members (warn if not).
+  listed in the root workspace members or in the root
+  `[tool.uv.workspace] exclude` list (the escape hatch for conflicting
+  dependencies registers there); warn otherwise.
+
+The template ships a pre-built `survey.pdf` for the skeleton `survey.tex`,
+so a freshly created project passes `make check` without a TeX installation
+(and the creator's CI smoke test needs no TeX either).
 
 `Makefile` targets: `check` (runs the validator), `pdfs` (build every LaTeX
 target; latexmk skips up-to-date ones), `survey`, `contribution C=<slug>`,
@@ -346,9 +377,10 @@ exists only if an MCP lookup produced it. If scholarly MCPs are unavailable,
 SOTA work stops."
 
 Cross-validation in digestion: digest-paper queries every configured
-scholarly MCP, not just one. Metadata disagreements resolve by precedence —
-dblp (CS venues/BibTeX) > publisher DOI record > semantic-scholar > arxiv —
-and conflicts are noted in metadata.yaml. The hard preflight gate covers
+scholarly MCP, not just one. Metadata disagreements resolve by precedence
+among configured sources — dblp (CS venues/BibTeX) > semantic-scholar >
+openalex > arxiv — with the DOI as the canonical identifier to reconcile
+records across sources; conflicts are noted in metadata.yaml. The hard preflight gate covers
 arxiv + semantic-scholar (the pipeline cannot function without acquisition +
 citation graph); dblp/openalex are used whenever they respond, and a dblp
 outage does not block digestion since semantic-scholar can source the entry.
@@ -358,8 +390,8 @@ digest-paper/explore-sota run an MCP preflight (trivial query against arxiv
 and semantic-scholar; on failure they stop and report instead of falling
 back to memory or web scraping) → each digest records the `verified`
 provenance block → check.py fails any digested paper without it. Papers
-whose metadata cannot be MCP-resolved stay in queue.md as
-`pending: unresolvable via MCP` and never become bib entries.
+whose metadata cannot be MCP-resolved get the queue.md decision
+`unresolvable-via-mcp` and never become bib entries.
 
 ---
 
@@ -373,12 +405,12 @@ Formats are NOT duplicated into skills — skills point at the scaffold READMEs.
 |---|---|---|
 | `digest-paper` | source-ingestion, document-conversion, citation-bibliography-tooling | MCP preflight (hard gate: arxiv + semantic-scholar must respond, else stop). One paper end-to-end: resolve most authoritative version via MCP → fetch PDF → write synthesis.md per the standard format → add normalized MCP-sourced entry to root references.bib → fetch in/out citations via MCP into metadata.yaml with the verified provenance block → append to index.md. Atomic; used standalone or as the unit step of explore-sota. Never fills bibliographic data from model memory. |
 | `explore-sota` | sota-literature-review, systematic-review-prisma, academic-mcp-tooling | MCP preflight (same hard gate). The loop: from an idea, keywords, seed papers, or the existing SOTA → MCP keyword search + bidirectional citation chasing → triage candidates into queue.md with reasons → digest accepted ones → iterate; explicit stopping criteria (saturation, scope bounds). Unresolvable candidates stay queued, never cited. Designed for long autonomous sessions and for targeted expansions. |
-| `write-survey` | survey-synthesis, parts of research-agenda | Hard gate: read ALL syntheses first. Design grouping (themes / concepts / methodologies), write the complete LaTeX survey with detailed per-group discussion of contributions and notable aspects, plus a gaps & research-directions section. Maintains coverage.md. Update mode: diff coverage.md vs index.md, integrate/remove exactly the delta, rebalance affected sections. |
-| `develop-contribution` | contribution-package, experiment-logbook, research-data-analysis, cs-methodology-evaluation | Create a new contribution from scratch or regularize an existing draft folder into badge-general compliance; for Python code, create the member pyproject.toml and register it in the root uv workspace; write/refresh the detailed report.tex and its PDF. |
+| `write-survey` | survey-synthesis, parts of research-agenda | Create-mode hard gate: read ALL syntheses before writing a word. Design grouping (themes / concepts / methodologies), write the complete LaTeX survey with detailed per-group discussion of contributions and notable aspects, plus a gaps & research-directions section. Maintains coverage.md. Update mode: diff coverage.md vs index.md, integrate/remove exactly the delta, rebalance affected sections. |
+| `develop-contribution` | contribution-package, experiment-logbook, research-data-analysis, cs-methodology-evaluation, research-design-positioning (in part) | Before building, state the claim, the delta vs nearest prior work (from the survey), the evidence plan, and what would falsify it. Then create a new contribution from scratch or regularize an existing draft folder into badge-general compliance; for Python code, create the member pyproject.toml and register it in the root uv workspace; write/refresh the detailed report.tex and its PDF. |
 | `write-paper` | paper-framing, cs-venue-strategy, paper-writing-review, publication-figures-tables | Venue selection support, framing.md, contribution selection, full manuscript on the venue template, pulling related work from the survey and content from contribution reports; citations only from the root .bib. |
 | `package-artifacts` | paper-release, artifact-open-science, badge-compliance-profiles | Build papers/<slug>/artifacts/: everything promised in the paper plus the venue's specific badge/artifact requirements, self-contained and submission-ready. |
 | `manage-submission` | paper-submission-lifecycle, rebuttal-revision-strategy | Freeze archive rounds, track decisions, draft rebuttals/response letters from received reviews, integrate revisions into the current manuscript, camera-ready. |
-| `adversarial-review` | adversarial-peer-review, citation-claim-audit | Adversarial review of a survey, contribution, or paper draft: claim audit, methodology critique, venue-reviewer simulation; writes findings next to the artifact. |
+| `adversarial-review` | adversarial-peer-review, citation-claim-audit | Adversarial review of a survey, contribution, or paper draft: claim audit, methodology critique, venue-reviewer simulation. Writes findings to a `reviews/` folder beside the artifact (`survey/reviews/`, `contributions/<slug>/reviews/`, `papers/<slug>/reviews/`), created on demand; never silently edits the artifact under review. |
 
 ### Curated carry-overs from v0.1 (per-skill references)
 
@@ -464,8 +496,9 @@ develop-contribution claim/delta/falsifiability step),
 ethics-data-governance and research-repo-reproduction (both absorbed as
 develop-contribution references).
 
-Repo keeps: README, CHANGELOG, a slim skill-frontmatter validation script,
-validate + tag-driven release workflows. Drops: pyproject/egg-info, evals
+Repo keeps: README, CHANGELOG, LICENSE (MIT), SECURITY.md, a slim
+skill-frontmatter validation script, validate + tag-driven release
+workflows. Drops: pyproject/egg-info, evals
 dir, examples dir, the 16 shared root `references/` files and
 `sync_skill_references.py`.
 
