@@ -274,18 +274,33 @@ pipeline task", MCP usage notes.
 
 ### MCP catalog
 
-| Server | Default | Notes |
-|---|---|---|
-| arxiv | on | low-friction local runtime |
-| semantic-scholar | on | citation-graph backbone; key recommended |
-| dblp | off | CS bibliography |
-| openalex | off | cross-discipline metadata |
-| zotero | off | reading convenience only; never system of record |
-| overleaf | off | interface to an *external* LaTeX project outside the scaffold |
+The entire MCP system is three files, all written by the wizard: `.mcp.json`
+(live config, read natively by Claude Code and compatible clients),
+`.env.example` (key names + where to obtain them), and a README "MCP servers"
+section carrying the full catalog with a copy-paste JSON snippet per optional
+server. Adding a server later means pasting its snippet into `.mcp.json`;
+no CLI. Secrets never land in git: `.mcp.json` uses `${VAR}` env expansion.
 
-The creator writes `.mcp.json` entries for the selected servers and matching
-`.env.example` placeholders. No install/probe/doctor machinery — `.mcp.json`
-plus a short MCP section in AGENTS.md is the whole story.
+| Server | Default | Runtime | Key | Used by | Role |
+|---|---|---|---|---|---|
+| arxiv | on | uvx (`arxiv-mcp-server[pdf]`) | none | digest-paper, explore-sota | search/download/read papers |
+| semantic-scholar | on | uvx (akapet00/semantic-scholar-mcp) | recommended | digest-paper, explore-sota | citation-graph backbone: cites/cited_by, chasing, authoritative-version resolution |
+| dblp | off | uvx (`mcp-dblp`) | none | digest-paper | CS venue names + clean BibTeX |
+| openalex | off | npx (cyanheads/openalex-mcp-server) | required | explore-sota | cross-discipline metadata fallback |
+| zotero | off | local app (zoty) | — | user convenience | read-only mirror; never system of record |
+| overleaf | off | manual setup | credentials | write-paper (external mode) | read/contribute to an *external* LaTeX project outside the scaffold |
+
+Dropped from the catalog (v0.1 had them): pubmed (biomedical-specific),
+crossref (no vetted server), paper-search (aggregator with restricted-source
+risk). Users can still add any server to `.mcp.json` by hand.
+
+Wizard step 3 is a multi-select with arxiv + semantic-scholar pre-checked;
+it writes only selected entries to `.mcp.json`, matching placeholders to
+`.env.example`, and the full catalog to the README regardless of selection.
+
+AGENTS.md carries a short MCP routing block (acquisition → arxiv; citation
+graph/version resolution → semantic-scholar; CS BibTeX → dblp; never cite
+from model memory — every bib entry comes from an MCP lookup or the PDF).
 
 ---
 
