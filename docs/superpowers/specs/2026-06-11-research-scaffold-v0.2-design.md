@@ -51,11 +51,14 @@ structure. Scaffold owns **structure and formats**; skills own **procedures**.
   committed next to their sources; only aux files are gitignored.
 - **One root venv via uv workspace**: a single `.venv` for the whole project;
   each Python contribution declares its own deps in a member `pyproject.toml`.
-- **Scholarly MCPs are mandatory for SOTA work, not optional**: arxiv and
-  semantic-scholar are always configured (keyless uvx runtimes; the wizard
-  offers no deselect). A citation exists only if an MCP lookup produced it;
-  each digested paper records lookup provenance, and SOTA skills hard-stop
-  when the MCPs are unavailable.
+- **Scholarly MCPs are mandatory for SOTA work, not optional**: the split is
+  friction-driven. Every zero-config server (arxiv, semantic-scholar, dblp —
+  keyless uvx runtimes) is always configured with no deselect; "optional"
+  means only credential/app/manual-setup servers, and the SOTA-relevant ones
+  (openalex) are strongly recommended and pre-checked in the wizard. A
+  citation exists only if an MCP lookup produced it; digestion cross-checks
+  all configured sources; each digested paper records lookup provenance, and
+  SOTA skills hard-stop when arxiv or semantic-scholar are unavailable.
 
 ---
 
@@ -69,9 +72,10 @@ Wizard prompts:
 
 1. Project title
 2. One-line research topic (seeds README and AGENTS.md)
-3. Optional MCP servers to enable (multi-select over dblp / openalex /
-   zotero / overleaf; arxiv + semantic-scholar are always written — they are
-   pipeline-mandatory and not deselectable)
+3. Optional MCP servers to enable (multi-select over openalex / zotero /
+   overleaf, with openalex pre-checked as strongly recommended; arxiv +
+   semantic-scholar + dblp are always written — zero-config and
+   pipeline-mandatory, not deselectable)
 4. Install companion skills? (default yes)
 
 Flags: `--yes` (accept defaults), `--no-install-skills`, `--no-git`.
@@ -297,34 +301,52 @@ section carrying the full catalog with a copy-paste JSON snippet per optional
 server. Adding a server later means pasting its snippet into `.mcp.json`;
 no CLI. Secrets never land in git: `.mcp.json` uses `${VAR}` env expansion.
 
-| Server | Default | Runtime | Key | Used by | Role |
+The mandatory/optional split is friction-driven: everything that works with
+zero configuration is always on; "optional" means only servers needing a
+credential, a local app, or manual setup — and the SOTA-relevant ones among
+those are strongly recommended, not second-class.
+
+| Server | Tier | Runtime | Key | Used by | Role |
 |---|---|---|---|---|---|
-| arxiv | **mandatory** | uvx (`arxiv-mcp-server[pdf]`) | none | digest-paper, explore-sota | search/download/read papers |
-| semantic-scholar | **mandatory** | uvx (akapet00/semantic-scholar-mcp) | recommended | digest-paper, explore-sota | citation-graph backbone: cites/cited_by, chasing, authoritative-version resolution |
-| dblp | off | uvx (`mcp-dblp`) | none | digest-paper | CS venue names + clean BibTeX |
-| openalex | off | npx (cyanheads/openalex-mcp-server) | required | explore-sota | cross-discipline metadata fallback |
-| zotero | off | local app (zoty) | — | user convenience | read-only mirror; never system of record |
-| overleaf | off | manual setup | credentials | write-paper (external mode) | read/contribute to an *external* LaTeX project outside the scaffold |
+| arxiv | **always on** | uvx (`arxiv-mcp-server[pdf]`) | none | digest-paper, explore-sota | search/download/read papers |
+| semantic-scholar | **always on** | uvx (akapet00/semantic-scholar-mcp) | recommended | digest-paper, explore-sota | citation-graph backbone: cites/cited_by, chasing, authoritative-version resolution |
+| dblp | **always on** | uvx (`mcp-dblp`) | none | digest-paper | CS venue names + clean BibTeX; wins precedence for CS entries |
+| openalex | strongly recommended (pre-checked) | npx (cyanheads/openalex-mcp-server) | required | digest-paper, explore-sota | cross-discipline coverage; fourth cross-check source |
+| zotero | opt-in | local app (zoty) | — | user convenience | read-only mirror; never system of record |
+| overleaf | opt-in | manual setup | credentials | write-paper (external mode) | read/contribute to an *external* LaTeX project outside the scaffold |
 
 Dropped from the catalog (v0.1 had them): pubmed (biomedical-specific),
 crossref (no vetted server), paper-search (aggregator with restricted-source
 risk). Users can still add any server to `.mcp.json` by hand.
 
-Wizard step 3 multi-selects only the optional servers; arxiv and
-semantic-scholar are always written to `.mcp.json`. Selected optionals get
-matching `.env.example` placeholders; the full catalog goes to the README
+Wizard step 3 multi-selects only the optional servers (openalex pre-checked);
+arxiv, semantic-scholar, and dblp are always written to `.mcp.json`.
+`.env.example` always documents both keys (SEMANTIC_SCHOLAR_API_KEY
+recommended, OPENALEX_API_KEY for the strongly recommended server) so the
+upgrade path is visible from day one; the full catalog goes to the README
 regardless of selection.
 
 AGENTS.md carries a short MCP routing block (acquisition → arxiv; citation
-graph/version resolution → semantic-scholar; CS BibTeX → dblp) and the hard
-rule: "A citation exists only if an MCP lookup produced it. If scholarly
-MCPs are unavailable, SOTA work stops." Enforcement chain: the wizard
-guarantees the servers are configured → digest-paper/explore-sota run an MCP
-preflight (trivial query against arxiv and semantic-scholar; on failure they
-stop and report instead of falling back to memory or web scraping) → each
-digest records the `verified` provenance block → check.py fails any digested
-paper without it. Papers whose metadata cannot be MCP-resolved stay in
-queue.md as `pending: unresolvable via MCP` and never become bib entries.
+graph/version resolution → semantic-scholar; CS BibTeX → dblp; use every
+configured scholarly source and cross-check) and the hard rule: "A citation
+exists only if an MCP lookup produced it. If scholarly MCPs are unavailable,
+SOTA work stops."
+
+Cross-validation in digestion: digest-paper queries every configured
+scholarly MCP, not just one. Metadata disagreements resolve by precedence —
+dblp (CS venues/BibTeX) > publisher DOI record > semantic-scholar > arxiv —
+and conflicts are noted in metadata.yaml. The hard preflight gate covers
+arxiv + semantic-scholar (the pipeline cannot function without acquisition +
+citation graph); dblp/openalex are used whenever they respond, and a dblp
+outage does not block digestion since semantic-scholar can source the entry.
+
+Enforcement chain: the wizard guarantees the servers are configured →
+digest-paper/explore-sota run an MCP preflight (trivial query against arxiv
+and semantic-scholar; on failure they stop and report instead of falling
+back to memory or web scraping) → each digest records the `verified`
+provenance block → check.py fails any digested paper without it. Papers
+whose metadata cannot be MCP-resolved stay in queue.md as
+`pending: unresolvable via MCP` and never become bib entries.
 
 ---
 
