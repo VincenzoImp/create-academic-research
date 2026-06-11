@@ -51,6 +51,11 @@ structure. Scaffold owns **structure and formats**; skills own **procedures**.
   committed next to their sources; only aux files are gitignored.
 - **One root venv via uv workspace**: a single `.venv` for the whole project;
   each Python contribution declares its own deps in a member `pyproject.toml`.
+- **Scholarly MCPs are mandatory for SOTA work, not optional**: arxiv and
+  semantic-scholar are always configured (keyless uvx runtimes; the wizard
+  offers no deselect). A citation exists only if an MCP lookup produced it;
+  each digested paper records lookup provenance, and SOTA skills hard-stop
+  when the MCPs are unavailable.
 
 ---
 
@@ -64,7 +69,9 @@ Wizard prompts:
 
 1. Project title
 2. One-line research topic (seeds README and AGENTS.md)
-3. MCP servers to enable (multi-select; arxiv + semantic-scholar pre-selected)
+3. Optional MCP servers to enable (multi-select over dblp / openalex /
+   zotero / overleaf; arxiv + semantic-scholar are always written — they are
+   pipeline-mandatory and not deselectable)
 4. Install companion skills? (default yes)
 
 Flags: `--yes` (accept defaults), `--no-install-skills`, `--no-git`.
@@ -205,6 +212,12 @@ arxiv: ...            # optional
 pdf_source: <url>
 status: digested      # digested | excluded
 tags: [consensus, distributed-systems]
+verified:             # mandatory lookup provenance — no verified block, no valid digest
+  bib_source: dblp                      # MCP that produced the BibTeX entry
+  record: https://dblp.org/rec/...      # the looked-up record
+  citation_graph_source: semantic-scholar
+  s2_id: <semantic-scholar paper id>
+  date: 2026-06-11
 cites:                # outgoing references (selected, relevant ones)
   - citekey-or-external-id  # citekey if in SOTA, else DOI/arXiv id + title
 cited_by:             # incoming citations (selected, relevant ones)
@@ -258,6 +271,9 @@ letters), `archive/` (frozen snapshot per submitted round: `r1/`, `r2/`,
 - `survey/coverage.md` citekeys all exist in the SOTA;
 - every `contributions/<slug>/` has `README.md` and `report/report.tex`;
 - every `papers/<slug>/` has `venue.md`, `framing.md`, `manuscript/`;
+- every digested paper's `metadata.yaml` carries the `verified` provenance
+  block with at least one resolvable identifier (DOI, arXiv id, or DBLP/S2
+  record) — an unverified bib entry is structurally invalid;
 - every required `.tex` has its sibling `.pdf` (fail if missing; warn if the
   `.tex` is newer than the `.pdf` — warn-only because git scrambles mtimes);
 - Python workspace coherence: every contribution with a `pyproject.toml` is
@@ -283,8 +299,8 @@ no CLI. Secrets never land in git: `.mcp.json` uses `${VAR}` env expansion.
 
 | Server | Default | Runtime | Key | Used by | Role |
 |---|---|---|---|---|---|
-| arxiv | on | uvx (`arxiv-mcp-server[pdf]`) | none | digest-paper, explore-sota | search/download/read papers |
-| semantic-scholar | on | uvx (akapet00/semantic-scholar-mcp) | recommended | digest-paper, explore-sota | citation-graph backbone: cites/cited_by, chasing, authoritative-version resolution |
+| arxiv | **mandatory** | uvx (`arxiv-mcp-server[pdf]`) | none | digest-paper, explore-sota | search/download/read papers |
+| semantic-scholar | **mandatory** | uvx (akapet00/semantic-scholar-mcp) | recommended | digest-paper, explore-sota | citation-graph backbone: cites/cited_by, chasing, authoritative-version resolution |
 | dblp | off | uvx (`mcp-dblp`) | none | digest-paper | CS venue names + clean BibTeX |
 | openalex | off | npx (cyanheads/openalex-mcp-server) | required | explore-sota | cross-discipline metadata fallback |
 | zotero | off | local app (zoty) | — | user convenience | read-only mirror; never system of record |
@@ -294,13 +310,21 @@ Dropped from the catalog (v0.1 had them): pubmed (biomedical-specific),
 crossref (no vetted server), paper-search (aggregator with restricted-source
 risk). Users can still add any server to `.mcp.json` by hand.
 
-Wizard step 3 is a multi-select with arxiv + semantic-scholar pre-checked;
-it writes only selected entries to `.mcp.json`, matching placeholders to
-`.env.example`, and the full catalog to the README regardless of selection.
+Wizard step 3 multi-selects only the optional servers; arxiv and
+semantic-scholar are always written to `.mcp.json`. Selected optionals get
+matching `.env.example` placeholders; the full catalog goes to the README
+regardless of selection.
 
 AGENTS.md carries a short MCP routing block (acquisition → arxiv; citation
-graph/version resolution → semantic-scholar; CS BibTeX → dblp; never cite
-from model memory — every bib entry comes from an MCP lookup or the PDF).
+graph/version resolution → semantic-scholar; CS BibTeX → dblp) and the hard
+rule: "A citation exists only if an MCP lookup produced it. If scholarly
+MCPs are unavailable, SOTA work stops." Enforcement chain: the wizard
+guarantees the servers are configured → digest-paper/explore-sota run an MCP
+preflight (trivial query against arxiv and semantic-scholar; on failure they
+stop and report instead of falling back to memory or web scraping) → each
+digest records the `verified` provenance block → check.py fails any digested
+paper without it. Papers whose metadata cannot be MCP-resolved stay in
+queue.md as `pending: unresolvable via MCP` and never become bib entries.
 
 ---
 
@@ -312,8 +336,8 @@ Formats are NOT duplicated into skills — skills point at the scaffold READMEs.
 
 | Skill | Replaces (v0.1) | Procedure |
 |---|---|---|
-| `digest-paper` | source-ingestion, document-conversion, citation-bibliography-tooling | One paper end-to-end: resolve most authoritative version → fetch PDF → write synthesis.md per the standard format → add normalized entry to root references.bib → fetch in/out citations via MCP into metadata.yaml → append to index.md. Atomic; used standalone or as the unit step of explore-sota. |
-| `explore-sota` | sota-literature-review, systematic-review-prisma, academic-mcp-tooling | The loop: from an idea, keywords, seed papers, or the existing SOTA → MCP keyword search + bidirectional citation chasing → triage candidates into queue.md with reasons → digest accepted ones → iterate; explicit stopping criteria (saturation, scope bounds). Designed for long autonomous sessions and for targeted expansions. |
+| `digest-paper` | source-ingestion, document-conversion, citation-bibliography-tooling | MCP preflight (hard gate: arxiv + semantic-scholar must respond, else stop). One paper end-to-end: resolve most authoritative version via MCP → fetch PDF → write synthesis.md per the standard format → add normalized MCP-sourced entry to root references.bib → fetch in/out citations via MCP into metadata.yaml with the verified provenance block → append to index.md. Atomic; used standalone or as the unit step of explore-sota. Never fills bibliographic data from model memory. |
+| `explore-sota` | sota-literature-review, systematic-review-prisma, academic-mcp-tooling | MCP preflight (same hard gate). The loop: from an idea, keywords, seed papers, or the existing SOTA → MCP keyword search + bidirectional citation chasing → triage candidates into queue.md with reasons → digest accepted ones → iterate; explicit stopping criteria (saturation, scope bounds). Unresolvable candidates stay queued, never cited. Designed for long autonomous sessions and for targeted expansions. |
 | `write-survey` | survey-synthesis, parts of research-agenda | Hard gate: read ALL syntheses first. Design grouping (themes / concepts / methodologies), write the complete LaTeX survey with detailed per-group discussion of contributions and notable aspects, plus a gaps & research-directions section. Maintains coverage.md. Update mode: diff coverage.md vs index.md, integrate/remove exactly the delta, rebalance affected sections. |
 | `develop-contribution` | contribution-package, experiment-logbook, research-data-analysis, cs-methodology-evaluation | Create a new contribution from scratch or regularize an existing draft folder into badge-general compliance; for Python code, create the member pyproject.toml and register it in the root uv workspace; write/refresh the detailed report.tex and its PDF. |
 | `write-paper` | paper-framing, cs-venue-strategy, paper-writing-review, publication-figures-tables | Venue selection support, framing.md, contribution selection, full manuscript on the venue template, pulling related work from the survey and content from contribution reports; citations only from the root .bib. |
