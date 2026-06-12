@@ -1500,6 +1500,7 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  statSync,
   utimesSync,
   writeFileSync
 } from "node:fs";
@@ -1562,9 +1563,11 @@ export function createProject(options: CreateOptions): void {
   writeFileSync(join(target, ".mcp.json"), renderMcpJson(options.optionalMcps));
 
   // cpSync does not preserve template mtimes and the substitution pass
-  // rewrites survey.tex afterwards; re-touch the committed placeholder PDF
-  // so a fresh project starts without a staleness warning from check.py.
-  const stamp = new Date();
+  // rewrites survey.tex afterwards; stamp the committed placeholder PDF
+  // strictly newer than its .tex (sub-millisecond mtime precision would
+  // otherwise leave it "stale") so a fresh project reports zero warnings.
+  const texMtimeMs = statSync(join(target, "survey", "survey.tex")).mtimeMs;
+  const stamp = new Date(texMtimeMs + 1000);
   utimesSync(join(target, "survey", "survey.pdf"), stamp, stamp);
 
   if (options.installSkills) {
