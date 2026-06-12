@@ -1,24 +1,21 @@
 {
   "name": "create-academic-research",
-  "version": "0.1.19",
-  "description": "Scaffold agent-ready academic research repositories with SOTA, source ledgers, wiki memory, MCP setup, and project-local skills.",
+  "version": "0.2.0",
+  "description": "Scaffold a four-entity academic research project: SOTA, survey, contributions, papers — one root bibliography, MCP-verified citations, agent skills.",
   "type": "module",
   "license": "MIT",
   "author": "Vincenzo Imperati",
   "keywords": [
     "academic-research",
-    "academic-writing",
-    "arxiv",
-    "citation-management",
-    "research-project",
     "research-scaffold",
-    "agent-skills",
-    "llm-agents",
-    "mcp",
     "literature-review",
-    "open-science",
+    "sota",
+    "survey",
+    "agent-skills",
+    "mcp",
+    "arxiv",
     "reproducibility",
-    "sota"
+    "open-science"
   ],
   "repository": {
     "type": "git",
@@ -36,8 +33,7 @@
     "node": ">=20"
   },
   "bin": {
-    "create-academic-research": "dist/bin/create-academic-research.js",
-    "academic-research": "dist/bin/academic-research.js"
+    "create-academic-research": "dist/bin/create-academic-research.js"
   },
   "files": [
     "dist",
@@ -49,16 +45,13 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "npm run clean && tsc && node scripts/chmod-bins.mjs",
+    "build": "npm run clean && tsc",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test",
-    "lint": "npm run typecheck && node scripts/validate.mjs",
-    "release:check": "node scripts/check-release.mjs",
-    "prepare": "npm run build",
-    "audit:local": "npm test && npm run lint"
+    "prepare": "npm run build"
   },
   "dependencies": {
-    "yaml": "^2.7.0"
+    "@clack/prompts": "^0.11.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",
