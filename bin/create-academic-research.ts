@@ -47,15 +47,33 @@ async function main(): Promise<void> {
     optionalMcps = ["openalex"];
   } else {
     p.intro("create-academic-research v0.2");
+    const required = (label: string) => (value: string) =>
+      value.trim() === "" ? `${label} is required` : undefined;
     if (!target) {
       target = String(
-        await guard(p.text({ message: "Project directory", placeholder: "my-research" }))
+        await guard(
+          p.text({
+            message: "Project directory",
+            placeholder: "my-research",
+            validate: required("a directory")
+          })
+        )
       );
     }
     title = String(
-      await guard(p.text({ message: "Project title", initialValue: basename(resolve(target)) }))
+      await guard(
+        p.text({
+          message: "Project title",
+          initialValue: basename(resolve(target)),
+          validate: required("a title")
+        })
+      )
     );
-    topic = String(await guard(p.text({ message: "One-line research topic" })));
+    topic = String(
+      await guard(
+        p.text({ message: "One-line research topic", validate: required("a topic") })
+      )
+    );
     optionalMcps = (await guard(
       p.multiselect({
         message: "Optional MCP servers (arxiv, semantic-scholar, dblp are always on)",

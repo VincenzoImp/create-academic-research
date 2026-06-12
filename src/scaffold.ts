@@ -93,14 +93,29 @@ export function createProject(options: CreateOptions): void {
   utimesSync(join(target, "survey", "survey.pdf"), stamp, stamp);
 
   if (options.installSkills) {
+    // --agent pins the install target: without it the skills CLI fans out to
+    // every agent it detects on the machine (.agents, .crush, .goose, ...).
     const result = spawnSync(
       "npx",
-      ["-y", "skills", "add", "VincenzoImp/academic-research-skills", "--skill", "*", "--copy", "-y"],
+      [
+        "-y",
+        "skills",
+        "add",
+        "VincenzoImp/academic-research-skills",
+        "--skill",
+        "*",
+        "--copy",
+        "--agent",
+        "claude-code",
+        "-y"
+      ],
       { cwd: target, stdio: "inherit" }
     );
     if (result.status !== 0) {
       console.warn("warning: skills install failed; run it later from the project root:");
-      console.warn("  npx -y skills add VincenzoImp/academic-research-skills --skill '*' --copy -y");
+      console.warn(
+        "  npx -y skills add VincenzoImp/academic-research-skills --skill '*' --copy --agent claude-code -y"
+      );
     }
   }
 
