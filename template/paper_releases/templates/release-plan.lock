@@ -1,8 +1,0 @@
-release_id: release-example
-frame_id: frame-example
-git_commit: unresolved
-selected_contribution_ids: []
-selected_analysis_ids: []
-profile_versions: []
-checksum_file: paper_releases/templates/checksums.txt
-build_timestamp: unresolved
