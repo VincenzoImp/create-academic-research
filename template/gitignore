@@ -1,0 +1,20 @@
+.venv/
+.build/
+__pycache__/
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
+# LaTeX aux that escapes .build/
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fls
+*.fdb_latexmk
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc

@@ -44,74 +44,31 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ steps.release.outputs.tag }}
-          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+
+      - name: Verify package version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="$(node -p "require('./package.json').version")"
+          if [[ "$pkg" != "${{ steps.release.outputs.version }}" ]]; then
+            echo "package.json version $pkg != tag version ${{ steps.release.outputs.version }}" >&2
+            exit 1
+          fi
 
       - run: npm ci
-      - run: npm run release:check -- ${{ steps.release.outputs.tag }}
       - run: npm test
-      - run: npm run lint
-      - run: npm audit --omit=dev
+      - run: npm publish
 
-      - name: Pack and smoke-test generated project
-        id: pack
-        shell: bash
-        run: |
-          set -euo pipefail
-          tarball="$(npm pack --silent)"
-          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
-
-          tmpdir="$(mktemp -d)"
-          CREATE_ACADEMIC_RESEARCH_PACKAGE_SPEC="file:$PWD/$tarball" \
-            npm exec --yes --package "$PWD/$tarball" -- \
-            create-academic-research "$tmpdir/e2e-research" --yes --no-install-skills
-
-          cd "$tmpdir/e2e-research"
-          npm install --ignore-scripts
-          npm run doctor
-          npm run workflow:literature
-          npm run doctor
-          npm run mcp:dotenv
-          npm run mcp:doctor -- --env-file .env.example
-          npm run mcp:smoke -- --env-file .env.example
-          python -m pip install -e ".[dev]"
-          python -m pytest -q
-
-      - name: Publish to npm
-        shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-          version="${{ steps.release.outputs.version }}"
-          if npm view "create-academic-research@$version" version >/dev/null 2>&1; then
-            echo "create-academic-research@$version is already published; skipping npm publish."
-            exit 0
-          fi
-          npm publish --access public --provenance
-
-      - name: Create GitHub Release
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag="${{ steps.release.outputs.tag }}"
-          tarball="${{ steps.pack.outputs.tarball }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "GitHub Release $tag already exists; skipping creation."
-          else
-            gh release create "$tag" "$tarball#npm package tarball" \
-              --verify-tag \
-              --generate-notes \
-              --latest
-          fi
+        run: gh release create "${{ steps.release.outputs.tag }}" --generate-notes

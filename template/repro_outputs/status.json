@@ -1,9 +1,0 @@
-{
-  "status": "not-started",
-  "target": "",
-  "checked_on": "",
-  "summary": "repro_outputs/SUMMARY.md",
-  "commands": "repro_outputs/COMMANDS.md",
-  "log": "repro_outputs/LOG.md",
-  "patches": "repro_outputs/PATCHES.md"
-}

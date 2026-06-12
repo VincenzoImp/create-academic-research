@@ -1,9 +1,0 @@
-submission_id: submission-example
-frame_id: frame-example
-manuscript_id: manuscript-example
-release_id: release-example
-submitted_on: ""
-git_commit: ""
-manuscript_checksum: ""
-release_checksum_file: paper_releases/templates/checksums.txt
-notes: ""

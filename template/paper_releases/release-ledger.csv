@@ -1,1 +1,0 @@
-release_id,frame_id,status,release_type,source_map_path,release_yaml_path,lock_path,checksum_path,included_paths,excluded_paths,active_profiles,anonymization_mode,public_destination,artifact_destination,smoke_tests,metadata_path,review_status,next_step,notes
