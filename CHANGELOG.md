@@ -6,7 +6,7 @@ Full from-scratch rewrite around four entities: SOTA, survey,
 contributions, papers.
 
 - The generated project drops ~25 v0.1 directories and all CSV ledgers for
-  5 content trees + one root `references.bib` (1:1:1 invariant with
+  four entity trees + one root `references.bib` (1:1:1 invariant with
   `sota/papers/` and `sota/index.md`, enforced by `scripts/check.py`).
 - The CLI shrinks to a single scaffold wizard (`--yes`,
   `--no-install-skills`, `--no-git`). Removed: doctor, update, rename,

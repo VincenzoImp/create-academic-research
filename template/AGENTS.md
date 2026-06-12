@@ -1,6 +1,6 @@
 # Agent Operating Guide
 
-Academic research project: __PROJECT_TOPIC__
+Research topic: __PROJECT_TOPIC__
 
 create-academic-research v0.2 scaffold: four entities, four directories.
 

@@ -133,3 +133,25 @@ test("missing survey.pdf fails the PDF rule", async () => {
   assert.equal(r.status, 1);
   assert.match(r.stderr, /survey\.pdf/);
 });
+
+test("placeholder-only identifiers are rejected", async () => {
+  const target = await freshProject();
+  const meta = VALID_METADATA
+    .replace("doi: 10.1109/SP46214.2022.9833734", "doi: ...")
+    .replace('arxiv: "2101.05511"', "arxiv: ...")
+    .replace("  record: https://dblp.org/rec/conf/sp/QinZG22", "  record: ...")
+    .replace("  s2_id: abc123", "  s2_id: ...");
+  addPaperFolder(target, meta);
+  addBibAndIndex(target);
+  const r = runCheck(target);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /resolvable identifier/);
+});
+
+test("malformed index rows are flagged", async () => {
+  const target = await freshProject();
+  appendFileSync(join(target, "sota", "index.md"), "| only | four | cells | here |\n");
+  const r = runCheck(target);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /malformed row/);
+});

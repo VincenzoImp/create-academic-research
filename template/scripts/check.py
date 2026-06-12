@@ -65,7 +65,10 @@ def parse_index() -> dict[str, str]:
         if not stripped.startswith("|"):
             continue
         cells = [c.strip() for c in stripped.strip("|").split("|")]
-        if len(cells) < 6 or cells[0] == "citekey" or set(cells[0]) <= {"-", ":", " "}:
+        if cells[0] == "citekey" or set(cells[0]) <= {"-", ":", " "}:
+            continue
+        if len(cells) < 6:
+            err(f"sota/index.md: malformed row (needs 6 columns): {stripped!r}")
             continue
         rows[cells[0]] = cells[5]
     return rows
@@ -85,8 +88,8 @@ def check_metadata(paper_dir: Path) -> str | None:
         err(f"{rel}: status must be 'digested' or 'excluded', got {status!r}")
     if not re.search(r"^verified:\s*$", text, re.M):
         err(f"{rel}: missing mandatory 'verified:' provenance block")
-    if not re.search(r"^(doi|arxiv):\s*\S+", text, re.M) and not re.search(
-        r"^\s+(s2_id|record):\s*\S+", text, re.M
+    if not re.search(r"^(doi|arxiv):\s*(?!\.\.\.(?:\s|$))\S+", text, re.M) and not re.search(
+        r"^\s+(s2_id|record):\s*(?!\.\.\.(?:\s|$))\S+", text, re.M
     ):
         err(f"{rel}: needs at least one resolvable identifier (doi/arxiv/s2_id/record)")
     return status
