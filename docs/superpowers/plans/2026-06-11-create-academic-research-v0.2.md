@@ -1051,7 +1051,10 @@ except ModuleNotFoundError:
     tomllib = None  # type: ignore[assignment]
 
 ROOT = Path(__file__).resolve().parents[1]
-WHITELIST_MARKER = "WHITELIST"
+# Must match only the dedicated marker line in references.bib
+# ("% =========================== WHITELIST ==========================="),
+# not prose comments that merely mention the word WHITELIST.
+WHITELIST_MARKER = "=== WHITELIST ==="
 
 errors: list[str] = []
 warnings: list[str] = []
