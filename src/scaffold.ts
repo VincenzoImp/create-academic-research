@@ -41,6 +41,18 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
+function tomlEscape(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function latexEscape(value: string): string {
+  return value
+    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/([&%$#_{}])/g, "\\$1")
+    .replace(/~/g, "\\textasciitilde{}")
+    .replace(/\^/g, "\\textasciicircum{}");
+}
+
 export function createProject(options: CreateOptions): void {
   const target = resolve(options.target);
   if (existsSync(target) && readdirSync(target).length > 0) {
@@ -54,11 +66,13 @@ export function createProject(options: CreateOptions): void {
     if (BINARY_EXTENSIONS.has(extname(file))) continue;
     const text = readFileSync(file, "utf8");
     if (!text.includes("__PROJECT_")) continue;
+    const esc =
+      extname(file) === ".toml" ? tomlEscape : extname(file) === ".tex" ? latexEscape : (v: string) => v;
     writeFileSync(
       file,
       text
-        .replaceAll("__PROJECT_TITLE__", options.title)
-        .replaceAll("__PROJECT_TOPIC__", options.topic)
+        .replaceAll("__PROJECT_TITLE__", esc(options.title))
+        .replaceAll("__PROJECT_TOPIC__", esc(options.topic))
         .replaceAll("__PROJECT_SLUG__", slug)
     );
   }

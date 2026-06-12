@@ -7,6 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { createProject, slugify } from "../dist/src/scaffold.js";
 
+
 test("slugify normalizes arbitrary names", () => {
   assert.equal(slugify("My MEV Study!"), "my-mev-study");
   assert.equal(slugify("---"), "research-project");
@@ -71,6 +72,34 @@ test("createProject initializes git when asked", async () => {
   const log = spawnSync("git", ["-C", target, "log", "--oneline"], { encoding: "utf8" });
   assert.equal(log.status, 0);
   assert.match(log.stdout, /scaffold research project/);
+});
+
+test("special characters in title/topic are escaped per file format", async () => {
+  const root = await mkdtemp(join(tmpdir(), "car-"));
+  const target = join(root, "escape-proj");
+  createProject({
+    target,
+    title: 'MEV "quoted" & 100% $pecial',
+    topic: 'Topic with "quotes" and \\backslash',
+    optionalMcps: [],
+    installSkills: false,
+    git: false
+  });
+
+  const toml = spawnSync(
+    "python3",
+    ["-c", `import tomllib,sys; tomllib.load(open(sys.argv[1],'rb'))`, join(target, "pyproject.toml")],
+    { encoding: "utf8" }
+  );
+  assert.equal(toml.status, 0, toml.stderr);
+
+  const survey = await readFile(join(target, "survey", "survey.tex"), "utf8");
+  assert.ok(survey.includes("\\&"));
+  assert.ok(survey.includes("\\%"));
+  assert.ok(!survey.includes('& 100% '));
+
+  const check = spawnSync("python3", [join(target, "scripts", "check.py")], { encoding: "utf8" });
+  assert.equal(check.status, 0, check.stdout + check.stderr);
 });
 
 test("createProject refuses a non-empty target", async () => {
