@@ -7,7 +7,6 @@ import { join } from "node:path";
 import test from "node:test";
 import { createProject, slugify } from "../dist/src/scaffold.js";
 
-
 test("slugify normalizes arbitrary names", () => {
   assert.equal(slugify("My MEV Study!"), "my-mev-study");
   assert.equal(slugify("---"), "research-project");
@@ -97,6 +96,8 @@ test("special characters in title/topic are escaped per file format", async () =
   assert.ok(survey.includes("\\&"));
   assert.ok(survey.includes("\\%"));
   assert.ok(!survey.includes('& 100% '));
+  assert.ok(survey.includes("\\textbackslash{}"));
+  assert.ok(!survey.includes("\\textbackslash\\{\\}"));
 
   const check = spawnSync("python3", [join(target, "scripts", "check.py")], { encoding: "utf8" });
   assert.equal(check.status, 0, check.stdout + check.stderr);

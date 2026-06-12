@@ -46,11 +46,15 @@ function tomlEscape(value: string): string {
 }
 
 function latexEscape(value: string): string {
+  // Sentinel keeps the braces of \textbackslash{} out of the brace-escaping
+  // pass; escaping braces first would instead mangle the \& style escapes.
+  const BS = "";
   return value
-    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/\\/g, BS)
     .replace(/([&%$#_{}])/g, "\\$1")
     .replace(/~/g, "\\textasciitilde{}")
-    .replace(/\^/g, "\\textasciicircum{}");
+    .replace(/\^/g, "\\textasciicircum{}")
+    .replaceAll(BS, "\\textbackslash{}");
 }
 
 export function createProject(options: CreateOptions): void {
