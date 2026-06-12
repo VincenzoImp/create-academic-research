@@ -47,8 +47,11 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: https://registry.npmjs.org
+
+      # npm >= 11.5 is required for OIDC trusted publishing
+      - run: npm install -g npm@latest && npm --version
 
       - uses: actions/setup-python@v6
         with:
@@ -67,10 +70,8 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      - name: Publish to npm
+      - name: Publish to npm (OIDC trusted publishing)
         shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           version="${{ steps.release.outputs.version }}"
