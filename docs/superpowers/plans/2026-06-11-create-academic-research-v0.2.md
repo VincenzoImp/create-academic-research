@@ -2092,6 +2092,29 @@ git tag -a v0.2.0 -m "v0.2.0" && git push origin main v0.2.0
 
 ---
 
+## Execution amendments (post-review fixes applied during implementation)
+
+Two plan bugs were found by implementers and fixed inline in the task blocks
+above: the `WHITELIST_MARKER` constant (matched prose comments mentioning
+WHITELIST) and the placeholder-PDF stamp (`new Date()` ms precision lost to
+APFS sub-ms mtimes; now stamped relative to survey.tex mtime + 1s).
+
+The final whole-implementation review then drove four fix commits beyond the
+plan's original text:
+
+- `5f7b544` — per-format escaping of `__PROJECT_TITLE__`/`__PROJECT_TOPIC__`
+  during substitution (`tomlEscape` for .toml, `latexEscape` for .tex);
+  quotes in interactive titles previously produced invalid pyproject.toml.
+- `0bd7f01` — check.py gates tightened: literal `...` placeholder
+  identifiers rejected; malformed index rows (<6 cells) flagged instead of
+  silently skipped; AGENTS.md line 3 label → "Research topic:"; CHANGELOG
+  wording. Test suite grew 17 → 20.
+- `8b7ffe7` — `latexEscape` backslash double-escaping fixed via a
+  private-use-area sentinel (escaping braces first would mangle `\&`).
+- `209b944` — backslash coverage moved into the test's title (which flows
+  into survey.tex) and the template survey skeleton restored to its
+  plan-verified content.
+
 ## Self-review notes
 
 - Spec coverage: layout → Tasks 3–4; formats → Task 4 contents; check.py
