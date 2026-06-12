@@ -66,9 +66,29 @@ jobs:
 
       - run: npm ci
       - run: npm test
-      - run: npm publish
+
+      - name: Publish to npm
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.release.outputs.version }}"
+          if npm view "create-academic-research@$version" version >/dev/null 2>&1; then
+            echo "create-academic-research@$version already published; skipping."
+            exit 0
+          fi
+          npm publish
 
       - name: Create GitHub release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ steps.release.outputs.tag }}" --generate-notes
+        run: |
+          set -euo pipefail
+          tag="${{ steps.release.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "GitHub release $tag already exists; skipping."
+            exit 0
+          fi
+          gh release create "$tag" --generate-notes
