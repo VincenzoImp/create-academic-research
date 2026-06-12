@@ -78,7 +78,7 @@ test("special characters in title/topic are escaped per file format", async () =
   const target = join(root, "escape-proj");
   createProject({
     target,
-    title: 'MEV "quoted" & 100% $pecial',
+    title: 'MEV "quoted" & 100% $pecial \\path',
     topic: 'Topic with "quotes" and \\backslash',
     optionalMcps: [],
     installSkills: false,
