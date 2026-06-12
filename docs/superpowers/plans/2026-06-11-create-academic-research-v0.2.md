@@ -2115,6 +2115,14 @@ plan's original text:
   into survey.tex) and the template survey skeleton restored to its
   plan-verified content.
 
+A pre-release sweep of both repos then added: the wizard pins
+`--agent claude-code` on the skills install (without it the skills CLI fans
+out to every agent detected on the machine); CLI prompts validate non-empty
+input; creator SECURITY.md rewritten for the v0.2 reality; README notes
+(python ≥3.11 for the test suite; re-running skills add for other agents);
+v0.1-era planning docs pruned from docs/superpowers; the skills repo's
+dependabot pip entry and stale Python ignores removed.
+
 ## Self-review notes
 
 - Spec coverage: layout → Tasks 3–4; formats → Task 4 contents; check.py

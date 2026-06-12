@@ -61,6 +61,9 @@ npm test
 npm pack --dry-run
 ```
 
+The test suite needs `python3` ≥ 3.11 on `PATH` (one test validates
+generated TOML with `tomllib`); CI uses 3.12.
+
 ## Release
 
 Tag-driven. Bump `package.json`, commit, tag `vX.Y.Z`, push the tag; the

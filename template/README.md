@@ -25,6 +25,10 @@ build the SOTA, `digest-paper` for single papers, `write-survey`,
 `develop-contribution`, `write-paper`, `package-artifacts`,
 `manage-submission`, `adversarial-review`.
 
+Skills are installed for Claude Code under `.claude/skills/`. Using another
+agent? Re-run from the project root with your agent id:
+`npx -y skills add VincenzoImp/academic-research-skills --skill '*' --copy --agent <id> -y`
+
 ## Toolchain
 
 - `git`, `make`, `python3` (≥3.11), `latexmk` (TeX distribution)
