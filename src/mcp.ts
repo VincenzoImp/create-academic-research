@@ -39,10 +39,22 @@ const OPTIONAL: Record<string, McpServerSpec | null> = {
 
 export const OPTIONAL_IDS = Object.keys(OPTIONAL);
 
+// API keys live in the project's gitignored .env. `${VAR}` expansion inside
+// .mcp.json reads the MCP client's own environment, and Claude Code does not
+// auto-load .env — so a key placed in .env never reaches the server that way.
+// Instead, every server that declares an env key is launched through a tiny
+// POSIX-sh prologue that sources .env (when present) before exec, passing the
+// real command and args positionally (`"$@"`) so the shell never re-parses
+// them. Keys stay in .env: never committed, never globally exported. Keyless
+// servers (arxiv, dblp) launch directly.
+const ENV_PROLOGUE = 'set -a; [ -f .env ] && . ./.env; set +a; exec "$@"';
+
 function toEntry(spec: McpServerSpec): Record<string, unknown> {
-  const entry: Record<string, unknown> = { command: spec.command, args: spec.args };
-  if (spec.env) entry.env = spec.env;
-  return entry;
+  if (!spec.env) return { command: spec.command, args: spec.args };
+  return {
+    command: "sh",
+    args: ["-c", ENV_PROLOGUE, "sh", spec.command, ...spec.args]
+  };
 }
 
 export function renderMcpJson(optionalIds: string[]): string {

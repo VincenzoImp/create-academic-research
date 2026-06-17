@@ -25,9 +25,12 @@ package-artifacts, manage-submission, adversarial-review.
 - `references.bib` is the only bibliography. Survey, reports, and
   manuscripts all cite it. Non-paper entries live under its WHITELIST
   marker.
-- A citation exists only if an MCP lookup produced it. If the scholarly
-  MCPs are unavailable, SOTA work stops — never fall back to memory or web
-  scraping.
+- A citation exists only if an MCP lookup produced it — never fall back to
+  memory or web scraping. SOTA work does not start until `arxiv` (full text)
+  and at least one bibliographic source (`semantic-scholar`, `dblp`, or
+  `openalex`) are reachable. API keys never gate: a missing key means
+  throttled access, not a stop. When a reachable source is down, proceed with
+  the rest and note the reduced cross-check in the synthesis.
 - Every required `.tex` keeps its built PDF committed beside it. After
   editing any `.tex`, run its make target.
 - Removing a SOTA paper is a soft exclusion (`status: excluded` in
@@ -38,11 +41,22 @@ package-artifacts, manage-submission, adversarial-review.
 
 ## Scholarly MCP Routing
 
+The SOTA start gate is by capability, never by API key (a missing key only
+throttles). `explore-sota`/`digest-paper` start when both hold:
+
+- **fetch full text** → `arxiv` (required)
+- **resolve identity / version / metadata** → at least one of
+  `semantic-scholar`, `dblp`, `openalex` (any one)
+
+Roles when reachable — use every reachable source, reconcile by DOI:
+
 - find/download papers → `arxiv`
 - citation graph and authoritative-version resolution → `semantic-scholar`
 - CS venue names and BibTeX → `dblp`
-- cross-check every configured source; precedence on conflicts:
-  dblp > semantic-scholar > openalex > arxiv (DOI reconciles records)
+- open-metadata cross-check → `openalex`
+- precedence on conflicts: dblp > semantic-scholar > openalex > arxiv
+
+Optional discovery aggregators never gate.
 
 ## Commands
 

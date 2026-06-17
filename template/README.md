@@ -56,8 +56,10 @@ the `exclude` list and give it a local venv (document it in its README).
 
 ## MCP servers
 
-Configured in `.mcp.json`; secrets come from your shell environment via
-`${VAR}` expansion (see `.env.example`). A citation exists only if an MCP
+Configured in `.mcp.json`. API keys live in the gitignored `.env` (copy it
+from `.env.example`): each server that needs a key is launched through a small
+shell prologue that sources `.env` before exec, so keys are never committed
+and never have to be exported globally. A citation exists only if an MCP
 lookup produced it.
 
 | Server | Tier | Needs |
@@ -73,11 +75,14 @@ Add an optional server by pasting its snippet into `.mcp.json` under
 `mcpServers`:
 
 ```jsonc
-// openalex — cross-discipline coverage (requires OPENALEX_API_KEY)
+// openalex — cross-discipline coverage (reads OPENALEX_API_KEY from .env)
 "openalex": {
-  "command": "npx",
-  "args": ["-y", "@cyanheads/openalex-mcp-server@latest"],
-  "env": { "OPENALEX_API_KEY": "${OPENALEX_API_KEY}" }
+  "command": "sh",
+  "args": [
+    "-c",
+    "set -a; [ -f .env ] && . ./.env; set +a; exec \"$@\"",
+    "sh", "npx", "-y", "@cyanheads/openalex-mcp-server@latest"
+  ]
 }
 
 // zotero — read-only mirror of your Zotero library (never system of record)

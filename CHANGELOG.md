@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.1
+
+Fixes to MCP environment handling and the SOTA start gate (no scaffold-shape
+changes; safe to apply to a 0.2.0 project).
+
+- `.mcp.json` now actually loads `.env`. `${VAR}` expansion reads the MCP
+  client's own environment and Claude Code does not auto-load `.env`, so keys
+  placed in `.env` never reached the servers. Each server that needs a key is
+  now launched through a small POSIX-sh prologue that sources `.env` before
+  exec (`set -a; [ -f .env ] && . ./.env; set +a; exec "$@"`), passing the
+  real command and args positionally. Keyless servers (arxiv, dblp) launch
+  directly. Keys stay in `.env`: never committed, never globally exported.
+- Single env file. `.env` is the only secret store; `.env.example` documents
+  the `cp .env.example .env` workflow. (No `.env.local`.)
+- SOTA start gate is by capability, never by API key. Work starts when `arxiv`
+  (full text) and at least one bibliographic source (`semantic-scholar`,
+  `dblp`, or `openalex`) are reachable; a missing key only throttles, and a
+  reachable source being down degrades the cross-check rather than stopping.
+  (Companion preflight rule updated in academic-research-skills 0.2.1.)
+
 ## 0.2.0
 
 Full from-scratch rewrite around four entities: SOTA, survey,
