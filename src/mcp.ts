@@ -2,7 +2,9 @@ export interface McpServerSpec {
   id: string;
   command: string;
   args: string[];
-  env?: Record<string, string>;
+  // API-key variables this server reads from the project .env. When non-empty,
+  // the server is launched through the .env-sourcing prologue (see toEntry).
+  envKeys?: string[];
 }
 
 export const ALWAYS_ON: McpServerSpec[] = [
@@ -19,7 +21,7 @@ export const ALWAYS_ON: McpServerSpec[] = [
       "git+https://github.com/akapet00/semantic-scholar-mcp",
       "semantic-scholar-mcp"
     ],
-    env: { SEMANTIC_SCHOLAR_API_KEY: "${SEMANTIC_SCHOLAR_API_KEY}" }
+    envKeys: ["SEMANTIC_SCHOLAR_API_KEY"]
   },
   { id: "dblp", command: "uvx", args: ["mcp-dblp"] }
 ];
@@ -31,7 +33,7 @@ const OPTIONAL: Record<string, McpServerSpec | null> = {
     id: "openalex",
     command: "npx",
     args: ["-y", "@cyanheads/openalex-mcp-server@latest"],
-    env: { OPENALEX_API_KEY: "${OPENALEX_API_KEY}" }
+    envKeys: ["OPENALEX_API_KEY"]
   },
   zotero: { id: "zotero", command: "uvx", args: ["zoty", "mcp"] },
   overleaf: null
@@ -50,7 +52,7 @@ export const OPTIONAL_IDS = Object.keys(OPTIONAL);
 const ENV_PROLOGUE = 'set -a; [ -f .env ] && . ./.env; set +a; exec "$@"';
 
 function toEntry(spec: McpServerSpec): Record<string, unknown> {
-  if (!spec.env) return { command: spec.command, args: spec.args };
+  if (!spec.envKeys?.length) return { command: spec.command, args: spec.args };
   return {
     command: "sh",
     args: ["-c", ENV_PROLOGUE, "sh", spec.command, ...spec.args]
