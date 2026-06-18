@@ -20,8 +20,9 @@ later, in `papers/<slug>/artifacts/`.
 
 One root venv (uv workspace). A contribution with Python code keeps its own
 `pyproject.toml` and registers in the root `[tool.uv.workspace] members`;
-run `uv sync` from the root. Conflicting dependencies → root `exclude`
-list + a local venv documented in the contribution README.
+run `uv sync --all-packages` from the root (plain `uv sync` prunes the
+members' dependencies on a `package = false` root). Conflicting dependencies
+→ root `exclude` list + a local venv documented in the contribution README.
 
 ## Rules
 

@@ -31,10 +31,10 @@ agent? Re-run from the project root with your agent id:
 
 ## Toolchain
 
-- `git`, `make`, `python3` (≥3.11), `latexmk` (TeX distribution)
-- `uv` — required: `uvx` runs the scholarly MCP servers, and `uv sync`
-  manages the single project venv
-- Node is needed only if the optional `openalex` MCP server is enabled
+- `git`, `make`, `latexmk` (TeX distribution)
+- `uv` — required: provisions Python (≥3.11, auto-installed), runs the scholarly
+  MCP servers via `uvx`, and manages the project venv via `uv sync`
+- `node` — only if you enable the opt-in `openalex` MCP server (it runs via `npx`)
 
 ## Build targets
 
@@ -51,33 +51,51 @@ agent? Re-run from the project root with your agent id:
 
 One root venv (uv workspace). Python contributions keep their own
 `pyproject.toml` and register in `[tool.uv.workspace] members`; run
-`uv sync` from the root. Conflicting dependencies: move the contribution to
-the `exclude` list and give it a local venv (document it in its README).
+`uv sync --all-packages` from the root (plain `uv sync` prunes the members'
+dependencies on a `package = false` root). Conflicting dependencies: move the
+contribution to the `exclude` list and give it a local venv (document it in
+its README).
 
 ## MCP servers
 
-Configured in `.mcp.json`; secrets come from your shell environment via
-`${VAR}` expansion (see `.env.example`). A citation exists only if an MCP
+Configured in `.mcp.json`. API keys live in the gitignored `.env` (copy it
+from `.env.example`): each server that needs a key is launched through a small
+shell prologue that sources `.env` before exec, so keys are never committed
+and never have to be exported globally. A citation exists only if an MCP
 lookup produced it.
 
 | Server | Tier | Needs |
 |---|---|---|
 | arxiv | always on | nothing |
-| semantic-scholar | always on | `SEMANTIC_SCHOLAR_API_KEY` recommended |
+| semantic-scholar | always on | `SEMANTIC_SCHOLAR_API_KEY` optional (raises limits) |
 | dblp | always on | nothing |
-| openalex | strongly recommended | `OPENALEX_API_KEY` |
+| paper-search | always on | nothing; `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` optional |
+| openalex | opt-in | `OPENALEX_API_KEY` optional; runs via `npx` (needs Node) |
 | zotero | opt-in | Zotero desktop + zoty setup |
 | overleaf | opt-in | manual setup (below) |
 
-Add an optional server by pasting its snippet into `.mcp.json` under
+The four always-on servers run via `uvx` (no Node). `openalex` is opt-in because
+its only comprehensive server needs Node — OpenAlex is still reachable through
+the always-on `paper-search`.
+
+The always-on `paper-search` aggregates many sources. Its Sci-Hub (last-resort
+full-text) and Google Scholar (no API → scrapes via a proxy, against Google's
+ToS) connectors are opt-in and off by default; enable them via `.env` only if
+you choose to.
+
+Add an opt-in server by pasting its snippet into `.mcp.json` under
 `mcpServers`:
 
 ```jsonc
-// openalex — cross-discipline coverage (requires OPENALEX_API_KEY)
+// openalex — broad cross-discipline metadata (reads OPENALEX_API_KEY from .env;
+// runs via npx, so enabling it adds a Node dependency)
 "openalex": {
-  "command": "npx",
-  "args": ["-y", "@cyanheads/openalex-mcp-server@latest"],
-  "env": { "OPENALEX_API_KEY": "${OPENALEX_API_KEY}" }
+  "command": "sh",
+  "args": [
+    "-c",
+    "set -a; [ -f .env ] && . ./.env; set +a; exec \"$@\"",
+    "sh", "npx", "-y", "@cyanheads/openalex-mcp-server@latest"
+  ]
 }
 
 // zotero — read-only mirror of your Zotero library (never system of record)

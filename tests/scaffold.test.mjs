@@ -37,18 +37,21 @@ test("createProject generates a project that passes check.py", async () => {
   const pyproject = await readFile(join(target, "pyproject.toml"), "utf8");
   assert.ok(pyproject.includes('name = "mev-rollup-study"'));
 
+  // optionalMcps: ["openalex"] above -> the 4 always-on servers plus openalex
   const mcp = JSON.parse(await readFile(join(target, ".mcp.json"), "utf8"));
   assert.deepEqual(
     Object.keys(mcp.mcpServers).sort(),
-    ["arxiv", "dblp", "openalex", "semantic-scholar"]
+    ["arxiv", "dblp", "openalex", "paper-search", "semantic-scholar"]
   );
 
   await access(join(target, ".gitignore"));
   await access(join(target, "survey", "survey.pdf"));
 
-  const check = spawnSync("python3", [join(target, "scripts", "check.py")], {
-    encoding: "utf8"
-  });
+  const check = spawnSync(
+    "uv",
+    ["run", "--no-project", "--python", ">=3.11", "python", join(target, "scripts", "check.py")],
+    { encoding: "utf8" }
+  );
   assert.equal(check.status, 0, check.stdout + check.stderr);
   assert.match(check.stdout, /check: OK \(0 warnings\)/);
 });
@@ -86,8 +89,17 @@ test("special characters in title/topic are escaped per file format", async () =
   });
 
   const toml = spawnSync(
-    "python3",
-    ["-c", `import tomllib,sys; tomllib.load(open(sys.argv[1],'rb'))`, join(target, "pyproject.toml")],
+    "uv",
+    [
+      "run",
+      "--no-project",
+      "--python",
+      ">=3.11",
+      "python",
+      "-c",
+      `import tomllib,sys; tomllib.load(open(sys.argv[1],'rb'))`,
+      join(target, "pyproject.toml")
+    ],
     { encoding: "utf8" }
   );
   assert.equal(toml.status, 0, toml.stderr);
@@ -99,7 +111,11 @@ test("special characters in title/topic are escaped per file format", async () =
   assert.ok(survey.includes("\\textbackslash{}"));
   assert.ok(!survey.includes("\\textbackslash\\{\\}"));
 
-  const check = spawnSync("python3", [join(target, "scripts", "check.py")], { encoding: "utf8" });
+  const check = spawnSync(
+    "uv",
+    ["run", "--no-project", "--python", ">=3.11", "python", join(target, "scripts", "check.py")],
+    { encoding: "utf8" }
+  );
   assert.equal(check.status, 0, check.stdout + check.stderr);
 });
 
