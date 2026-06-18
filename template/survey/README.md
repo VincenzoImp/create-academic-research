@@ -12,7 +12,9 @@ reading it, returning to syntheses or PDFs should rarely be necessary.
   within its group(s); names comparisons, tensions, contradictions
 - ends its content with a mandatory Gaps and Research Directions section
 - single-column article, table of contents, no length limit
-- cites exclusively via the root `references.bib`
+- cites exclusively via the root `references.bib`, rendered **author-year**
+  (biblatex `style=authoryear`) — a discursive review reads better than
+  numbered references
 - `survey.pdf` stays committed and fresh (`make survey`)
 
 ## coverage.md
