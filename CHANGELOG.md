@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.2
+
+Bibliography-style conventions per document type, and a usable base paper.
+
+- Survey renders **author-year** (`template/survey/survey.tex` →
+  `style=authoryear,natbib=true`): a discursive literature review reads better as
+  "Author (Year)" than numbered `[1]`. Contribution reports stay **numeric**. A
+  paper's style is the venue's; the base manuscript (below) defaults to numeric.
+- The paper `_template/manuscript/main.tex` is now a **general, compilable base**
+  manuscript (standard preamble; biblatex numeric reading the root
+  `references.bib` via the relative path; no imposed sections) instead of a
+  one-line stub — start drafting before a venue is fixed, then replace it with the
+  venue's official template. Venue-neutral (no venue named).
+- The per-document-type convention is documented in `survey/README.md` and
+  `papers/README.md`.
+
 ## 0.2.1
 
 Fixes to MCP environment handling, default servers, the SOTA start gate, and

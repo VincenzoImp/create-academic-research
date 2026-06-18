@@ -1,11 +1,27 @@
-% Placeholder manuscript. Replace this file and its siblings with the
-% venue's official LaTeX template; keep the entry point named main.tex.
-% The bibliography must read the root references.bib, e.g.:
-%   \bibliography{../../../references}        % bibtex/natbib venues
-%   \addbibresource{../../../references.bib}  % biblatex venues
+% General base manuscript — start drafting here before a venue is fixed.
+% When you pick a venue, replace this file with the venue's official template
+% (write-paper skill); keep the entry point named main.tex.
+% Bib: biblatex numeric (neutral default). If your target venue uses
+% author-year citations, set style=authoryear,natbib=true below.
 \documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\usepackage[style=numeric,sorting=nyt,backend=biber]{biblatex}
+\addbibresource{../../../references.bib}
+
 \title{<paper title>}
+\author{}
+\date{\today}
+
 \begin{document}
 \maketitle
-Replace this placeholder with the venue template (see ../venue.md).
+
+% Write the manuscript here. Cite with \autocite{<citekey>} (root references.bib).
+
+\printbibliography
 \end{document}
