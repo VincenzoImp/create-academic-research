@@ -4,7 +4,7 @@ AUX = $(CURDIR)/.build
 .PHONY: check pdfs survey contribution paper clean
 
 check:
-	python3 scripts/check.py
+	uv run --no-project --python '>=3.11' python scripts/check.py
 
 survey:
 	$(LATEXMK) -cd -auxdir=$(AUX)/survey survey/survey.tex

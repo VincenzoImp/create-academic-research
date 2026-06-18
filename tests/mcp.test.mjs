@@ -4,46 +4,38 @@ import { renderMcpJson, OPTIONAL_IDS } from "../dist/src/mcp.js";
 
 test("always-on servers present with no optionals", () => {
   const cfg = JSON.parse(renderMcpJson([]));
-  assert.deepEqual(Object.keys(cfg.mcpServers).sort(), ["arxiv", "dblp", "semantic-scholar"]);
+  assert.deepEqual(
+    Object.keys(cfg.mcpServers).sort(),
+    ["arxiv", "dblp", "openalex", "paper-search", "semantic-scholar"]
+  );
 
   // keyless servers launch directly
   assert.equal(cfg.mcpServers.arxiv.command, "uvx");
   assert.equal(cfg.mcpServers.dblp.command, "uvx");
 
-  // a server that needs a key is launched through the .env-sourcing prologue,
-  // with the real command passed positionally so the shell never re-parses it
-  const ss = cfg.mcpServers["semantic-scholar"];
-  assert.equal(ss.command, "sh");
-  assert.equal(ss.args[0], "-c");
-  assert.ok(ss.args[1].includes(". ./.env"));
-  assert.ok(ss.args[1].includes('exec "$@"'));
-  assert.deepEqual(ss.args.slice(2), [
-    "sh",
-    "uvx",
-    "--from",
-    "git+https://github.com/akapet00/semantic-scholar-mcp",
-    "semantic-scholar-mcp"
-  ]);
-  // no ${VAR} env block is emitted anymore — keys arrive via .env
-  assert.equal(ss.env, undefined);
+  // servers that read an optional key from .env are launched through the
+  // .env-sourcing prologue, with the real command passed positionally so the
+  // shell never re-parses it; no ${VAR} env block is emitted
+  for (const id of ["semantic-scholar", "openalex", "paper-search"]) {
+    const s = cfg.mcpServers[id];
+    assert.equal(s.command, "sh", id);
+    assert.equal(s.args[0], "-c", id);
+    assert.ok(s.args[1].includes(". ./.env"), id);
+    assert.ok(s.args[1].includes('exec "$@"'), id);
+    assert.equal(s.args[2], "sh", id);
+    assert.equal(s.env, undefined, id);
+  }
+  assert.deepEqual(cfg.mcpServers["paper-search"].args.slice(2), ["sh", "uvx", "paper-search-mcp"]);
 });
 
-test("openalex and zotero are added when selected; overleaf never writes an entry", () => {
-  const cfg = JSON.parse(renderMcpJson(["openalex", "zotero", "overleaf"]));
-
-  // openalex needs a key -> wrapped in the .env-sourcing prologue
-  const oa = cfg.mcpServers.openalex;
-  assert.equal(oa.command, "sh");
-  assert.deepEqual(oa.args.slice(2), ["sh", "npx", "-y", "@cyanheads/openalex-mcp-server@latest"]);
-  assert.equal(oa.env, undefined);
-
+test("zotero is added when selected; overleaf never writes an entry", () => {
+  const cfg = JSON.parse(renderMcpJson(["zotero", "overleaf"]));
   // zotero declares no key -> launches directly
   assert.equal(cfg.mcpServers.zotero.command, "uvx");
   assert.deepEqual(cfg.mcpServers.zotero.args, ["zoty", "mcp"]);
-
   assert.equal(cfg.mcpServers.overleaf, undefined);
 });
 
 test("OPTIONAL_IDS lists the wizard's multi-select options in order", () => {
-  assert.deepEqual(OPTIONAL_IDS, ["openalex", "zotero", "overleaf"]);
+  assert.deepEqual(OPTIONAL_IDS, ["zotero", "overleaf"]);
 });

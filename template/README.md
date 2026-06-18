@@ -31,10 +31,10 @@ agent? Re-run from the project root with your agent id:
 
 ## Toolchain
 
-- `git`, `make`, `python3` (≥3.11), `latexmk` (TeX distribution)
-- `uv` — required: `uvx` runs the scholarly MCP servers, and `uv sync`
-  manages the single project venv
-- Node is needed only if the optional `openalex` MCP server is enabled
+- `git`, `make`, `latexmk` (TeX distribution)
+- `uv` — required: provisions Python (≥3.11, auto-installed), runs the scholarly
+  MCP servers via `uvx`, and manages the project venv via `uv sync`
+- `node` — required: the always-on `openalex` MCP server runs via `npx`
 
 ## Build targets
 
@@ -65,26 +65,20 @@ lookup produced it.
 | Server | Tier | Needs |
 |---|---|---|
 | arxiv | always on | nothing |
-| semantic-scholar | always on | `SEMANTIC_SCHOLAR_API_KEY` recommended |
+| semantic-scholar | always on | `SEMANTIC_SCHOLAR_API_KEY` optional (raises limits) |
 | dblp | always on | nothing |
-| openalex | strongly recommended | `OPENALEX_API_KEY` |
+| openalex | always on | `OPENALEX_API_KEY` optional; runs via `npx` (Node) |
+| paper-search | always on | nothing; `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` optional |
 | zotero | opt-in | Zotero desktop + zoty setup |
 | overleaf | opt-in | manual setup (below) |
 
-Add an optional server by pasting its snippet into `.mcp.json` under
+The always-on `paper-search` aggregates many sources; keep its Sci-Hub and
+Google-Scholar-scraping sources disabled (off by default).
+
+Add an opt-in server by pasting its snippet into `.mcp.json` under
 `mcpServers`:
 
 ```jsonc
-// openalex — cross-discipline coverage (reads OPENALEX_API_KEY from .env)
-"openalex": {
-  "command": "sh",
-  "args": [
-    "-c",
-    "set -a; [ -f .env ] && . ./.env; set +a; exec \"$@\"",
-    "sh", "npx", "-y", "@cyanheads/openalex-mcp-server@latest"
-  ]
-}
-
 // zotero — read-only mirror of your Zotero library (never system of record)
 // requires the Zotero desktop app and one-time setup:
 //   uvx --refresh zoty setup && uvx --refresh zoty doctor

@@ -7,6 +7,10 @@ export interface McpServerSpec {
   envKeys?: string[];
 }
 
+// Always-on: every SOTA MCP that does not strictly require an API key, so the
+// SOTA workflow (searching + digesting) has all of them active. Where a server
+// can use a key it is an optional rate-limit/source boost read from .env (see
+// toEntry), never a requirement.
 export const ALWAYS_ON: McpServerSpec[] = [
   {
     id: "arxiv",
@@ -23,18 +27,28 @@ export const ALWAYS_ON: McpServerSpec[] = [
     ],
     envKeys: ["SEMANTIC_SCHOLAR_API_KEY"]
   },
-  { id: "dblp", command: "uvx", args: ["mcp-dblp"] }
-];
-
-// overleaf is manual-setup only: documented in the generated README,
-// never written to .mcp.json by the wizard.
-const OPTIONAL: Record<string, McpServerSpec | null> = {
-  openalex: {
+  { id: "dblp", command: "uvx", args: ["mcp-dblp"] },
+  {
     id: "openalex",
     command: "npx",
     args: ["-y", "@cyanheads/openalex-mcp-server@latest"],
     envKeys: ["OPENALEX_API_KEY"]
   },
+  // paper-search: multi-source discovery aggregator. Keep its Sci-Hub and
+  // Google-Scholar-scraping sources OFF (no-scraping rule) — both are off by
+  // default (Sci-Hub is opt-in; Google Scholar needs a proxy URL to activate).
+  {
+    id: "paper-search",
+    command: "uvx",
+    args: ["paper-search-mcp"],
+    envKeys: ["PAPER_SEARCH_MCP_UNPAYWALL_EMAIL"]
+  }
+];
+
+// Opt-in (written only when selected): zotero needs the Zotero desktop app +
+// one-time `zoty setup`; overleaf needs an OVERLEAF_TOKEN and a local clone
+// (manual — never written to .mcp.json by the wizard).
+const OPTIONAL: Record<string, McpServerSpec | null> = {
   zotero: { id: "zotero", command: "uvx", args: ["zoty", "mcp"] },
   overleaf: null
 };

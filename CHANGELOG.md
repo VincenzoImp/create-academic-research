@@ -2,9 +2,23 @@
 
 ## 0.2.1
 
-Fixes to MCP environment handling and the SOTA start gate (no scaffold-shape
-changes; safe to apply to a 0.2.0 project).
+Fixes to MCP environment handling, default servers, the SOTA start gate, and
+Python version handling (no scaffold-shape changes; safe to apply to a 0.2.0
+project).
 
+- All key-optional SOTA servers are always-on. `openalex` and `paper-search`
+  join `arxiv`, `semantic-scholar`, and `dblp` in `.mcp.json` by default — every
+  scholarly MCP that does not strictly require an API key is active for the SOTA
+  workflow. Their keys (where any) remain optional boosts read from `.env`.
+  `paper-search`'s Sci-Hub and Google-Scholar-scraping sources stay off (the
+  no-scraping rule); off by default. `zotero` (needs the desktop app) and
+  `overleaf` (needs a token) stay opt-in. `node` is now required (`openalex`
+  runs via `npx`).
+- Python is provisioned at ">=3.11" via uv. `make check` and the tests run
+  `uv run --no-project --python '>=3.11' python …`, so the structural checks no
+  longer depend on the system `python3` (which may be <3.11 and lack `tomllib`).
+  `requires-python = ">=3.11"` is unchanged — 3.11 is the floor, any newer
+  interpreter is used if present (no pinned `.python-version`).
 - `.mcp.json` now actually loads `.env`. `${VAR}` expansion reads the MCP
   client's own environment and Claude Code does not auto-load `.env`, so keys
   placed in `.env` never reached the servers. Each server that needs a key is
