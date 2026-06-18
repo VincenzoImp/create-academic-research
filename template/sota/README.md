@@ -16,7 +16,13 @@ Digesting a paper means ALL of the following, atomically (1:1:1 invariant):
    `verified:` block
 6. add the row to `index.md`
 
-No legal full text → the paper stays in `queue.md` (decision
+Fetch `paper.pdf` through the fallback pipeline, most-authoritative/legal
+first: arxiv → publisher/DOI open-access → Unpaywall → green-OA repositories
+(Europe PMC/PMC, CORE, OpenAIRE, Zenodo, HAL, SSRN, …) → Sci-Hub (last
+resort). Record the source URL in `pdf_source`. The PDF is only the reading
+copy — the citation and authoritative version always come from the scholarly
+MCPs (reconciled by DOI), never from where the PDF was fetched. No full text
+from any source → the paper stays in `queue.md` (decision
 `unresolvable-via-mcp`, or rejected with a reason). Abstract-only digestion
 is forbidden.
 
@@ -47,7 +53,7 @@ year: 2022
 venue: ...            # of the most authoritative version
 doi: ...
 arxiv: ...            # optional alias
-pdf_source: <url>
+pdf_source: <url>    # where paper.pdf came from (arxiv / OA repo / publisher / sci-hub)
 status: digested      # digested | excluded (soft removal)
 tags: [ ... ]
 verified:             # mandatory — no verified block, no valid digest

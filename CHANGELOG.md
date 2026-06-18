@@ -33,6 +33,13 @@ project).
   `dblp`, or `openalex`) are reachable; a missing key only throttles, and a
   reachable source being down degrades the cross-check rather than stopping.
   (Companion preflight rule updated in academic-research-skills 0.2.1.)
+- Full-text fallback pipeline documented (`sota/README.md`): fetch `paper.pdf`
+  most-authoritative/legal first — arxiv → publisher/DOI open-access →
+  Unpaywall → green-OA repositories → Sci-Hub (opt-in, last resort). The PDF is
+  only the reading copy; the citation and authoritative version always come
+  from the scholarly MCPs (reconciled by DOI). Source URL recorded in
+  `pdf_source`. (Companion `digest-paper` step updated in
+  academic-research-skills 0.2.1.)
 
 ## 0.2.0
 
