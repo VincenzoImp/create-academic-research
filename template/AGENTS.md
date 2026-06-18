@@ -64,10 +64,12 @@ Roles when reachable — use every reachable source, reconcile by DOI:
 - find/download papers → `arxiv`
 - citation graph and authoritative-version resolution → `semantic-scholar`
 - CS venue names and BibTeX → `dblp`
-- open-metadata cross-check → `openalex`
+- multi-source discovery + open-access full text → `paper-search`
+- broad open-metadata cross-check → `openalex` (opt-in; also reachable through `paper-search`)
 - precedence on conflicts: dblp > semantic-scholar > openalex > arxiv
 
-Optional discovery aggregators never gate.
+The four always-on servers run via `uvx` (no Node); only `arxiv` + one
+bibliographic source gate the start — everything else enriches, never gates.
 
 ## Commands
 

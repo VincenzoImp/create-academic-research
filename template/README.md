@@ -34,7 +34,7 @@ agent? Re-run from the project root with your agent id:
 - `git`, `make`, `latexmk` (TeX distribution)
 - `uv` — required: provisions Python (≥3.11, auto-installed), runs the scholarly
   MCP servers via `uvx`, and manages the project venv via `uv sync`
-- `node` — required: the always-on `openalex` MCP server runs via `npx`
+- `node` — only if you enable the opt-in `openalex` MCP server (it runs via `npx`)
 
 ## Build targets
 
@@ -51,8 +51,10 @@ agent? Re-run from the project root with your agent id:
 
 One root venv (uv workspace). Python contributions keep their own
 `pyproject.toml` and register in `[tool.uv.workspace] members`; run
-`uv sync` from the root. Conflicting dependencies: move the contribution to
-the `exclude` list and give it a local venv (document it in its README).
+`uv sync --all-packages` from the root (plain `uv sync` prunes the members'
+dependencies on a `package = false` root). Conflicting dependencies: move the
+contribution to the `exclude` list and give it a local venv (document it in
+its README).
 
 ## MCP servers
 
@@ -67,10 +69,14 @@ lookup produced it.
 | arxiv | always on | nothing |
 | semantic-scholar | always on | `SEMANTIC_SCHOLAR_API_KEY` optional (raises limits) |
 | dblp | always on | nothing |
-| openalex | always on | `OPENALEX_API_KEY` optional; runs via `npx` (Node) |
 | paper-search | always on | nothing; `PAPER_SEARCH_MCP_UNPAYWALL_EMAIL` optional |
+| openalex | opt-in | `OPENALEX_API_KEY` optional; runs via `npx` (needs Node) |
 | zotero | opt-in | Zotero desktop + zoty setup |
 | overleaf | opt-in | manual setup (below) |
+
+The four always-on servers run via `uvx` (no Node). `openalex` is opt-in because
+its only comprehensive server needs Node — OpenAlex is still reachable through
+the always-on `paper-search`.
 
 The always-on `paper-search` aggregates many sources. Its Sci-Hub (last-resort
 full-text) and Google Scholar (no API → scrapes via a proxy, against Google's
@@ -81,6 +87,17 @@ Add an opt-in server by pasting its snippet into `.mcp.json` under
 `mcpServers`:
 
 ```jsonc
+// openalex — broad cross-discipline metadata (reads OPENALEX_API_KEY from .env;
+// runs via npx, so enabling it adds a Node dependency)
+"openalex": {
+  "command": "sh",
+  "args": [
+    "-c",
+    "set -a; [ -f .env ] && . ./.env; set +a; exec \"$@\"",
+    "sh", "npx", "-y", "@cyanheads/openalex-mcp-server@latest"
+  ]
+}
+
 // zotero — read-only mirror of your Zotero library (never system of record)
 // requires the Zotero desktop app and one-time setup:
 //   uvx --refresh zoty setup && uvx --refresh zoty doctor

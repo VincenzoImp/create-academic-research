@@ -6,14 +6,14 @@ Fixes to MCP environment handling, default servers, the SOTA start gate, and
 Python version handling (no scaffold-shape changes; safe to apply to a 0.2.0
 project).
 
-- All key-optional SOTA servers are always-on. `openalex` and `paper-search`
-  join `arxiv`, `semantic-scholar`, and `dblp` in `.mcp.json` by default — every
-  scholarly MCP that does not strictly require an API key is active for the SOTA
-  workflow. Their keys (where any) remain optional boosts read from `.env`.
-  `paper-search`'s Sci-Hub and Google Scholar connectors are opt-in and off by
-  default. `zotero` (needs the desktop app) and
-  `overleaf` (needs a token) stay opt-in. `node` is now required (`openalex`
-  runs via `npx`).
+- `paper-search` joins the always-on stack; the default stays Node-free. The
+  always-on scholarly MCPs are now `arxiv`, `semantic-scholar`, `dblp`, and
+  `paper-search` — all via `uvx`, no Node. Their keys (where any) remain optional
+  boosts read from `.env`. `paper-search`'s Sci-Hub and Google Scholar connectors
+  are opt-in and off by default. `openalex` is **opt-in** (its only comprehensive
+  servers need Node/`npx`); OpenAlex is still reachable through the always-on
+  `paper-search`. `zotero` (needs the desktop app) and `overleaf` (needs a token)
+  stay opt-in. Preserves 0.2.0's "no Node dependency" for generated projects.
 - Python is provisioned at ">=3.11" via uv. `make check` and the tests run
   `uv run --no-project --python '>=3.11' python …`, so the structural checks no
   longer depend on the system `python3` (which may be <3.11 and lack `tomllib`).

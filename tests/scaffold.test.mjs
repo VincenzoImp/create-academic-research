@@ -37,6 +37,7 @@ test("createProject generates a project that passes check.py", async () => {
   const pyproject = await readFile(join(target, "pyproject.toml"), "utf8");
   assert.ok(pyproject.includes('name = "mev-rollup-study"'));
 
+  // optionalMcps: ["openalex"] above -> the 4 always-on servers plus openalex
   const mcp = JSON.parse(await readFile(join(target, ".mcp.json"), "utf8"));
   assert.deepEqual(
     Object.keys(mcp.mcpServers).sort(),

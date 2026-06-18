@@ -7,10 +7,11 @@ export interface McpServerSpec {
   envKeys?: string[];
 }
 
-// Always-on: every SOTA MCP that does not strictly require an API key, so the
-// SOTA workflow (searching + digesting) has all of them active. Where a server
-// can use a key it is an optional rate-limit/source boost read from .env (see
-// toEntry), never a requirement.
+// Always-on: every SOTA MCP that runs via uvx without a required API key, so the
+// SOTA workflow (searching + digesting) has them all active with NO Node
+// dependency. Where a server can use a key it is an optional rate-limit/source
+// boost read from .env (see toEntry), never a requirement. (openalex is opt-in
+// below because its server needs Node; paper-search already covers OpenAlex.)
 export const ALWAYS_ON: McpServerSpec[] = [
   {
     id: "arxiv",
@@ -28,15 +29,10 @@ export const ALWAYS_ON: McpServerSpec[] = [
     envKeys: ["SEMANTIC_SCHOLAR_API_KEY"]
   },
   { id: "dblp", command: "uvx", args: ["mcp-dblp"] },
-  {
-    id: "openalex",
-    command: "npx",
-    args: ["-y", "@cyanheads/openalex-mcp-server@latest"],
-    envKeys: ["OPENALEX_API_KEY"]
-  },
-  // paper-search: multi-source discovery aggregator. Its Sci-Hub (last-resort
-  // full-text fallback) and Google Scholar (no API -> scrapes via a proxy)
-  // connectors are opt-in and off by default; enable them via .env if you choose.
+  // paper-search: multi-source discovery aggregator (also queries OpenAlex). Its
+  // Sci-Hub (last-resort full-text fallback) and Google Scholar (no API ->
+  // scrapes via a proxy) connectors are opt-in and off by default; enable them
+  // via .env if you choose.
   {
     id: "paper-search",
     command: "uvx",
@@ -45,10 +41,18 @@ export const ALWAYS_ON: McpServerSpec[] = [
   }
 ];
 
-// Opt-in (written only when selected): zotero needs the Zotero desktop app +
-// one-time `zoty setup`; overleaf needs an OVERLEAF_TOKEN and a local clone
-// (manual — never written to .mcp.json by the wizard).
+// Opt-in (written only when selected). openalex's only comprehensive servers run
+// via Node (npx), so it is opt-in to keep the default stack Node-free — OpenAlex
+// is still reachable through the always-on paper-search. zotero needs the Zotero
+// desktop app + one-time `zoty setup`; overleaf needs an OVERLEAF_TOKEN and a
+// local clone (manual — never written to .mcp.json by the wizard).
 const OPTIONAL: Record<string, McpServerSpec | null> = {
+  openalex: {
+    id: "openalex",
+    command: "npx",
+    args: ["-y", "@cyanheads/openalex-mcp-server@latest"],
+    envKeys: ["OPENALEX_API_KEY"]
+  },
   zotero: { id: "zotero", command: "uvx", args: ["zoty", "mcp"] },
   overleaf: null
 };

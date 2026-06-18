@@ -44,7 +44,7 @@ async function main(): Promise<void> {
     if (!target) throw new Error("--yes requires a target directory argument");
     title = basename(resolve(target));
     topic = "Academic research project";
-    optionalMcps = ["openalex"];
+    optionalMcps = [];
   } else {
     p.intro("create-academic-research v0.2");
     const required = (label: string) => (value: string) =>
@@ -76,13 +76,13 @@ async function main(): Promise<void> {
     );
     optionalMcps = (await guard(
       p.multiselect({
-        message: "Optional MCP servers (arxiv, semantic-scholar, dblp are always on)",
+        message: "Optional MCP servers (arxiv, semantic-scholar, dblp, paper-search are always on)",
         options: [
-          { value: "openalex", label: "openalex — cross-discipline coverage (needs OPENALEX_API_KEY)" },
+          { value: "openalex", label: "openalex — cross-discipline coverage (adds a Node dependency; key optional)" },
           { value: "zotero", label: "zotero — read-only Zotero mirror (needs desktop app + zoty)" },
           { value: "overleaf", label: "overleaf — external LaTeX project (manual setup, README docs only)" }
         ],
-        initialValues: ["openalex"],
+        initialValues: [],
         required: false
       })
     )) as string[];
