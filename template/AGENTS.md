@@ -13,10 +13,21 @@ create-academic-research v0.2 scaffold: four entities, four directories.
 | `contributions/` | self-contained badge-compliant research units | `contributions/README.md` |
 | `papers/` | one folder per venue submission | `papers/README.md` |
 
-Read the local README before touching a directory. READMEs define formats;
-the project skills define procedures — use them for every pipeline task:
-digest-paper, explore-sota, write-survey, develop-contribution, write-paper,
-package-artifacts, manage-submission, adversarial-review.
+Read the local README before touching a directory: it owns the format, so
+things land in the right place. The skills own the procedures — match the task
+to a skill, which writes into the entity shown:
+
+- grow the SOTA → `explore-sota` (the loop) / `digest-paper` (one paper) → `sota/`
+- write or update the survey → `write-survey` → `survey/survey.tex`
+- build a research unit (analysis, experiment, dataset, code, reproduction) →
+  `develop-contribution` → `contributions/<slug>/`
+- assemble a venue paper → `write-paper` → `papers/<slug>/`
+- bundle the submission artifacts → `package-artifacts` → `papers/<slug>/artifacts/`
+- submit / rebut / revise / camera-ready → `manage-submission` → `papers/<slug>/`
+- review before submitting → `adversarial-review` (survey, contribution, or paper)
+
+Typical order: explore/digest → survey → contribution → paper → artifacts →
+submission, with `adversarial-review` before any submission.
 
 ## Invariants
 
