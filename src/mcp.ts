@@ -34,9 +34,9 @@ export const ALWAYS_ON: McpServerSpec[] = [
     args: ["-y", "@cyanheads/openalex-mcp-server@latest"],
     envKeys: ["OPENALEX_API_KEY"]
   },
-  // paper-search: multi-source discovery aggregator. Keep its Sci-Hub and
-  // Google-Scholar-scraping sources OFF (no-scraping rule) — both are off by
-  // default (Sci-Hub is opt-in; Google Scholar needs a proxy URL to activate).
+  // paper-search: multi-source discovery aggregator. Its Sci-Hub (last-resort
+  // full-text fallback) and Google Scholar (no API -> scrapes via a proxy)
+  // connectors are opt-in and off by default; enable them via .env if you choose.
   {
     id: "paper-search",
     command: "uvx",

@@ -72,8 +72,10 @@ lookup produced it.
 | zotero | opt-in | Zotero desktop + zoty setup |
 | overleaf | opt-in | manual setup (below) |
 
-The always-on `paper-search` aggregates many sources; keep its Sci-Hub and
-Google-Scholar-scraping sources disabled (off by default).
+The always-on `paper-search` aggregates many sources. Its Sci-Hub (last-resort
+full-text) and Google Scholar (no API → scrapes via a proxy, against Google's
+ToS) connectors are opt-in and off by default; enable them via `.env` only if
+you choose to.
 
 Add an opt-in server by pasting its snippet into `.mcp.json` under
 `mcpServers`:

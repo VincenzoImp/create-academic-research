@@ -10,8 +10,8 @@ project).
   join `arxiv`, `semantic-scholar`, and `dblp` in `.mcp.json` by default — every
   scholarly MCP that does not strictly require an API key is active for the SOTA
   workflow. Their keys (where any) remain optional boosts read from `.env`.
-  `paper-search`'s Sci-Hub and Google-Scholar-scraping sources stay off (the
-  no-scraping rule); off by default. `zotero` (needs the desktop app) and
+  `paper-search`'s Sci-Hub and Google Scholar connectors are opt-in and off by
+  default. `zotero` (needs the desktop app) and
   `overleaf` (needs a token) stay opt-in. `node` is now required (`openalex`
   runs via `npx`).
 - Python is provisioned at ">=3.11" via uv. `make check` and the tests run
