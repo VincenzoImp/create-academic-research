@@ -18,6 +18,11 @@ export const ALWAYS_ON: McpServerSpec[] = [
     command: "uvx",
     args: ["--from", "arxiv-mcp-server[pdf]", "arxiv-mcp-server"]
   },
+  // semantic-scholar: akapet00's server is the richest one (14 tools incl. the
+  // citation graph + export_bibtex) and the workflow's primary identity/citation
+  // source. It is git-only (not on PyPI, no release tags), so it is referenced by
+  // repo rather than a pinned version. The PyPI packages named "semantic-scholar-
+  // mcp" are different, narrower servers — do not swap to "fix" the git URL.
   {
     id: "semantic-scholar",
     command: "uvx",
