@@ -31,3 +31,6 @@ members' dependencies on a `package = false` root). Conflicting dependencies
 - start new contributions by copying `_template/`
 - keep run logs for claim-supporting experiments (develop-contribution
   skill)
+- data: free-form inside; for shared/large/sensitive data or
+  inter-contribution data dependencies, see the develop-contribution skill's
+  `references/data.md`

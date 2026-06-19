@@ -1,6 +1,6 @@
 {
   "name": "create-academic-research",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Scaffold a four-entity academic research project: SOTA, survey, contributions, papers — one root bibliography, MCP-verified citations, agent skills.",
   "type": "module",
   "license": "MIT",

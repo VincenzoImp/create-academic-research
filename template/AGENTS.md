@@ -2,7 +2,12 @@
 
 Research topic: __PROJECT_TOPIC__
 
-create-academic-research v0.2 scaffold: four entities, four directories.
+This project is scaffolded by **create-academic-research** (four entities, four
+directories) and operated through the **academic-research-skills** skill set
+(installed under `.claude/skills/`, pinned in `skills-lock.json` — restore with
+the skills installer). The scaffold owns the *structure* and the rails; the
+skills own the *procedures*. This guide routes both: where each thing lives, how
+to do each task, what never to do.
 
 ## The Four Entities
 
@@ -81,3 +86,6 @@ bibliographic source gate the start — everything else enriches, never gates.
 - never commit `.env*` (except `.env.example`), secrets, or `.venv/`
 - never edit `papers/*/archive/` — frozen submissions are immutable
 - never write a bibliography entry from memory
+- large or sensitive data stays gitignored — keep it as the
+  `develop-contribution` skill's `references/data.md` describes (e.g. a root
+  `data/<slug>/`); never commit it

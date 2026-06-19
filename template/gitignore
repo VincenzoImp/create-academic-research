@@ -1,5 +1,7 @@
 .venv/
 .build/
+# optional root data substrate (root only; a tracked contributions/<slug>/data/ is unaffected)
+/data/
 __pycache__/
 node_modules/
 .env

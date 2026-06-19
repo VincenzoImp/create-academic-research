@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.0
+
+Usability and conventions release. The scaffold is feature-complete on the
+four-entity architecture; this release sharpens the agent-facing guidance and
+adds a balanced, optional data convention. No structural change to generated
+projects.
+
+- `template/AGENTS.md` now frames the **two-repo system**: the project is
+  scaffolded by create-academic-research and operated through the
+  academic-research-skills skill set (installed under `.claude/skills/`, pinned
+  in `skills-lock.json`). The guide makes explicit where each thing lives, how to
+  do each task, and what never to do — the full usability map of both repos.
+- Light, optional **data routing**: `template/contributions/README.md` and
+  `template/AGENTS.md` point to the new `develop-contribution` skill reference
+  `references/data.md` for shared/large/sensitive data and inter-contribution
+  data dependencies; `template/gitignore` ignores a root `data/` (root only — a
+  contribution's intentionally-tracked `data/` is unaffected). The convention is
+  opt-in and does not weight data-driven projects over theory/survey/reproduction
+  projects.
+- Pairs with academic-research-skills 0.3.0.
+
 ## 0.2.2
 
 Bibliography-style conventions per document type, and a usable base paper.
