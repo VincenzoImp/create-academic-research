@@ -58,7 +58,7 @@ jobs:
           python-version: "3.12"
 
       # uv runs the scholarly MCP servers and `make check` (uv run --python >=3.11)
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
 
       - name: Verify package version matches tag
         shell: bash
