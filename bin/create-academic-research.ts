@@ -47,8 +47,8 @@ async function main(): Promise<void> {
     optionalMcps = [];
   } else {
     p.intro("create-academic-research v0.2");
-    const required = (label: string) => (value: string) =>
-      value.trim() === "" ? `${label} is required` : undefined;
+    const required = (label: string) => (value: string | undefined) =>
+      value === undefined || value.trim() === "" ? `${label} is required` : undefined;
     if (!target) {
       target = String(
         await guard(
